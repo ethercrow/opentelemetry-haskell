@@ -1,0 +1,4 @@
+resolver: nightly-2020-01-04
+
+packages:
+- opentelemetry-api

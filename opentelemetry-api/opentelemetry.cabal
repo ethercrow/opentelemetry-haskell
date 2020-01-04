@@ -1,0 +1,16 @@
+cabal-version:       2.4
+name:                opentelemetry
+version:             0.1.0.0
+license-file:        LICENSE
+author:              Dmitry Ivanov
+maintainer:          ethercrow@gmail.com
+build-type:          Simple
+extra-source-files:  CHANGELOG.md
+
+library
+  build-depends:
+    base >= 4.12,
+    clock >= 0.8,
+    random
+  hs-source-dirs: src
+  default-language: Haskell2010

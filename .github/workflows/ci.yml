@@ -17,6 +17,12 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: '3.0'
+    - name: Update cabal package database
+      run: cabal update
+    - name: Build
+      run: |
+        cd opentelemetry-api
+        cabal build -f examples
 
   linux-stack-lts-14:
     runs-on: ubuntu-18.04
@@ -27,6 +33,12 @@ jobs:
     - uses: actions/checkout@v1
     - name: Install stack
       run: which stack || curl -sSL https://get.haskellstack.org/ | sh
+    - name: Install GHC
+      run: |
+        stack setup --stack-yaml ${{ matrix.stack-yaml }}
+    - name: Build
+      run: |
+        stack build --fast --stack-yaml ${{ matrix.stack-yaml }}
 
   macos-stack-lts-14:
     runs-on: macOS-latest
@@ -37,3 +49,9 @@ jobs:
     - uses: actions/checkout@v1
     - name: Install stack
       run: which stack || curl -sSL https://get.haskellstack.org/ | sh
+    - name: Install GHC
+      run: |
+        stack setup --stack-yaml ${{ matrix.stack-yaml }}
+    - name: Build
+      run: |
+        stack build --fast --stack-yaml ${{ matrix.stack-yaml }}
