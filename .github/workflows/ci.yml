@@ -1,0 +1,39 @@
+name: Build
+on:
+  push:
+    branches:
+      - master
+  pull_request: {}
+
+jobs:
+  linux-cabal:
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        ghc: ['8.6.5', '8.8.1']
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-haskell@v1
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: '3.0'
+
+  linux-stack-lts-14:
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        stack-yaml: ['stack.yaml', 'stack-8.8.1.yaml']
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install stack
+      run: which stack || curl -sSL https://get.haskellstack.org/ | sh
+
+  macos-stack-lts-14:
+    runs-on: macOS-latest
+    strategy:
+      matrix:
+        stack-yaml: ['stack.yaml', 'stack-8.8.1.yaml']
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install stack
+      run: which stack || curl -sSL https://get.haskellstack.org/ | sh
