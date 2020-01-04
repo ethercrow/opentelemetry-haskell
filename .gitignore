@@ -1,0 +1,5 @@
+.stack-work
+*.yaml.lock
+/bash_completion.sh
+cabal.project.*
+dist-newstyle

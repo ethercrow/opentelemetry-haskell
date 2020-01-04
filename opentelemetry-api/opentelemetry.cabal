@@ -5,7 +5,6 @@ license-file:        LICENSE
 author:              Dmitry Ivanov
 maintainer:          ethercrow@gmail.com
 build-type:          Simple
-extra-source-files:  CHANGELOG.md
 
 library
   build-depends:
