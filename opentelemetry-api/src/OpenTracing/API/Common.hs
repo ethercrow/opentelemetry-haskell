@@ -1,13 +1,13 @@
 module OpenTracing.API.Common where
 
-import Data.Int
 import qualified Data.Text as T
+import Data.Word
 
-newtype TraceId = TId Int64
+newtype TraceId = TId Word64
 
-newtype SpanId = SId Int64
+newtype SpanId = SId Word64
 
-type Timestamp = Int64
+type Timestamp = Word64
 
 data Span
   = Span

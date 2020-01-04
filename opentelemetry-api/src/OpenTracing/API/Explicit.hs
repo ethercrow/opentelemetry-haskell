@@ -30,4 +30,4 @@ finishSpan sp = do
 now64 :: IO Timestamp
 now64 = do
   TimeSpec secs nsecs <- getTime Monotonic
-  pure $! secs * 1_000_000_000 + nsecs
+  pure $! fromIntegral secs * 1_000_000_000 + fromIntegral nsecs
