@@ -6,6 +6,10 @@ author:              Dmitry Ivanov
 maintainer:          ethercrow@gmail.com
 build-type:          Simple
 
+source-repository head
+  type: git
+  location: https://github.com/ethercrow/opentelemetry-haskell
+
 library
   build-depends:
     base >= 4.12,
@@ -17,3 +21,29 @@ library
     OpenTracing.API.Common
     OpenTracing.API.Explicit
   default-language: Haskell2010
+  default-extensions:
+    BangPatterns
+    BlockArguments
+    DataKinds
+    FlexibleInstances
+    LambdaCase
+    MultiParamTypeClasses
+    MultiWayIf
+    NamedFieldPuns
+    NumericUnderscores
+    RecordWildCards
+    ScopedTypeVariables
+    TupleSections
+    TypeApplications
+    ViewPatterns
+  ghc-options:
+    -Wall
+    -Wcompat
+    -Widentities
+    -Wincomplete-record-updates
+    -Wincomplete-uni-patterns
+    -Wpartial-fields
+    -Wredundant-constraints
+    -fhide-source-paths
+    -ferror-spans
+    -freverse-errors

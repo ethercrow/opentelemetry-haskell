@@ -1,5 +1,3 @@
-{-# LANGUAGE NumericUnderscores #-}
-
 module OpenTracing.API.Explicit
   ( startRootSpan,
     startChildSpanOf,
