@@ -1,21 +1,35 @@
-module OpenTracing.API.Explicit where
+{-# LANGUAGE NumericUnderscores #-}
 
+module OpenTracing.API.Explicit
+  ( startRootSpan,
+    startChildSpanOf,
+    finishSpan,
+  )
+where
+
+import qualified Data.Text as T
 import OpenTracing.API.Common
+import System.Clock
 import System.Random
 
 startRootSpan :: T.Text -> IO Span
 startRootSpan name = do
   timestamp <- now64
   sid <- randomIO
-  pure $! Span sid sid name timestamp 0
+  pure $! Span (SId sid) (TId sid) name timestamp 0
 
 startChildSpanOf :: Span -> T.Text -> IO Span
 startChildSpanOf parent name = do
   timestamp <- now64
   sid <- randomIO
-  pure $! Span sid (spanTraceId parent) name timestamp 0
+  pure $! Span (SId sid) (spanTraceId parent) name timestamp 0
 
 finishSpan :: Span -> IO Span
 finishSpan sp = do
-  timestamp <- now
-  sp {spanFinishedAt = timestamp}
+  timestamp <- now64
+  pure $! sp {spanFinishedAt = timestamp}
+
+now64 :: IO Timestamp
+now64 = do
+  TimeSpec secs nsecs <- getTime Monotonic
+  pure $! secs * 1_000_000_000 + nsecs

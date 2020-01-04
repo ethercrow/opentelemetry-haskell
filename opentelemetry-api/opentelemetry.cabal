@@ -10,6 +10,10 @@ library
   build-depends:
     base >= 4.12,
     clock >= 0.8,
-    random
+    random >= 1.1,
+    text
   hs-source-dirs: src
+  exposed-modules:
+    OpenTracing.API.Common
+    OpenTracing.API.Explicit
   default-language: Haskell2010
