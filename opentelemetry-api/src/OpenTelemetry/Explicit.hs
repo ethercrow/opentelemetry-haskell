@@ -1,4 +1,4 @@
-module OpenTracing.API.Explicit
+module OpenTelemetry.Explicit
   ( startRootSpan,
     startChildSpanOf,
     finishSpan,
@@ -6,7 +6,7 @@ module OpenTracing.API.Explicit
 where
 
 import qualified Data.Text as T
-import OpenTracing.API.Common
+import OpenTelemetry.Common
 import System.Clock
 import System.Random
 

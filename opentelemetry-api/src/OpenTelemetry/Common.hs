@@ -1,4 +1,4 @@
-module OpenTracing.API.Common where
+module OpenTelemetry.Common where
 
 import qualified Data.Text as T
 import Data.Word

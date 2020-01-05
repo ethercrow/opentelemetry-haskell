@@ -10,16 +10,7 @@ source-repository head
   type: git
   location: https://github.com/ethercrow/opentelemetry-haskell
 
-library
-  build-depends:
-    base >= 4.12,
-    clock >= 0.8,
-    random >= 1.1,
-    text
-  hs-source-dirs: src
-  exposed-modules:
-    OpenTracing.API.Common
-    OpenTracing.API.Explicit
+common options
   default-language: Haskell2010
   default-extensions:
     BangPatterns
@@ -47,3 +38,30 @@ library
     -fhide-source-paths
     -ferror-spans
     -freverse-errors
+
+library
+  import: options
+  build-depends:
+    base >= 4.12,
+    clock >= 0.8,
+    random >= 1.1,
+    exceptions,
+    text
+  hs-source-dirs: src
+  exposed-modules:
+    OpenTelemetry.Common
+    OpenTelemetry.Explicit
+    OpenTelemetry.Implicit
+
+test-suite just-some-usage-code-that-must-compile
+  import: options
+  type:       exitcode-stdio-1.0
+  main-is:    Main.hs
+  other-modules:
+    SomeUsageOfImplicitApi
+  hs-source-dirs: just-some-usage-code-that-must-compile
+  -- NOTE: no constraints on 'foo-internal' as same-package
+  --       dependencies implicitly refer to the same package instance
+  build-depends:
+    base,
+    opentelemetry
