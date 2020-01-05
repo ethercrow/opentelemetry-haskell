@@ -23,6 +23,10 @@ jobs:
       run: |
         cd opentelemetry-api
         cabal build -f examples
+    - name: Test
+      run: |
+        cd opentelemetry-api
+        cabal test
 
   linux-stack-lts-14:
     runs-on: ubuntu-18.04
@@ -39,6 +43,9 @@ jobs:
     - name: Build
       run: |
         stack build --fast --stack-yaml ${{ matrix.stack-yaml }}
+    - name: Test
+      run: |
+        stack test --fast --stack-yaml ${{ matrix.stack-yaml }}
 
   macos-stack-lts-14:
     runs-on: macOS-latest
@@ -55,3 +62,6 @@ jobs:
     - name: Build
       run: |
         stack build --fast --stack-yaml ${{ matrix.stack-yaml }}
+    - name: Test
+      run: |
+        stack test --fast --stack-yaml ${{ matrix.stack-yaml }}
