@@ -4,7 +4,15 @@
 module SomeUsageOfImplicitApi where
 
 import Control.Concurrent
+import OpenTelemetry.FileTracer
 import OpenTelemetry.Implicit
+
+main :: IO ()
+main = do
+  tracer <- mkFileTracer "helloworld.trace"
+  withImplicitTracer tracer $ do
+    result <- pieceOfSeriousBusinessLogic 42
+    print result
 
 pieceOfSeriousBusinessLogic :: Int -> IO Int
 pieceOfSeriousBusinessLogic input = withSpan "serious business" $ do
@@ -21,11 +29,10 @@ pieceOfSeriousBusinessLogic input = withSpan "serious business" $ do
 
   -- TODO: JSON values
 
-  -- addLog is value-polymorphic
-
-  addLog "rpc roundtrip begin" 8999 -- Int (inferred)
+  addEvent "rpc roundtrip begin"
   withSpan "leveraging synergies" $ do
     threadDelay 10000
-  addLog "message" "All your base are belong to us" -- Text (inferred)
-  addLog "rpc roundtrip end" 9001 -- Int (inferred)
+    addEvent "enough synergies leveraged"
+  addEvent "All your base are belong to us"
+  addEvent "rpc roundtrip end"
   pure result

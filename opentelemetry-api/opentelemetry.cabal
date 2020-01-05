@@ -52,6 +52,7 @@ library
     OpenTelemetry.Common
     OpenTelemetry.Explicit
     OpenTelemetry.Implicit
+    OpenTelemetry.FileTracer
 
 test-suite just-some-usage-code-that-must-compile
   import: options
@@ -59,6 +60,7 @@ test-suite just-some-usage-code-that-must-compile
   main-is:    Main.hs
   other-modules:
     SomeUsageOfImplicitApi
+    SomeUsageOfExplicitApi
   hs-source-dirs: just-some-usage-code-that-must-compile
   -- NOTE: no constraints on 'foo-internal' as same-package
   --       dependencies implicitly refer to the same package instance

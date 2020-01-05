@@ -9,6 +9,8 @@ newtype SpanId = SId Word64
 
 type Timestamp = Word64
 
+data Tracer = Tracer
+
 data Span
   = Span
       { spanId :: !SpanId,
