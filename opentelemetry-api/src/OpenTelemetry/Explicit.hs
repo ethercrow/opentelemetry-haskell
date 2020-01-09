@@ -16,13 +16,13 @@ startRootSpan :: Tracer -> T.Text -> IO Span
 startRootSpan _tracer name = do
   timestamp <- now64
   sid <- randomIO
-  pure $! Span (SId sid) (TId sid) name timestamp 0
+  pure $! Span (SpanContext (SId sid) (TId sid)) name timestamp 0 OK
 
 startChildSpan :: Tracer -> Span -> T.Text -> IO Span
 startChildSpan _tracer parent name = do
   timestamp <- now64
   sid <- randomIO
-  pure $! Span (SId sid) (spanTraceId parent) name timestamp 0
+  pure $! Span (SpanContext (SId sid) (spanTraceId parent)) name timestamp 0 OK
 
 endSpan :: Tracer -> Span -> IO ()
 endSpan _tracer sp = do
