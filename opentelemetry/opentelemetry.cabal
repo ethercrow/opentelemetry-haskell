@@ -62,8 +62,6 @@ test-suite just-some-usage-code-that-must-compile
     SomeUsageOfImplicitApi
     SomeUsageOfExplicitApi
   hs-source-dirs: just-some-usage-code-that-must-compile
-  -- NOTE: no constraints on 'foo-internal' as same-package
-  --       dependencies implicitly refer to the same package instance
   build-depends:
     base,
     opentelemetry

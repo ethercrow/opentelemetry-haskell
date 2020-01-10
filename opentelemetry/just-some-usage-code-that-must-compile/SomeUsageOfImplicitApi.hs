@@ -9,8 +9,12 @@ import OpenTelemetry.Implicit
 
 main :: IO ()
 main = do
-  tracer <- mkFileTracer "helloworld.trace"
-  withImplicitTracer tracer $ do
+  exporter <- mkFileSpanExporter "helloworld.trace"
+  let otConfig =
+        OpenTelemetryConfig
+          { otcSpanExporter = exporter
+          }
+  withImplicitOpenTelemetry otConfig $ do
     result <- pieceOfSeriousBusinessLogic 42
     print result
 
