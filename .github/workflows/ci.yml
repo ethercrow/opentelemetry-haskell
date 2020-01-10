@@ -21,11 +21,11 @@ jobs:
       run: cabal update
     - name: Build
       run: |
-        cd opentelemetry-api
+        cd opentelemetry
         cabal build -f examples
     - name: Test
       run: |
-        cd opentelemetry-api
+        cd opentelemetry
         cabal test
 
   linux-stack-lts-14:
