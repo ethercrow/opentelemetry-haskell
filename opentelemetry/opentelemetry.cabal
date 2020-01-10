@@ -44,15 +44,17 @@ library
   build-depends:
     base >= 4.12,
     clock >= 0.8,
-    random >= 1.1,
     exceptions,
-    text
+    hashable,
+    random >= 1.1,
+    text,
+    unordered-containers
   hs-source-dirs: src
   exposed-modules:
     OpenTelemetry.Common
     OpenTelemetry.Explicit
     OpenTelemetry.Implicit
-    OpenTelemetry.FileTracer
+    OpenTelemetry.FileExporter
 
 test-suite just-some-usage-code-that-must-compile
   import: options

@@ -4,23 +4,25 @@ module SomeUsageOfExplicitApi where
 
 import Control.Concurrent
 import OpenTelemetry.Explicit
-import OpenTelemetry.FileTracer
+import OpenTelemetry.FileExporter
 
 main :: IO ()
 main = do
-  tracer <- mkFileTracer "helloworld.trace"
-  mainSpan <- startRootSpan tracer "main"
+  exporter <- createFileSpanExporter "helloworld.trace"
+  ot <- createOpenTelemetryClient exporter
+  --
+  mainSpan <- startRootSpan ot "main"
   threadDelay 10000
-  warmUpSpan <- startChildSpan tracer mainSpan "warm up the cache"
+  warmUpSpan <- startChildSpan ot mainSpan "warm up the cache"
   threadDelay 5000
-  addEvent tracer warmUpSpan "still cold"
+  addEvent ot warmUpSpan "still cold"
   threadDelay 10000
-  addEvent tracer warmUpSpan "warm now"
-  setTag tracer warmUpSpan "size" 9001
-  endSpan tracer warmUpSpan
-  dataScienceSpan <- startChildSpan tracer mainSpan "perform data science"
+  addEvent ot warmUpSpan "warm now"
+  setTag ot warmUpSpan "size" 9001
+  endSpan ot warmUpSpan
+  dataScienceSpan <- startChildSpan ot mainSpan "perform data science"
   threadDelay 100000
-  setTag tracer dataScienceSpan "reviews" 0
-  endSpan tracer dataScienceSpan
+  setTag ot dataScienceSpan "reviews" 0
+  endSpan ot dataScienceSpan
   threadDelay 10000
-  endSpan tracer mainSpan
+  endSpan ot mainSpan

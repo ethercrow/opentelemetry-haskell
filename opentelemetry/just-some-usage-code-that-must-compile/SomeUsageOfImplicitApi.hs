@@ -5,6 +5,7 @@ module SomeUsageOfImplicitApi where
 
 import Control.Concurrent
 import OpenTelemetry.Common
+import OpenTelemetry.FileExporter
 import OpenTelemetry.Implicit
 
 main :: IO ()

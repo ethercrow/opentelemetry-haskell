@@ -1,7 +1,11 @@
 module OpenTelemetry.Common where
 
+import qualified Data.HashMap.Strict as HM
+import Data.Hashable
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import Data.Word
+import System.Clock
 import System.IO
 
 newtype TraceId = TId Word64
@@ -12,12 +16,25 @@ newtype SpanId = SId Word64
 
 type Timestamp = Word64
 
-data Tracer
+data Tracer threadId
   = Tracer
-      { getCurrentActiveSpan :: IO Span,
-        createSpan :: T.Text -> IO Span,
-        activateSpan :: Span -> IO ()
+      { tracerSpanStacks :: HM.HashMap threadId (NE.NonEmpty Span)
       }
+
+tracerPushSpan :: Tracer tid -> tid -> Span -> Tracer tid
+tracerPushSpan t tid sp = t
+
+tracerPopSpan :: Tracer tid -> tid -> Span -> Tracer tid
+tracerPopSpan t tid sp = t
+
+getCurrentActiveSpan :: (Hashable tid, Eq tid) => Tracer tid -> tid -> Maybe Span
+getCurrentActiveSpan (Tracer stacks) tid =
+  case HM.lookup tid stacks of
+    Nothing -> Nothing
+    Just (sp NE.:| _) -> Just sp
+
+createTracer :: (Hashable tid, Eq tid) => IO (Tracer tid)
+createTracer = pure $ Tracer mempty
 
 data SpanContext = SpanContext !SpanId !TraceId
   deriving (Show, Eq)
@@ -62,18 +79,12 @@ data Exporter thing
         shutdown :: IO ()
       }
 
-createFileSpanExporter :: FilePath -> IO (Exporter Span)
-createFileSpanExporter path = do
-  f <- openFile path WriteMode
-  pure
-    $! Exporter
-      ( \sps -> do
-          mapM_ (hPrint f) sps
-          pure ExportSuccess
-      )
-      (hClose f)
-
 data OpenTelemetryConfig
   = OpenTelemetryConfig
       { otcSpanExporter :: Exporter Span
       }
+
+now64 :: IO Timestamp
+now64 = do
+  TimeSpec secs nsecs <- getTime Monotonic
+  pure $! fromIntegral secs * 1_000_000_000 + fromIntegral nsecs
