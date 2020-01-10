@@ -16,8 +16,9 @@ setTag k v = error "setTag: not implemented"
 addEvent :: forall m. Monad m => T.Text -> m ()
 addEvent name = error "addEvent: not implemented"
 
-withImplicitTracer :: (MonadIO m, MonadMask m) => Tracer -> m a -> m a
-withImplicitTracer tracer action = error "withImplicitTracer: not implemented"
+withOpenTelemetry :: (MonadIO m, MonadMask m) => OpenTelemetryConfig -> m a -> m a
+withOpenTelemetry OpenTelemetryConfig {..} action = action `finally` do
+  liftIO $ shutdown otcSpanExporter
 
 setImplicitTracer :: (MonadIO m, MonadCatch m) => Tracer -> m ()
 setImplicitTracer tracer = liftIO $ putMVar globalSharedMutableState tracer

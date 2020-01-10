@@ -4,17 +4,17 @@
 module SomeUsageOfImplicitApi where
 
 import Control.Concurrent
-import OpenTelemetry.FileTracer
+import OpenTelemetry.Common
 import OpenTelemetry.Implicit
 
 main :: IO ()
 main = do
-  exporter <- mkFileSpanExporter "helloworld.trace"
+  exporter <- createFileSpanExporter "helloworld.trace"
   let otConfig =
         OpenTelemetryConfig
           { otcSpanExporter = exporter
           }
-  withImplicitOpenTelemetry otConfig $ do
+  withOpenTelemetry otConfig $ do
     result <- pieceOfSeriousBusinessLogic 42
     print result
 
