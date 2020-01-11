@@ -9,7 +9,7 @@ createFileSpanExporter path = do
   pure
     $! Exporter
       ( \sps -> do
-          mapM_ (hPrint f) sps
+          mapM_ (hPutStrLn f . show) sps
           pure ExportSuccess
       )
       (hClose f)

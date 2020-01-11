@@ -10,6 +10,7 @@ import OpenTelemetry.Common
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.HashMap.Strict as HM 
+import System.IO
 import System.IO.Unsafe
 import System.Random
 
@@ -17,13 +18,13 @@ withSpan :: (MonadIO m, MonadMask m) => T.Text -> m a -> m a
 withSpan operation action = do
   threadId <- liftIO myThreadId
   sid <- liftIO randomIO
-  timestamp <- liftIO now64
+  startedAt <- liftIO now64
   bracket
     ( liftIO $ modifyMVar_ globalSharedMutableState $ \GlobalSharedMutableState {..} -> do
         let !ctx = case HM.lookup threadId (tracerSpanStacks gTracer) of
               Nothing -> SpanContext (SId sid) (TId sid)
               Just ((spanContext -> SpanContext _ tid) :| _) -> SpanContext (SId sid) tid
-            !sp = Span ctx operation timestamp 0 mempty OK
+            !sp = Span ctx operation startedAt 0 mempty OK
             !tracer = tracerPushSpan gTracer threadId sp
         pure $! GlobalSharedMutableState gSpanExporter tracer
     )
@@ -33,7 +34,8 @@ withSpan operation action = do
         case mspan of
           Nothing -> pure ()
           Just sp -> do
-            res <- export gSpanExporter [sp]
+            finishedAt <- liftIO now64
+            res <- export gSpanExporter [sp { spanFinishedAt = finishedAt }]
             case res of
               ExportSuccess -> pure ()
               _ -> error $ "exporting span failed: " <> show sp

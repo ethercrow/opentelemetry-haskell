@@ -8,7 +8,7 @@ module OpenTelemetry.Common where
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable
 import qualified Data.List.NonEmpty as NE
-import Data.List.NonEmpty (NonEmpty ((:|)))
+import Data.List.NonEmpty (NonEmpty ((:|)), (<|))
 import qualified Data.Text as T
 import Data.Word
 import System.Clock
@@ -29,8 +29,16 @@ data Tracer threadId
         trace2thread :: !(HM.HashMap TraceId threadId)
       }
 
-tracerPushSpan :: Tracer tid -> tid -> Span -> Tracer tid
-tracerPushSpan t tid sp = t
+tracerPushSpan :: (Eq tid, Hashable tid) => Tracer tid -> tid -> Span -> Tracer tid
+tracerPushSpan t@(Tracer {..}) tid sp =
+  case HM.lookup tid tracerSpanStacks of
+    Nothing ->
+      let !stacks = HM.insert tid (sp :| []) tracerSpanStacks
+          !t2t = HM.insert (spanTraceId sp) tid trace2thread
+      in Tracer stacks t2t
+    Just sps ->
+      let !stacks = HM.insert tid (sp <| sps) tracerSpanStacks
+      in t { tracerSpanStacks = stacks }
 
 tracerPopSpan :: (Eq tid, Hashable tid) => Tracer tid -> tid -> (Maybe Span, Tracer tid)
 tracerPopSpan t@(Tracer {..}) tid =
