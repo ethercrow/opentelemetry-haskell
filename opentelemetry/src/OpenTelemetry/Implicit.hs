@@ -58,6 +58,18 @@ data GlobalSharedMutableState
 defaultTracer :: Tracer ThreadId
 defaultTracer = Tracer mempty
 
+getCurrentSpan :: MonadIO m => m Span
+getCurrentSpan = do
+  tid <- liftIO myThreadId
+  GlobalSharedMutableState {..} <- liftIO $ readMVar globalSharedMutableState
+  pure $ case HM.lookup tid (tracerSpanStacks gTracer) of
+    Nothing -> emptySpan
+    Just (sp NE.:| _) -> sp
+
+
+withChildSpanOf :: (MonadIO m, MonadMask m) => Span -> T.Text -> m a -> m a
+withChildSpanOf parent operation action = undefined
+
 globalSharedMutableState :: MVar GlobalSharedMutableState
 globalSharedMutableState = unsafePerformIO newEmptyMVar
 {-# NOINLINE globalSharedMutableState #-}

@@ -4,6 +4,8 @@
 module SomeUsageOfImplicitApi where
 
 import Control.Concurrent
+import Control.Concurrent.Async
+import Control.Monad
 import OpenTelemetry.Common
 import OpenTelemetry.FileExporter
 import OpenTelemetry.Implicit
@@ -40,4 +42,15 @@ pieceOfSeriousBusinessLogic input = withSpan "serious business" $ do
     addEvent "enough synergies leveraged"
   addEvent "All your base are belong to us"
   addEvent "rpc roundtrip end"
+  withSpan "project" $ do
+    -- Connecting spans across threads requires some manual plumbing
+    sp <- getCurrentSpan
+    asyncWork <- async $ withChildSpanOf sp "data science" $ do
+      threadDelay 1000000
+      pure 42
+    -- Doing a withSpan inside a loop is fine
+    forM_ [1 .. 10] $ \i -> withSpan "sprint" $ do
+      setTag "week" i
+      threadDelay 10000
+    wait asyncWork
   pure result

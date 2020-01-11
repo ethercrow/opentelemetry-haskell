@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module OpenTelemetry.Common where
 
 import qualified Data.HashMap.Strict as HM
@@ -48,6 +50,9 @@ data Span
         spanStatus :: !SpanStatus
       }
   deriving (Show, Eq)
+
+emptySpan :: Span
+emptySpan = Span (SpanContext (SId 0) (TId 0)) "" 0 0 OK
 
 spanTraceId :: Span -> TraceId
 spanTraceId Span {spanContext = SpanContext _ tid} = tid
