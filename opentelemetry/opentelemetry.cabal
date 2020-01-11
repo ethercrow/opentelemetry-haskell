@@ -68,3 +68,17 @@ test-suite just-some-usage-code-that-must-compile
     base,
     async,
     opentelemetry
+
+test-suite unit-tests
+  import: options
+  type:       exitcode-stdio-1.0
+  main-is:    Main.hs
+  other-modules:
+    TestCommon
+  hs-source-dirs: unit-tests
+  build-depends:
+    base,
+    tasty,
+    tasty-quickcheck,
+    tasty-discover,
+    opentelemetry

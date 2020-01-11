@@ -1,20 +1,22 @@
+{-# LANGUAGE BangPatterns #-}
+
 module OpenTelemetry.Implicit where
 
-import Data.Maybe
-import GHC.Conc
 import Control.Concurrent
 import Control.Monad.Catch
 import Control.Monad.IO.Class
-import qualified Data.Text as T
-import OpenTelemetry.Common
+import qualified Data.HashMap.Strict as HM
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty ((:|)))
-import qualified Data.HashMap.Strict as HM 
+import Data.Maybe
+import qualified Data.Text as T
+import GHC.Conc
+import OpenTelemetry.Common
 import System.IO
 import System.IO.Unsafe
 import System.Random
 
-withSpan :: (MonadIO m, MonadMask m) => T.Text -> m a -> m a
+withSpan :: (MonadIO m, MonadMask m) => String -> m a -> m a
 withSpan operation action = do
   threadId <- liftIO myThreadId
   sid <- liftIO randomIO
@@ -24,27 +26,31 @@ withSpan operation action = do
         let !ctx = case HM.lookup threadId (tracerSpanStacks gTracer) of
               Nothing -> SpanContext (SId sid) (TId sid)
               Just ((spanContext -> SpanContext _ tid) :| _) -> SpanContext (SId sid) tid
-            !sp = Span ctx operation startedAt 0 mempty OK
+            !sp = Span ctx (T.pack operation) startedAt 0 mempty OK
             !tracer = tracerPushSpan gTracer threadId sp
         pure $! GlobalSharedMutableState gSpanExporter tracer
     )
-    (\_ -> do
-      liftIO $ modifyMVar_ globalSharedMutableState $ \GlobalSharedMutableState {..} -> do
-        let (mspan, tracer) = tracerPopSpan gTracer threadId
-        case mspan of
-          Nothing -> pure ()
-          Just sp -> do
-            finishedAt <- liftIO now64
-            res <- export gSpanExporter [sp { spanFinishedAt = finishedAt }]
-            case res of
-              ExportSuccess -> pure ()
-              _ -> error $ "exporting span failed: " <> show sp
-        pure $! GlobalSharedMutableState gSpanExporter tracer)
+    ( \_ -> do
+        liftIO $ modifyMVar_ globalSharedMutableState $ \GlobalSharedMutableState {..} -> do
+          let (mspan, tracer) = tracerPopSpan gTracer threadId
+          case mspan of
+            Nothing -> pure ()
+            Just sp -> do
+              finishedAt <- liftIO now64
+              res <- export gSpanExporter [sp {spanFinishedAt = finishedAt}]
+              case res of
+                ExportSuccess -> pure ()
+                _ -> error $ "exporting span failed: " <> show sp
+          pure $! GlobalSharedMutableState gSpanExporter tracer
+    )
     (\_ -> action) -- TODO(divanov): set error=true on exception
 
 setTag :: forall value m. (MonadIO m, ToTagValue value) => T.Text -> value -> m ()
-setTag k v = modifyCurrentSpan (\sp ->
-  sp { spanTags = HM.insert k (toTagValue v) (spanTags sp)})
+setTag k v =
+  modifyCurrentSpan
+    ( \sp ->
+        sp {spanTags = HM.insert k (toTagValue v) (spanTags sp)}
+    )
 
 addEvent :: forall m. MonadIO m => T.Text -> m ()
 addEvent name = do
@@ -52,7 +58,7 @@ addEvent name = do
   error "addEvent: not implemented"
 
 withOpenTelemetry :: (MonadIO m, MonadMask m) => OpenTelemetryConfig -> m a -> m a
-withOpenTelemetry OpenTelemetryConfig {..} action =
+withOpenTelemetry OpenTelemetryConfig {..} action = do
   bracket
     ( liftIO $ do
         tracer <- createTracer
@@ -84,10 +90,10 @@ modifyCurrentSpan f = liftIO $ do
           Nothing -> pure g
           Just (sp :| sps) ->
             let !stacks = HM.insert tid (f sp :| sps) (tracerSpanStacks gTracer)
-            in pure $! g { gTracer = gTracer { tracerSpanStacks = stacks }}
+             in pure $! g {gTracer = gTracer {tracerSpanStacks = stacks}}
     )
 
-withChildSpanOf :: (MonadIO m, MonadMask m) => Span -> T.Text -> m a -> m a
+withChildSpanOf :: (MonadIO m, MonadMask m) => Span -> String -> m a -> m a
 withChildSpanOf parent operation action = do
   threadId <- liftIO myThreadId
   sid <- liftIO randomIO
@@ -98,7 +104,7 @@ withChildSpanOf parent operation action = do
         let !ctx = case HM.lookup threadId' (tracerSpanStacks gTracer) of
               Nothing -> SpanContext (SId sid) (TId sid)
               Just ((spanContext -> SpanContext _ tid) NE.:| _) -> SpanContext (SId sid) tid
-            !sp = Span ctx operation timestamp 0 mempty OK
+            !sp = Span ctx (T.pack operation) timestamp 0 mempty OK
             !tracer = tracerPushSpan gTracer threadId sp
         pure $! GlobalSharedMutableState gSpanExporter tracer
     )

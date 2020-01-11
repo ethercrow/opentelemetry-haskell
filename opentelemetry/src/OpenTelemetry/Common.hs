@@ -28,6 +28,7 @@ data Tracer threadId
       { tracerSpanStacks :: !(HM.HashMap threadId (NE.NonEmpty Span)),
         trace2thread :: !(HM.HashMap TraceId threadId)
       }
+      deriving (Eq, Show)
 
 tracerPushSpan :: (Eq tid, Hashable tid) => Tracer tid -> tid -> Span -> Tracer tid
 tracerPushSpan t@(Tracer {..}) tid sp =
@@ -47,7 +48,7 @@ tracerPopSpan t@(Tracer {..}) tid =
     Just (sp :| sps) ->
       let (stacks, t2t) =
             case NE.nonEmpty sps of
-              Nothing -> (HM.delete tid tracerSpanStacks, HM.delete (spanTraceId sp) t2t)
+              Nothing -> (HM.delete tid tracerSpanStacks, HM.delete (spanTraceId sp) trace2thread)
               Just sps' -> (HM.insert tid sps' tracerSpanStacks, trace2thread)
        in (Just sp, Tracer stacks t2t)
 
@@ -75,18 +76,6 @@ class ToTagValue a where
 
 instance ToTagValue String where
   toTagValue = StringTagValue . T.pack
-
-instance ToTagValue T.Text where
-  toTagValue = StringTagValue
-
-instance ToTagValue Int where
-  toTagValue = IntTagValue
-
-instance ToTagValue Bool where
-  toTagValue = BoolTagValue
-
-instance ToTagValue Double where
-  toTagValue = DoubleTagValue
 
 data Span
   = Span

@@ -26,12 +26,12 @@ pieceOfSeriousBusinessLogic input = withSpan "serious business" $ do
   let result = 2 * input
   -- setTag is value-polymorphic
 
-  setTag "input" input -- Int (inferred)
-  setTag @Int "result" result -- Int (explicit)
-  setTag @String "seriousness" "serious" -- literals are polymorphic under OverloadedStrings so we need to annotate
-  setTag @Double "profit" 99 -- numeric literals are also polymorphic
-  setTag "error" False -- Bool literals are not polymorphic
-  setTag @Int "largest integer below 100" 99 -- Int (inferred)
+  -- setTag "input" input -- Int (inferred)
+  -- setTag @Int "result" result -- Int (explicit)
+  -- setTag @String "seriousness" "serious" -- literals are polymorphic under OverloadedStrings so we need to annotate
+  -- setTag @Double "profit" 99 -- numeric literals are also polymorphic
+  -- setTag "error" False -- Bool literals are not polymorphic
+  -- setTag @Int "largest integer below 100" 99 -- Int (inferred)
 
   -- TODO: JSON values
 
@@ -49,7 +49,7 @@ pieceOfSeriousBusinessLogic input = withSpan "serious business" $ do
       pure 42
     -- Doing a withSpan inside a loop is fine
     forM_ [input .. input + 10] $ \i -> withSpan "sprint" $ do
-      setTag "week" i
+      -- setTag "week" i
       threadDelay 10000
     wait asyncWork
   pure result
