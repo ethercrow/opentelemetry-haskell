@@ -1,3 +1,6 @@
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module OpenTelemetry.Common where
@@ -5,41 +8,77 @@ module OpenTelemetry.Common where
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable
 import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.Text as T
 import Data.Word
 import System.Clock
-import System.IO
 
 newtype TraceId = TId Word64
   deriving (Show, Eq)
+  deriving (Hashable) via Word64
 
 newtype SpanId = SId Word64
   deriving (Show, Eq)
+  deriving (Hashable) via Word64
 
 type Timestamp = Word64
 
 data Tracer threadId
   = Tracer
-      { tracerSpanStacks :: HM.HashMap threadId (NE.NonEmpty Span)
+      { tracerSpanStacks :: !(HM.HashMap threadId (NE.NonEmpty Span)),
+        trace2thread :: !(HM.HashMap TraceId threadId)
       }
 
 tracerPushSpan :: Tracer tid -> tid -> Span -> Tracer tid
 tracerPushSpan t tid sp = t
 
-tracerPopSpan :: Tracer tid -> tid -> Span -> Tracer tid
-tracerPopSpan t tid sp = t
+tracerPopSpan :: (Eq tid, Hashable tid) => Tracer tid -> tid -> (Maybe Span, Tracer tid)
+tracerPopSpan t@(Tracer {..}) tid =
+  case HM.lookup tid tracerSpanStacks of
+    Nothing -> (Nothing, t)
+    Just (sp :| sps) ->
+      let (stacks, t2t) =
+            case NE.nonEmpty sps of
+              Nothing -> (HM.delete tid tracerSpanStacks, HM.delete (spanTraceId sp) t2t)
+              Just sps' -> (HM.insert tid sps' tracerSpanStacks, trace2thread)
+       in (Just sp, Tracer stacks t2t)
 
-getCurrentActiveSpan :: (Hashable tid, Eq tid) => Tracer tid -> tid -> Maybe Span
-getCurrentActiveSpan (Tracer stacks) tid =
+tracerGetCurrentActiveSpan :: (Hashable tid, Eq tid) => Tracer tid -> tid -> Maybe Span
+tracerGetCurrentActiveSpan (Tracer stacks _) tid =
   case HM.lookup tid stacks of
     Nothing -> Nothing
     Just (sp NE.:| _) -> Just sp
 
 createTracer :: (Hashable tid, Eq tid) => IO (Tracer tid)
-createTracer = pure $ Tracer mempty
+createTracer = pure $ Tracer mempty mempty
 
 data SpanContext = SpanContext !SpanId !TraceId
   deriving (Show, Eq)
+
+data TagValue
+  = StringTagValue !T.Text
+  | BoolTagValue !Bool
+  | IntTagValue !Int
+  | DoubleTagValue !Double
+  deriving (Eq, Show)
+
+class ToTagValue a where
+  toTagValue :: a -> TagValue
+
+instance ToTagValue String where
+  toTagValue = StringTagValue . T.pack
+
+instance ToTagValue T.Text where
+  toTagValue = StringTagValue
+
+instance ToTagValue Int where
+  toTagValue = IntTagValue
+
+instance ToTagValue Bool where
+  toTagValue = BoolTagValue
+
+instance ToTagValue Double where
+  toTagValue = DoubleTagValue
 
 data Span
   = Span
@@ -47,12 +86,13 @@ data Span
         spanOperation :: T.Text,
         spanStartedAt :: !Timestamp,
         spanFinishedAt :: !Timestamp,
+        spanTags :: !(HM.HashMap T.Text TagValue),
         spanStatus :: !SpanStatus
       }
   deriving (Show, Eq)
 
 emptySpan :: Span
-emptySpan = Span (SpanContext (SId 0) (TId 0)) "" 0 0 OK
+emptySpan = Span (SpanContext (SId 0) (TId 0)) "" 0 0 mempty OK
 
 spanTraceId :: Span -> TraceId
 spanTraceId Span {spanContext = SpanContext _ tid} = tid
@@ -77,6 +117,7 @@ data ExportResult
   = ExportSuccess
   | ExportFailedRetryable
   | ExportFailedNotRetryable
+  deriving (Show, Eq)
 
 data Exporter thing
   = Exporter

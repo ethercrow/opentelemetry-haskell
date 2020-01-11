@@ -28,10 +28,9 @@ pieceOfSeriousBusinessLogic input = withSpan "serious business" $ do
 
   setTag "input" input -- Int (inferred)
   setTag @Int "result" result -- Int (explicit)
-  setTag "seriousness" "serious" -- Text (inferred)
-  setTag "error" False -- Bool
-  setTag "confidence" 99.99 -- Double (inferred)
-  setTag @Double "profit" 99 -- Double (explicit)
+  setTag @String "seriousness" "serious" -- literals are polymorphic under OverloadedStrings so we need to annotate
+  setTag @Double "profit" 99 -- numeric literals are also polymorphic
+  setTag "error" False -- Bool literals are not polymorphic
   setTag @Int "largest integer below 100" 99 -- Int (inferred)
 
   -- TODO: JSON values
@@ -44,12 +43,12 @@ pieceOfSeriousBusinessLogic input = withSpan "serious business" $ do
   addEvent "rpc roundtrip end"
   withSpan "project" $ do
     -- Connecting spans across threads requires some manual plumbing
-    sp <- getCurrentSpan
+    sp <- getCurrentActiveSpan
     asyncWork <- async $ withChildSpanOf sp "data science" $ do
       threadDelay 1000000
       pure 42
     -- Doing a withSpan inside a loop is fine
-    forM_ [1 .. 10] $ \i -> withSpan "sprint" $ do
+    forM_ [input .. input + 10] $ \i -> withSpan "sprint" $ do
       setTag "week" i
       threadDelay 10000
     wait asyncWork
