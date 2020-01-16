@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module LightStep.Config where
+module OpenTelemetry.LightStep.Config where
 
 import Control.Monad.IO.Class
 import Data.Foldable
 import Data.Maybe
 import qualified Data.Text as T
-import Network.HTTP2.Client
+import Network.Socket
 import System.Environment
 import System.IO
 

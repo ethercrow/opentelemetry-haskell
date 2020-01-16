@@ -3,3 +3,7 @@ resolver: lts-14.19
 packages:
 - opentelemetry
 - opentelemetry-lightstep
+
+extra-deps:
+- http2-client-0.9.0.0
+- http2-1.6.5

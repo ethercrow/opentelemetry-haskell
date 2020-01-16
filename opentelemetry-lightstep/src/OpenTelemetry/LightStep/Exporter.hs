@@ -1,12 +1,12 @@
-module OpenTelemetry.LightStepExporter where
+module OpenTelemetry.LightStep.Exporter where
 
 import Data.Function
 import qualified Data.HashMap.Strict as HM
 import Data.List
 import qualified Data.Text as T
 import OpenTelemetry.Common
+import OpenTelemetry.LightStep.Config
 import System.IO
-import Text.Printf
 
 createLightStepExporter :: LightStepConfig -> IO (Exporter Span)
 createLightStepExporter LightStepConfig {..} = do
