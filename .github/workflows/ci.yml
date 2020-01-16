@@ -27,6 +27,14 @@ jobs:
       run: |
         cd opentelemetry
         cabal test
+    - name: Build opentelemetry-lightstep
+      run: |
+        cd opentelemetry-lightstep
+        cabal build -f examples
+    - name: Test opentelemetry-lightstep
+      run: |
+        cd opentelemetry-lightstep
+        cabal test
 
   linux-stack-lts-14:
     runs-on: ubuntu-18.04

@@ -1,0 +1,65 @@
+cabal-version:       2.4
+name:                opentelemetry-lightstep
+version:             0.1.0.0
+license-file:        LICENSE
+author:              Dmitry Ivanov
+maintainer:          ethercrow@gmail.com
+build-type:          Simple
+
+source-repository head
+  type: git
+  location: https://github.com/ethercrow/opentelemetry-haskell
+
+common options
+  default-language: Haskell2010
+  default-extensions:
+    BangPatterns
+    BlockArguments
+    DataKinds
+    FlexibleInstances
+    LambdaCase
+    MultiParamTypeClasses
+    MultiWayIf
+    NamedFieldPuns
+    NumericUnderscores
+    RecordWildCards
+    ScopedTypeVariables
+    TupleSections
+    TypeApplications
+    ViewPatterns
+  ghc-options:
+    -Wall
+    -Wcompat
+    -Widentities
+    -Wincomplete-record-updates
+    -Wincomplete-uni-patterns
+    -Wpartial-fields
+    -Wredundant-constraints
+    -fhide-source-paths
+    -ferror-spans
+    -freverse-errors
+
+library
+  import: options
+  build-depends:
+    base >= 4.12,
+    opentelemetry,
+    text,
+    unordered-containers
+  hs-source-dirs: src
+  exposed-modules:
+    OpenTelemetry.LightStepExporter
+
+test-suite just-some-usage-code-that-must-compile
+  import: options
+  type:       exitcode-stdio-1.0
+  main-is:    Main.hs
+  other-modules:
+    SomeUsageOfImplicitApi
+  hs-source-dirs: just-some-usage-code-that-must-compile
+  build-depends:
+    base,
+    async,
+    opentelemetry,
+    opentelemetry-lightstep
+
