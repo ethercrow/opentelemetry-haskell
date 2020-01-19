@@ -44,9 +44,20 @@ library
   build-depends:
     base >= 4.12,
     opentelemetry,
+    exceptions,
+    http2-client,
+    http2,
     network,
     text,
-    unordered-containers
+    unordered-containers, http-types
+    , http2-client >= 0.9.0.0
+    , http2-client-grpc >= 0.8.0.0
+    , http2-grpc-proto-lens >= 0.1.0.0
+    , lens
+    , mtl
+    , proto-lens >= 0.5.1.0
+    , proto-lens-protobuf-types >= 0.5.0.0
+    , proto-lens-runtime >= 0.5.0.0
   hs-source-dirs: src
   exposed-modules:
     OpenTelemetry.LightStep.Config

@@ -5,5 +5,8 @@ packages:
 - opentelemetry-lightstep
 
 extra-deps:
-- http2-client-0.9.0.0
 - http2-1.6.5
+- http2-client-0.9.0.0
+- http2-client-grpc-0.8.0.0
+- http2-grpc-proto-lens-0.1.0.0
+- http2-grpc-types-0.5.0.0

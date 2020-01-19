@@ -23,7 +23,6 @@ jobs:
       run: |
         cd opentelemetry
         cabal build -f examples
-        cabal install -f examples
     - name: Test
       run: |
         cd opentelemetry
