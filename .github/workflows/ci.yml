@@ -17,6 +17,10 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: '3.0'
+    - name: Install protobuf compiler
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
     - name: Update cabal package database
       run: cabal update
     - name: Build
@@ -46,6 +50,10 @@ jobs:
     - uses: actions/checkout@v1
     - name: Install stack
       run: which stack || curl -sSL https://get.haskellstack.org/ | sh
+    - name: Install protobuf compiler
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
     - name: Install GHC
       run: |
         stack setup --stack-yaml ${{ matrix.stack-yaml }}
@@ -63,6 +71,9 @@ jobs:
         stack-yaml: ['stack.yaml', 'stack-8.8.1.yaml']
     steps:
     - uses: actions/checkout@v1
+    - name: Install protobuf compiler
+      run: |
+        brew install protobuf
     - name: Install stack
       run: which stack || curl -sSL https://get.haskellstack.org/ | sh
     - name: Install GHC
