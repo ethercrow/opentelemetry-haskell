@@ -51,7 +51,7 @@ jobs:
         stack setup --stack-yaml ${{ matrix.stack-yaml }}
     - name: Build
       run: |
-        stack build --fast --stack-yaml ${{ matrix.stack-yaml }}
+        stack build --no-interleaved-output --fast --stack-yaml ${{ matrix.stack-yaml }}
     - name: Test
       run: |
         stack test --fast --stack-yaml ${{ matrix.stack-yaml }}
@@ -70,7 +70,7 @@ jobs:
         stack setup --stack-yaml ${{ matrix.stack-yaml }}
     - name: Build
       run: |
-        stack build --fast --stack-yaml ${{ matrix.stack-yaml }}
+        stack build --no-interleaved-output  --fast --stack-yaml ${{ matrix.stack-yaml }}
     - name: Test
       run: |
         stack test --fast --stack-yaml ${{ matrix.stack-yaml }}
