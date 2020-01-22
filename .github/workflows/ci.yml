@@ -63,6 +63,16 @@ jobs:
         stack-yaml: ['stack.yaml', 'stack-8.8.1.yaml']
     steps:
     - uses: actions/checkout@v1
+    - uses: actions/cache@v1
+      name: Cache ~/.stack
+      with:
+        path: ~/.stack
+        key: ${{ runner.os }}-${{ matrix.stack-yaml }}-stack-home
+    - uses: actions/cache@v1
+      name: Cache .stack-work
+      with:
+        path: .stack-work
+        key: ${{ runner.os }}-${{ matrix.stack-yaml }}-stack-work
     - name: Install stack
       run: which stack || curl -sSL https://get.haskellstack.org/ | sh
     - name: Install protobuf compiler
@@ -86,6 +96,16 @@ jobs:
         stack-yaml: ['stack.yaml', 'stack-8.8.1.yaml']
     steps:
     - uses: actions/checkout@v1
+    - uses: actions/cache@v1
+      name: Cache ~/.stack
+      with:
+        path: ~/.stack
+        key: ${{ runner.os }}-${{ matrix.stack-yaml }}-stack-home
+    - uses: actions/cache@v1
+      name: Cache .stack-work
+      with:
+        path: .stack-work
+        key: ${{ runner.os }}-${{ matrix.stack-yaml }}-stack-work
     - name: Install protobuf compiler
       run: |
         brew install protobuf
