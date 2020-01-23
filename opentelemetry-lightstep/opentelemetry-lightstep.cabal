@@ -62,6 +62,13 @@ library
   exposed-modules:
     OpenTelemetry.LightStep.Config
     OpenTelemetry.LightStep.Exporter
+    Proto.Collector
+    Proto.Collector_Fields
+    Proto.Google.Api.Annotations
+    Proto.Google.Api.Http
+    Proto.Google.Protobuf.Timestamp
+    Proto.Google.Protobuf.Timestamp_Fields
+    Paths_opentelemetry_lightstep
 
 test-suite just-some-usage-code-that-must-compile
   import: options
