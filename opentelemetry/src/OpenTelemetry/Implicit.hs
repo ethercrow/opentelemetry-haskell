@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module OpenTelemetry.Implicit where
 
@@ -26,7 +27,7 @@ withSpan operation action = do
         let !ctx = case HM.lookup threadId (tracerSpanStacks gTracer) of
               Nothing -> SpanContext (SId sid) (TId sid)
               Just ((spanContext -> SpanContext _ tid) :| _) -> SpanContext (SId sid) tid
-            !sp = Span ctx (T.pack operation) startedAt 0 mempty OK
+            !sp = Span ctx (T.pack operation) startedAt 0 (HM.singleton "thread_id" (StringTagValue $ T.pack $ show threadId)) OK
             !tracer = tracerPushSpan gTracer threadId sp
         pure $! GlobalSharedMutableState gSpanExporter tracer
     )

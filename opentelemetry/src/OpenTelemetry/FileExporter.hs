@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module OpenTelemetry.FileExporter where
 
 import Data.Function
@@ -7,6 +9,7 @@ import qualified Data.Text as T
 import OpenTelemetry.Common
 import System.IO
 import Text.Printf
+import Text.Read
 
 showValue :: TagValue -> String
 showValue (StringTagValue s) = show s
@@ -15,6 +18,10 @@ showValue (IntTagValue i) = show i
 showSpan :: Span -> String
 showSpan s@(Span {..}) =
   let (TId tid) = spanTraceId s
+      threadId = case HM.lookup "thread_id" spanTags of
+        Just (StringTagValue (T.stripPrefix "ThreadId " -> Just (readMaybe . T.unpack -> Just t))) -> t
+        Just (IntTagValue t) -> t
+        _ -> fromIntegral tid
       meta :: String
       meta =
         spanTags
@@ -27,11 +34,11 @@ showSpan s@(Span {..}) =
         "{\"ph\":\"B\",\"name\":\"%s\",\"pid\":1,\"ts\":%d,\"tid\":%d,\"meta\":{%s}},{\"ph\":\"E\",\"name\":\"%s\",\"pid\":1,\"ts\":%d,\"tid\":%d},"
         spanOperation
         (div spanStartedAt 1000)
-        tid
+        threadId
         meta
         spanOperation
         (div spanFinishedAt 1000)
-        tid
+        threadId
 
 createFileSpanExporter :: FilePath -> IO (Exporter Span)
 createFileSpanExporter path = do
