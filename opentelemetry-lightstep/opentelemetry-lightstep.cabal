@@ -1,7 +1,10 @@
 cabal-version:       2.4
 name:                opentelemetry-lightstep
-version:             0.1.0.0
+description:         The OpenTelemetry Haskell Client (LightStep exporter) https://opentelemetry.io
+category:            OpenTelemetry
+version:             0.0.0.0
 license-file:        LICENSE
+license:             Apache-2.0
 author:              Dmitry Ivanov
 maintainer:          ethercrow@gmail.com
 build-type:          Simple
@@ -41,8 +44,10 @@ common options
 
 library
   import: options
+  autogen-modules:
+    Paths_opentelemetry_lightstep
   build-depends:
-    base >= 4.12,
+    base >= 4.12 && < 5,
     opentelemetry,
     exceptions,
     http2-client,

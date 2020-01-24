@@ -1,7 +1,10 @@
 cabal-version:       2.4
 name:                opentelemetry
-version:             0.1.0.0
+description:         The OpenTelemetry Haskell Client https://opentelemetry.io
+category:            OpenTelemetry
+version:             0.0.0.0
 license-file:        LICENSE
+license:             Apache-2.0
 author:              Dmitry Ivanov
 maintainer:          ethercrow@gmail.com
 build-type:          Simple
@@ -42,7 +45,7 @@ common options
 library
   import: options
   build-depends:
-    base >= 4.12,
+    base >= 4.12 && < 5,
     clock >= 0.8,
     exceptions,
     hashable,
