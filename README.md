@@ -17,11 +17,14 @@ The idea is to instrument your application code and configure where the telemetr
 
 At the start of your application you configure the OpenTelemetry exporter. Here's the simplest way that exports to a file:
 
-```
+```haskell
 import OpenTelemetry.FileExporter
 
 main = do
   exporter <- createFileSpanExporter "my-application.trace.json"
+  let otConfig = OpenTelemetryConfig { otcSpanExporter = exporter }
+  withOpenTelemetry otConfig $ do
+    ... the rest of the application ...
 ```
 
 
