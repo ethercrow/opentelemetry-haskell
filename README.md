@@ -2,11 +2,8 @@
 
 ![Build](https://github.com/ethercrow/opentelemetry-haskell/workflows/Build/badge.svg)
 ![Hackage CI](https://matrix.hackage.haskell.org/api/v2/packages/opentelemetry/badge)
-![Hackage](https://img.shields.io/hackage/v/lightstep-ha
-skell)
-[![lightstep-haskell on Stackage Nightly](http://stackag
-e.org/package/lightstep-haskell/badge/nightly)](http://s
-tackage.org/nightly/package/lightstep-haskell)
+![Hackage](https://img.shields.io/hackage/v/lightstep-haskell)
+[![lightstep-haskell on Stackage Nightly](http://stackage.org/package/lightstep-haskell/badge/nightly)](http://stackage.org/nightly/package/lightstep-haskell)
 
 ## What is it?
 
