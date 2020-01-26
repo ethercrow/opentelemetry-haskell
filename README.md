@@ -28,7 +28,7 @@ main = do
 ```
 
 
-After you run your instrumented application, you'll have a `my-app.trace.json` file that you can load into Chrome's `about:tracing` page and get something like this:
+After you run your instrumented application, you'll have a `my-application.trace.json` file that you can load into Chrome's `about:tracing` page and get something like this:
 
 ![chrome_tracing_screenshot](https://i.imgur.com/q62yAkC.png)
 
