@@ -13,6 +13,12 @@ The idea is to instrument your application code and configure where the telemetr
 
 ## How do I use it?
 
+### As a library author
+
+Add `opentelemetry` to dependencies and sprinkle `withSpan` on interesting `IO` actions (or any other `m` satisfying `(MonadIO m, MonadCatch m)`.
+
+TODO: some examples
+
 ### As an application author
 
 At the start of your application you configure the OpenTelemetry exporter. Here's the simplest way that exports to a file:
@@ -34,8 +40,13 @@ After you run your instrumented application, you'll have a `my-application.trace
 
 Alternatively, configure the exporter to send tracing data to a compatible collector such as Jaeger, Zipkin, LightStep, HoneyComb, etc.
 
-### As a library author
+Explore the profile data to find performance problems and unexpected things, fix those, adjust instrumentation, repeat.
 
 ## How does it work?
 
+TODO
+
 ## How do I contribute?
+
+TODO
+
