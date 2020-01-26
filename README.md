@@ -13,6 +13,26 @@ The idea is to instrument your application code and configure where the telemetr
 
 ## How do I use it?
 
+### As an application author
+
+At the start of your application you configure the OpenTelemetry exporter. Here's the simplest way that exports to a file:
+
+```
+import OpenTelemetry.FileExporter
+
+main = do
+  exporter <- createFileSpanExporter "my-application.trace.json"
+```
+
+
+After you run your instrumented application, you'll have a `my-app.trace.json` file that you can load into Chrome's `about:tracing` page and get something like this:
+
+![chrome_tracing_screenshot](https://i.imgur.com/q62yAkC.png)
+
+Alternatively, configure the exporter to send tracing data to a compatible collector such as Jaeger, Zipkin, LightStep, HoneyComb, etc.
+
+### As a library author
+
 ## How does it work?
 
 ## How do I contribute?
