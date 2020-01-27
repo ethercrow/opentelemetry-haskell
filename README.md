@@ -44,6 +44,10 @@ After you run your instrumented application, you'll have a `my-application.trace
 
 ![chrome_tracing_screenshot](https://i.imgur.com/q62yAkC.png)
 
+Or load it into [Tracy](https://bitbucket.org/wolfpld/tracy/src/master/README.md), much more capable profile visualizer:
+
+![tracy_screenshot](https://i.imgur.com/nbmma87.png)
+
 Alternatively, configure the exporter to send tracing data to a compatible collector such as Jaeger, Zipkin, LightStep, HoneyComb, etc.
 
 Explore the profile data to find performance problems and unexpected things, fix those, adjust instrumentation, repeat.
