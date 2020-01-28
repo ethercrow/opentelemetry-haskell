@@ -23,7 +23,9 @@ Another utopic goal: Haskell development tools like stack, cabal, HIE, hlint, or
 
 Add `opentelemetry` to dependencies and sprinkle `withSpan` on interesting `IO` actions (or any other `m` satisfying `(MonadIO m, MonadCatch m)`.
 
-TODO: some examples
+See [megaexample](megaexample/README.md).
+
+TODO: more examples
 
 ### As an application author
 
