@@ -32,8 +32,8 @@ data LightStepClient
 d_ :: String -> IO ()
 d_ = putStrLn
 
-createLightStepExporter :: LightStepConfig -> IO (Exporter Span)
-createLightStepExporter cfg = do
+createLightStepSpanExporter :: LightStepConfig -> IO (Exporter Span)
+createLightStepSpanExporter cfg = do
   client <- mkClient cfg
   pure
     $! Exporter
