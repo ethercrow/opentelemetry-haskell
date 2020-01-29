@@ -1,12 +1,10 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module OpenTelemetry.Common where
 
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable
+import GHC.Generics
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty ((:|)), (<|))
 import qualified Data.Text as T
@@ -14,11 +12,11 @@ import Data.Word
 import System.Clock
 
 newtype TraceId = TId Word64
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
   deriving (Hashable) via Word64
 
 newtype SpanId = SId Word64
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
   deriving (Hashable) via Word64
 
 type Timestamp = Word64
@@ -62,7 +60,7 @@ createTracer :: (Hashable tid, Eq tid) => IO (Tracer tid)
 createTracer = pure $ Tracer mempty mempty
 
 data SpanContext = SpanContext !SpanId !TraceId
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
 data TagValue
   = StringTagValue !T.Text

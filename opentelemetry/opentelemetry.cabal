@@ -19,7 +19,11 @@ common options
     BangPatterns
     BlockArguments
     DataKinds
+    DeriveGeneric
+    DerivingStrategies
+    DerivingVia
     FlexibleInstances
+    InstanceSigs
     LambdaCase
     MultiParamTypeClasses
     MultiWayIf
@@ -46,6 +50,8 @@ library
   import: options
   build-depends:
     base >= 4.12 && < 5,
+    attoparsec,
+    bytestring,
     clock >= 0.8,
     exceptions,
     hashable,
@@ -58,6 +64,7 @@ library
     OpenTelemetry.Explicit
     OpenTelemetry.Implicit
     OpenTelemetry.FileExporter
+    OpenTelemetry.Propagation
 
 test-suite just-some-usage-code-that-must-compile
   import: options
@@ -78,10 +85,13 @@ test-suite unit-tests
   main-is:    Main.hs
   other-modules:
     TestCommon
+    TestPropagation
   hs-source-dirs: unit-tests
   build-depends:
     base,
+    bytestring,
     tasty,
     tasty-quickcheck,
+    tasty-hunit,
     tasty-discover,
     opentelemetry

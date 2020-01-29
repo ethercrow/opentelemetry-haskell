@@ -3,6 +3,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
 import qualified Data.ByteString.Lazy.Char8 as LBS
+import Data.List (find)
 import Data.String
 import qualified Data.Text as T
 import GHC.Stats
@@ -15,6 +16,7 @@ import OpenTelemetry.FileExporter
 import OpenTelemetry.Implicit
 import OpenTelemetry.LightStep.Config
 import OpenTelemetry.LightStep.Exporter
+import OpenTelemetry.Propagation
 import System.Environment
 import System.Exit
 
@@ -44,6 +46,9 @@ seriousPragmaticMain = do
 
 microservice :: Wai.Application
 microservice = \req respond -> withSpan "handle_http_request" $ do
+  let hdrs = Wai.requestHeaders req
+  case extractSpanContextFromHeaders hdrs of
+    _ -> pure ()
   case Wai.pathInfo req of
     ("http" : rest) -> do
       let target = "http://" <> T.intercalate "/" rest
@@ -65,7 +70,8 @@ get :: T.Text -> IO LBS.ByteString
 get (T.unpack -> url) = withSpan "call_http_get" $ do
   setTag @String "span.kind" "client"
   setTag "http.url" url
-  let request = fromString url
+  let request =
+        fromString url
   manager <- withSpan "newManager" $ newManager defaultManagerSettings
   resp <- httpLbs request manager
   setTag "http.status" $ show (responseStatus resp)
