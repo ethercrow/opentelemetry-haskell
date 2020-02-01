@@ -23,10 +23,10 @@ withSpan operation action = do
   startedAt <- liftIO now64
   bracket
     ( liftIO $ modifyMVar_ globalSharedMutableState $ \GlobalSharedMutableState {..} -> do
-        let !ctx = case HM.lookup threadId (tracerSpanStacks gTracer) of
-              Nothing -> SpanContext (SId sid) (TId sid)
-              Just ((spanContext -> SpanContext _ tid) :| _) -> SpanContext (SId sid) tid
-            !sp = Span ctx (T.pack operation) startedAt 0 (HM.singleton "thread_id" (StringTagValue $ T.pack $ show threadId)) OK
+        let (!mpsid, !ctx) = case HM.lookup threadId (tracerSpanStacks gTracer) of
+              Nothing -> (Nothing, SpanContext (SId sid) (TId sid))
+              Just ((spanContext -> SpanContext psid tid) :| _) -> (Just psid, SpanContext (SId sid) tid)
+            !sp = Span ctx (T.pack operation) startedAt 0 (HM.singleton "thread_id" (StringTagValue $ T.pack $ show threadId)) OK mpsid
             !tracer = tracerPushSpan gTracer threadId sp
         pure $! GlobalSharedMutableState gSpanExporter tracer
     )
@@ -112,7 +112,7 @@ withChildSpanOf parent operation action = do
         let !ctx = case HM.lookup threadId' (tracerSpanStacks gTracer) of
               Nothing -> SpanContext (SId sid) (TId sid)
               Just ((spanContext -> SpanContext _ tid) NE.:| _) -> SpanContext (SId sid) tid
-            !sp = Span ctx (T.pack operation) timestamp 0 mempty OK
+            !sp = Span ctx (T.pack operation) timestamp 0 mempty OK (Just $ spanId parent)
             !tracer = tracerPushSpan gTracer threadId sp
         pure $! GlobalSharedMutableState gSpanExporter tracer
     )

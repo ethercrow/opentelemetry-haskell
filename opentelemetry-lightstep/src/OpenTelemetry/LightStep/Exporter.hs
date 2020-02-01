@@ -73,14 +73,20 @@ convertSpan s@(Span {..}) =
              & seconds .~ fromIntegral (spanStartedAt `div` 1_000_000_000)
              & nanos .~ fromIntegral (rem spanStartedAt 1_000_000_000)
          )
+    & durationMicros
+      .~ ((spanFinishedAt - spanStartedAt) `div` 1_000_000_000)
     & P.spanContext
       .~ ( defMessage
              & traceId .~ tid
              & P.spanId .~ sid
          )
+    & linkToParentIfNecessary
   where
     TId tid = (spanTraceId s)
     SId sid = spanId s
+    linkToParentIfNecessary = case spanParentId of
+      Just (SId psid) -> references .~ [defMessage & relationship .~ P.Reference'CHILD_OF & P.spanContext .~ (defMessage & traceId .~ fromIntegral tid & P.spanId .~ fromIntegral psid)]
+      Nothing -> id
 
 closeClient :: LightStepClient -> IO (Either ClientError ())
 closeClient LightStepClient {..} = readMVar lscGrpcVar >>= runExceptT . close
@@ -97,18 +103,19 @@ reportSpans client@(LightStepClient {..}) (map convertSpan -> sps) = do
                         (Either TooMuchConcurrency (RawReply P.ReportResponse))
                     )
                 )
-            req =
+            req = do
+              let payload = defMessage
+                        & auth .~ (defMessage & accessToken .~ lsToken)
+                        & spans .~ sps
+                        & reporter .~ lscReporter
+              d_ $ show payload
               timeout 3_000_000 $ do
                 grpc <- readMVar lscGrpcVar
                 runExceptT $ do
                   rawUnary
                     (RPC :: RPC P.CollectorService "report")
                     grpc
-                    ( defMessage
-                        & auth .~ (defMessage & accessToken .~ lsToken)
-                        & spans .~ sps
-                        & reporter .~ lscReporter
-                    )
+                    payload
         fst
           <$> generalBracket
             (pure ())
@@ -121,6 +128,7 @@ reportSpans client@(LightStepClient {..}) (map convertSpan -> sps) = do
             )
             (\_ -> req)
   ret <- tryOnce
+  d_ $ show ret
   ret2 <- case ret of
     Nothing -> do
       d_ "GRPC client is stuck, trying to reconnect"
@@ -131,7 +139,7 @@ reportSpans client@(LightStepClient {..}) (map convertSpan -> sps) = do
   case ret2 of
     Nothing -> pure ()
     _ -> pure ()
-  -- d_ $ show ret2
+  d_ $ show ret2
   pure ()
 
 reconnectClient :: LightStepClient -> IO ()

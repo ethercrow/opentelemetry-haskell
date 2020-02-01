@@ -82,12 +82,13 @@ data Span
         spanStartedAt :: !Timestamp,
         spanFinishedAt :: !Timestamp,
         spanTags :: !(HM.HashMap T.Text TagValue),
-        spanStatus :: !SpanStatus
+        spanStatus :: !SpanStatus,
+        spanParentId :: Maybe SpanId
       }
   deriving (Show, Eq)
 
 emptySpan :: Span
-emptySpan = Span (SpanContext (SId 0) (TId 0)) "" 0 0 mempty OK
+emptySpan = Span (SpanContext (SId 0) (TId 0)) "" 0 0 mempty OK Nothing
 
 spanTraceId :: Span -> TraceId
 spanTraceId Span {spanContext = SpanContext _ tid} = tid
