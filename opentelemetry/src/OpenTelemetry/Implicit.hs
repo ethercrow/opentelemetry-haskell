@@ -11,9 +11,8 @@ import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Maybe
 import qualified Data.Text as T
-import GHC.Conc
 import OpenTelemetry.Common
-import System.IO
+import OpenTelemetry.FileExporter
 import System.IO.Unsafe
 import System.Random
 
@@ -74,6 +73,14 @@ data GlobalSharedMutableState
       { gSpanExporter :: !(Exporter Span),
         gTracer :: !(Tracer ThreadId)
       }
+
+withZeroConfigOpenTelemetry :: (MonadIO m, MonadMask m) => m a -> m a
+withZeroConfigOpenTelemetry action = do
+  -- TODO(divanov): crossplatformer temporary directory
+  -- TODO(divanov): include program name and current date in the filename
+  exporter <- liftIO $ createFileSpanExporter "/tmp/opentelemetry.trace.json"
+  let otelConfig = OpenTelemetryConfig {otcSpanExporter = exporter}
+  withOpenTelemetry otelConfig action
 
 getCurrentActiveSpan :: MonadIO m => m Span
 getCurrentActiveSpan = do
