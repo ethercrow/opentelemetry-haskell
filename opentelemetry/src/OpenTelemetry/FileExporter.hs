@@ -31,7 +31,7 @@ showSpan s@(Span {..}) =
           & concat
           & concat
    in printf
-        "{\"ph\":\"B\",\"name\":\"%s\",\"pid\":1,\"ts\":%d,\"tid\":%d,\"meta\":{%s}},{\"ph\":\"E\",\"name\":\"%s\",\"pid\":1,\"ts\":%d,\"tid\":%d},"
+        "{\"ph\":\"B\",\"name\":\"%s\",\"pid\":1,\"ts\":%d,\"tid\":%d,\"args\":{%s}},{\"ph\":\"E\",\"name\":\"%s\",\"pid\":1,\"ts\":%d,\"tid\":%d},"
         spanOperation
         (div spanStartedAt 1000)
         threadId
