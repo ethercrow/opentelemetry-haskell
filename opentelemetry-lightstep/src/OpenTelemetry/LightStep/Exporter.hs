@@ -85,7 +85,7 @@ convertSpan s@(Span {..}) =
     TId tid = (spanTraceId s)
     SId sid = spanId s
     linkToParentIfNecessary = case spanParentId of
-      Just (SId psid) -> references .~ [defMessage & relationship .~ P.Reference'CHILD_OF & P.spanContext .~ (defMessage & traceId .~ fromIntegral tid & P.spanId .~ fromIntegral psid)]
+      Just (SId psid) -> references .~ [defMessage & relationship .~ P.Reference'CHILD_OF & P.spanContext .~ (defMessage & traceId .~ tid & P.spanId .~ psid)]
       Nothing -> id
 
 closeClient :: LightStepClient -> IO (Either ClientError ())
@@ -104,10 +104,11 @@ reportSpans client@(LightStepClient {..}) (map convertSpan -> sps) = do
                     )
                 )
             req = do
-              let payload = defMessage
-                        & auth .~ (defMessage & accessToken .~ lsToken)
-                        & spans .~ sps
-                        & reporter .~ lscReporter
+              let payload =
+                    defMessage
+                      & auth .~ (defMessage & accessToken .~ lsToken)
+                      & spans .~ sps
+                      & reporter .~ lscReporter
               d_ $ show payload
               timeout 3_000_000 $ do
                 grpc <- readMVar lscGrpcVar
