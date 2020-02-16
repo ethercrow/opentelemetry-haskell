@@ -21,12 +21,13 @@ showSpan s@(Span {..}) =
       threadId = case HM.lookup "thread_id" spanTags of
         Just (StringTagValue (T.stripPrefix "ThreadId " -> Just (readMaybe . T.unpack -> Just t))) -> t
         Just (IntTagValue t) -> t
-        _ -> fromIntegral tid
+        _ -> 1
       meta :: String
       meta =
         spanTags
           & HM.toList
           & map (\(k, v) -> ["\"", T.unpack k, "\":", showValue v])
+          & ([printf "\"traceId\":\"%x\"" tid] :)
           & intersperse [","]
           & concat
           & concat
