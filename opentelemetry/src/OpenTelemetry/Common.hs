@@ -10,14 +10,21 @@ import Data.List.NonEmpty (NonEmpty ((:|)), (<|))
 import qualified Data.Text as T
 import Data.Word
 import System.Clock
+import Text.Printf
 
 newtype TraceId = TId Word64
-  deriving (Show, Eq, Generic)
+  deriving (Eq, Generic)
   deriving (Hashable) via Word64
 
+instance Show TraceId where
+  show (TId tid) = printf "TraceId %x" tid
+
 newtype SpanId = SId Word64
-  deriving (Show, Eq, Generic)
+  deriving (Eq, Generic)
   deriving (Hashable) via Word64
+
+instance Show SpanId where
+  show (SId sid) = printf "SpanId %x" sid
 
 type Timestamp = Word64
 
