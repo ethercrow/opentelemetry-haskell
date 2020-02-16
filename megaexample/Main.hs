@@ -3,7 +3,6 @@
 {-# LANGUAGE ViewPatterns #-}
 
 import qualified Data.ByteString.Lazy.Char8 as LBS
-import Data.List (find)
 import Data.String
 import qualified Data.Text as T
 import GHC.Stats
@@ -48,7 +47,10 @@ microservice :: Wai.Application
 microservice = \req respond -> withSpan "handle_http_request" $ do
   let hdrs = Wai.requestHeaders req
   case extractSpanContextFromHeaders hdrs of
-    _ -> pure ()
+    Just c -> do
+      setParentSpanContext c
+    Nothing -> do
+      pure ()
   case Wai.pathInfo req of
     ("http" : rest) -> do
       let target = "http://" <> T.intercalate "/" rest
@@ -70,8 +72,16 @@ get :: T.Text -> IO LBS.ByteString
 get (T.unpack -> url) = withSpan "call_http_get" $ do
   setTag @String "span.kind" "client"
   setTag "http.url" url
+  mctx <- getCurrentSpanContext
+  let propagationHeaders = case mctx of
+        Nothing -> []
+        Just ctx -> [(fromString k, v) | (k, v) <- inject W3CTraceContext ctx]
   let request =
-        fromString url
+        ( fromString
+            url
+        )
+          { requestHeaders = propagationHeaders
+          }
   manager <- withSpan "newManager" $ newManager defaultManagerSettings
   resp <- httpLbs request manager
   setTag "http.status" $ show (responseStatus resp)

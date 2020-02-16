@@ -50,7 +50,6 @@ library
   import: options
   build-depends:
     base >= 4.12 && < 5,
-    attoparsec,
     bytestring,
     clock >= 0.8,
     exceptions,

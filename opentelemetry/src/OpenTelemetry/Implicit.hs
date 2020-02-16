@@ -57,6 +57,16 @@ addEvent name = do
   tid <- liftIO myThreadId
   error "addEvent: not implemented"
 
+setParentSpanContext :: MonadIO m => SpanContext -> m ()
+setParentSpanContext (SpanContext psid tid) =
+  modifyCurrentSpan
+    ( \sp ->
+        sp
+          { spanContext = SpanContext (spanId sp) tid,
+            spanParentId = Just psid
+          }
+    )
+
 withOpenTelemetry :: (MonadIO m, MonadMask m) => OpenTelemetryConfig -> m a -> m a
 withOpenTelemetry OpenTelemetryConfig {..} action = do
   bracket
@@ -81,6 +91,12 @@ withZeroConfigOpenTelemetry action = do
   exporter <- liftIO $ createFileSpanExporter "/tmp/opentelemetry.trace.json"
   let otelConfig = OpenTelemetryConfig {otcSpanExporter = exporter}
   withOpenTelemetry otelConfig action
+
+getCurrentSpanContext :: MonadIO m => m (Maybe SpanContext)
+getCurrentSpanContext = do
+  tid <- liftIO myThreadId
+  GlobalSharedMutableState {..} <- liftIO $ readMVar globalSharedMutableState
+  pure $ spanContext <$> tracerGetCurrentActiveSpan gTracer tid
 
 getCurrentActiveSpan :: MonadIO m => m Span
 getCurrentActiveSpan = do
