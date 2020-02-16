@@ -124,10 +124,7 @@ withChildSpanOf parent operation action = do
   timestamp <- liftIO now64
   bracket
     ( liftIO $ modifyMVar_ globalSharedMutableState $ \GlobalSharedMutableState {..} -> do
-        let threadId' = fromMaybe threadId $ HM.lookup (spanTraceId parent) (trace2thread gTracer)
-        let !ctx = case HM.lookup threadId' (tracerSpanStacks gTracer) of
-              Nothing -> SpanContext (SId sid) (TId sid)
-              Just ((spanContext -> SpanContext _ tid) NE.:| _) -> SpanContext (SId sid) tid
+        let !ctx = SpanContext (SId sid) (spanTraceId parent)
             !sp = Span ctx (T.pack operation) timestamp 0 mempty OK (Just $ spanId parent)
             !tracer = tracerPushSpan gTracer threadId sp
         pure $! GlobalSharedMutableState gSpanExporter tracer

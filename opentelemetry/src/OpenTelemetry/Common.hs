@@ -30,8 +30,7 @@ type Timestamp = Word64
 
 data Tracer threadId
   = Tracer
-      { tracerSpanStacks :: !(HM.HashMap threadId (NE.NonEmpty Span)),
-        trace2thread :: !(HM.HashMap TraceId threadId)
+      { tracerSpanStacks :: !(HM.HashMap threadId (NE.NonEmpty Span))
       }
       deriving (Eq, Show)
 
@@ -40,8 +39,7 @@ tracerPushSpan t@(Tracer {..}) tid sp =
   case HM.lookup tid tracerSpanStacks of
     Nothing ->
       let !stacks = HM.insert tid (sp :| []) tracerSpanStacks
-          !t2t = HM.insert (spanTraceId sp) tid trace2thread
-      in Tracer stacks t2t
+      in Tracer stacks
     Just sps ->
       let !stacks = HM.insert tid (sp <| sps) tracerSpanStacks
       in t { tracerSpanStacks = stacks }
@@ -51,20 +49,20 @@ tracerPopSpan t@(Tracer {..}) tid =
   case HM.lookup tid tracerSpanStacks of
     Nothing -> (Nothing, t)
     Just (sp :| sps) ->
-      let (stacks, t2t) =
+      let stacks =
             case NE.nonEmpty sps of
-              Nothing -> (HM.delete tid tracerSpanStacks, HM.delete (spanTraceId sp) trace2thread)
-              Just sps' -> (HM.insert tid sps' tracerSpanStacks, trace2thread)
-       in (Just sp, Tracer stacks t2t)
+              Nothing -> HM.delete tid tracerSpanStacks
+              Just sps' -> HM.insert tid sps' tracerSpanStacks
+       in (Just sp, Tracer stacks)
 
 tracerGetCurrentActiveSpan :: (Hashable tid, Eq tid) => Tracer tid -> tid -> Maybe Span
-tracerGetCurrentActiveSpan (Tracer stacks _) tid =
+tracerGetCurrentActiveSpan (Tracer stacks) tid =
   case HM.lookup tid stacks of
     Nothing -> Nothing
     Just (sp NE.:| _) -> Just sp
 
 createTracer :: (Hashable tid, Eq tid) => IO (Tracer tid)
-createTracer = pure $ Tracer mempty mempty
+createTracer = pure $ Tracer mempty
 
 data SpanContext = SpanContext !SpanId !TraceId
   deriving (Show, Eq, Generic)
