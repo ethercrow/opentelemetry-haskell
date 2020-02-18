@@ -14,6 +14,7 @@ import Text.Read
 showValue :: TagValue -> String
 showValue (StringTagValue s) = show s
 showValue (IntTagValue i) = show i
+showValue _ = "\"unknown\""
 
 showSpan :: Span -> String
 showSpan s@(Span {..}) =

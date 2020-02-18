@@ -7,7 +7,6 @@ import Control.Concurrent
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import qualified Data.HashMap.Strict as HM
-import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Maybe
 import qualified Data.Text as T
