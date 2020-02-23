@@ -25,7 +25,7 @@ withSpan operation action = do
         let (!mpsid, !ctx) = case HM.lookup threadId (tracerSpanStacks gTracer) of
               Nothing -> (Nothing, SpanContext (SId sid) (TId sid))
               Just ((spanContext -> SpanContext psid tid) :| _) -> (Just psid, SpanContext (SId sid) tid)
-            !sp = Span ctx (T.pack operation) startedAt 0 (HM.singleton "thread_id" (StringTagValue $ T.pack $ show threadId)) OK mpsid
+            !sp = Span ctx (T.pack operation) startedAt 0 (HM.singleton "thread_id" (StringTagValue $ T.pack $ show threadId)) mempty OK mpsid
             !tracer = tracerPushSpan gTracer threadId sp
         pure $! GlobalSharedMutableState gSpanExporter tracer
     )
@@ -51,10 +51,13 @@ setTag k v =
         sp {spanTags = HM.insert k (toTagValue v) (spanTags sp)}
     )
 
-addEvent :: forall m. MonadIO m => T.Text -> m ()
-addEvent name = do
-  tid <- liftIO myThreadId
-  error "addEvent: not implemented"
+addEvent :: forall m. MonadIO m => T.Text -> T.Text -> m ()
+addEvent name value = do
+  now <- liftIO now64
+  modifyCurrentSpan
+    ( \sp ->
+        sp {spanEvents = SpanEvent now name value : spanEvents sp}
+    )
 
 setParentSpanContext :: MonadIO m => SpanContext -> m ()
 setParentSpanContext (SpanContext psid tid) =
@@ -124,7 +127,7 @@ withChildSpanOf parent operation action = do
   bracket
     ( liftIO $ modifyMVar_ globalSharedMutableState $ \GlobalSharedMutableState {..} -> do
         let !ctx = SpanContext (SId sid) (spanTraceId parent)
-            !sp = Span ctx (T.pack operation) timestamp 0 mempty OK (Just $ spanId parent)
+            !sp = Span ctx (T.pack operation) timestamp 0 mempty mempty OK (Just $ spanId parent)
             !tracer = tracerPushSpan gTracer threadId sp
         pure $! GlobalSharedMutableState gSpanExporter tracer
     )

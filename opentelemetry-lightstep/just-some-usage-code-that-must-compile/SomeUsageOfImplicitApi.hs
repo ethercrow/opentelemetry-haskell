@@ -35,12 +35,12 @@ pieceOfSeriousBusinessLogic input = withSpan "serious business" $ do
 
   -- TODO: JSON values
 
-  addEvent "rpc roundtrip begin"
+  addEvent "log" "rpc roundtrip begin"
   withSpan "leveraging synergies" $ do
     threadDelay 10000
-    addEvent "enough synergies leveraged"
-  addEvent "All your base are belong to us"
-  addEvent "rpc roundtrip end"
+    addEvent "log" "enough synergies leveraged"
+  addEvent "log" "All your base are belong to us"
+  addEvent "log" "rpc roundtrip end"
   withSpan "project" $ do
     -- Connecting spans across threads requires some manual plumbing
     sp <- getCurrentActiveSpan
