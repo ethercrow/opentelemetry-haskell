@@ -140,5 +140,5 @@ data OpenTelemetryConfig
 
 now64 :: IO Timestamp
 now64 = do
-  TimeSpec secs nsecs <- getTime Monotonic
+  TimeSpec secs nsecs <- getTime Realtime
   pure $! fromIntegral secs * 1_000_000_000 + fromIntegral nsecs

@@ -11,7 +11,6 @@ where
 import qualified Data.Text as T
 import GHC.Conc
 import OpenTelemetry.Common
-import System.Clock
 import System.Random
 
 data Client

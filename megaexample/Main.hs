@@ -14,7 +14,7 @@ import OpenTelemetry.Common
 import OpenTelemetry.FileExporter
 import OpenTelemetry.Implicit
 import OpenTelemetry.LightStep.Config
-import OpenTelemetry.LightStep.Exporter
+import OpenTelemetry.LightStep.ZipkinExporter
 import OpenTelemetry.Propagation
 import System.Environment
 import System.Exit
