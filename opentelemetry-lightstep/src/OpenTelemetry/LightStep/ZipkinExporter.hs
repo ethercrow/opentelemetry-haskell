@@ -23,15 +23,15 @@ instance ToJSON ZipkinSpan where
   toJSON (ZipkinSpan token s@(Span {..})) =
     let TId tid = spanTraceId s
         SId sid = spanId s
-     in object
+     in object $
           [ "name" .= spanOperation,
             "traceId" .= T.pack (printf "%016x" tid),
             "id" .= T.pack (printf "%016x" sid),
-            "kind" .= String "SERVER",
             "timestamp" .= spanStartedAt,
             "duration" .= (spanFinishedAt - spanStartedAt),
             "tags" .= object ["lightstep.access_token" .= token]
           ]
+            <> (maybe [] (\(SId sid) -> ["parentId" .= sid]) spanParentId)
   toEncoding (ZipkinSpan token s@(Span {..})) =
     let TId tid = spanTraceId s
         SId sid = spanId s
@@ -39,10 +39,14 @@ instance ToJSON ZipkinSpan where
           ( "name" .= spanOperation
               <> "traceId" .= T.pack (printf "%016x" tid)
               <> "id" .= T.pack (printf "%016x" sid)
-              <> "kind" .= String "CLIENT"
               <> "timestamp" .= (spanStartedAt `div` 1000)
               <> "duration" .= ((spanFinishedAt - spanStartedAt) `div` 1000)
               <> "tags" .= object ["lightstep.access_token" .= token]
+              <> ( maybe
+                     mempty
+                     (\(SId sid) -> "parentId" .= T.pack (printf "%016x" sid))
+                     spanParentId
+                 )
           )
 
 data LightStepClient
