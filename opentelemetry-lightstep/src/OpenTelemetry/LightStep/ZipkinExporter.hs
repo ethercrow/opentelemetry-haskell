@@ -14,34 +14,50 @@ import Text.Printf
 
 data ZipkinSpan
   = ZipkinSpan
-      { zsToken :: T.Text,
+      { zsConfig :: LightStepConfig,
         zsSpan :: Span
       }
 
 instance ToJSON ZipkinSpan where
   -- FIXME(divanov): deduplicate
-  toJSON (ZipkinSpan token s@(Span {..})) =
+  toJSON (ZipkinSpan LightStepConfig {..} s@(Span {..})) =
     let TId tid = spanTraceId s
         SId sid = spanId s
+        ts = spanStartedAt `div` 1000
+        duration = (spanFinishedAt - spanStartedAt) `div` 1000
      in object $
           [ "name" .= spanOperation,
             "traceId" .= T.pack (printf "%016x" tid),
             "id" .= T.pack (printf "%016x" sid),
-            "timestamp" .= spanStartedAt,
-            "duration" .= (spanFinishedAt - spanStartedAt),
-            "tags" .= object ["lightstep.access_token" .= token]
+            "timestamp" .= ts,
+            "duration" .= duration,
+            "tags"
+              .= object
+                ( [ "lightstep.access_token" .= lsToken,
+                    "lightstep.component_name" .= lsServiceName
+                  ]
+                    <> [k .= v | (k, v) <- lsGlobalTags]
+                )
           ]
             <> (maybe [] (\(SId sid) -> ["parentId" .= sid]) spanParentId)
-  toEncoding (ZipkinSpan token s@(Span {..})) =
+  toEncoding (ZipkinSpan LightStepConfig {..} s@(Span {..})) =
     let TId tid = spanTraceId s
         SId sid = spanId s
+        ts = spanStartedAt `div` 1000
+        duration = (spanFinishedAt - spanStartedAt) `div` 1000
      in pairs
           ( "name" .= spanOperation
               <> "traceId" .= T.pack (printf "%016x" tid)
               <> "id" .= T.pack (printf "%016x" sid)
-              <> "timestamp" .= (spanStartedAt `div` 1000)
-              <> "duration" .= ((spanFinishedAt - spanStartedAt) `div` 1000)
-              <> "tags" .= object ["lightstep.access_token" .= token]
+              <> "timestamp" .= ts
+              <> "duration" .= duration
+              <> "tags"
+                .= object
+                  ( [ "lightstep.access_token" .= lsToken,
+                      "lightstep.component_name" .= lsServiceName
+                    ]
+                      <> [k .= v | (k, v) <- lsGlobalTags]
+                  )
               <> ( maybe
                      mempty
                      (\(SId sid) -> "parentId" .= T.pack (printf "%016x" sid))
@@ -78,7 +94,7 @@ reportSpans :: LightStepClient -> [Span] -> IO ()
 reportSpans client@(LightStepClient {..}) sps = do
   let -- TODO(divanov) unhardcode endpoint
       url = "https://ingest.lightstep.com:443/api/v2/spans"
-      body = encode (map (ZipkinSpan (lsToken lscConfig)) sps)
+      body = encode (map (ZipkinSpan lscConfig) sps)
       request =
         (parseRequest_ url)
           { method = "POST",
@@ -87,8 +103,5 @@ reportSpans client@(LightStepClient {..}) sps = do
           }
   -- TODO(divanov): count reported and rejected spans
   -- TODO(divanov): handle failures
-  BSL.putStrLn body
   resp <- httpLbs request lscHttpManager
-  print resp
-  print (responseBody resp)
   pure ()
