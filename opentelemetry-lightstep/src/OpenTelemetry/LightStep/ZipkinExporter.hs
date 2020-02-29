@@ -6,6 +6,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.Concurrent.STM.TBQueue
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.Text as T
@@ -81,8 +82,8 @@ d_ thing = do
   -- TODO(divanov): make it print thing or not print thing based on OPENTELEMETRY_DEBUG env var
   pure ()
 
-createLightStepSpanExporter :: LightStepConfig -> IO (Exporter Span)
-createLightStepSpanExporter cfg = do
+createLightStepSpanExporter :: MonadIO m => LightStepConfig -> m (Exporter Span)
+createLightStepSpanExporter cfg = liftIO do
   client <- mkClient cfg
   pure
     $! Exporter
