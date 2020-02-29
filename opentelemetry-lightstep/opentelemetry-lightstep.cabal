@@ -55,6 +55,7 @@ library
     http-types,
     network,
     opentelemetry,
+    scientific,
     stm,
     text,
     unordered-containers

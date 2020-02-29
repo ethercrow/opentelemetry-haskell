@@ -4,11 +4,10 @@ module OpenTelemetry.LightStep.ZipkinExporter where
 
 import Control.Concurrent.Async
 import Control.Concurrent.STM
-import Control.Concurrent.STM.TBQueue
-import Control.Monad
 import Control.Monad.IO.Class
 import Data.Aeson
-import qualified Data.ByteString.Lazy.Char8 as BSL
+import qualified Data.HashMap.Strict as HM
+import Data.Scientific
 import qualified Data.Text as T
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
@@ -21,6 +20,13 @@ data ZipkinSpan
       { zsConfig :: LightStepConfig,
         zsSpan :: Span
       }
+
+tagValue2json :: TagValue -> Value
+tagValue2json tv = case tv of
+  (StringTagValue s) -> String s
+  (BoolTagValue b) -> Bool b
+  (IntTagValue i) -> Number (fromIntegral i)
+  (DoubleTagValue d) -> Number (fromFloatDigits d)
 
 instance ToJSON ZipkinSpan where
   -- FIXME(divanov): deduplicate
@@ -41,9 +47,10 @@ instance ToJSON ZipkinSpan where
                     "lightstep.component_name" .= lsServiceName
                   ]
                     <> [k .= v | (k, v) <- lsGlobalTags]
+                    <> [k .= tagValue2json v | (k, v) <- HM.toList spanTags]
                 )
           ]
-            <> (maybe [] (\(SId sid) -> ["parentId" .= sid]) spanParentId)
+            <> (maybe [] (\(SId psid) -> ["parentId" .= psid]) spanParentId)
   toEncoding (ZipkinSpan LightStepConfig {..} s@(Span {..})) =
     let TId tid = spanTraceId s
         SId sid = spanId s
@@ -61,10 +68,11 @@ instance ToJSON ZipkinSpan where
                       "lightstep.component_name" .= lsServiceName
                     ]
                       <> [k .= v | (k, v) <- lsGlobalTags]
+                      <> [k .= tagValue2json v | (k, v) <- HM.toList spanTags]
                   )
               <> ( maybe
                      mempty
-                     (\(SId sid) -> "parentId" .= T.pack (printf "%016x" sid))
+                     (\(SId psid) -> "parentId" .= T.pack (printf "%016x" psid))
                      spanParentId
                  )
           )
@@ -93,7 +101,7 @@ createLightStepSpanExporter cfg = liftIO do
             q_population <- fromIntegral <$> lengthTBQueue q
             let q_vacancy = fromIntegral (lsSpanQueueSize (lscConfig client) - q_population)
             -- TODO(divanov): increment dropped span counter by (len sps - q_vacancy)
-            traverse
+            mapM_
               (writeTBQueue q)
               (take q_vacancy sps)
           pure ExportSuccess
