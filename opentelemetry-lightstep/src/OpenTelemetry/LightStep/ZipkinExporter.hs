@@ -2,6 +2,9 @@
 
 module OpenTelemetry.LightStep.ZipkinExporter where
 
+import Control.Concurrent.Async
+import Control.Concurrent.STM
+import Control.Concurrent.STM.TBQueue
 import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BSL
@@ -67,12 +70,16 @@ instance ToJSON ZipkinSpan where
 
 data LightStepClient
   = LightStepClient
-      { lscHttpManager :: Manager,
-        lscConfig :: LightStepConfig
+      { lscConfig :: LightStepConfig,
+        lscSenderThread :: Async (),
+        lscSenderQueue :: TBQueue Span,
+        lscShutdownVar :: TVar Bool
       }
 
-d_ :: String -> IO ()
-d_ = putStrLn
+d_ :: Show a => a -> IO ()
+d_ thing = do
+  -- TODO(divanov): make it print thing or not print thing based on OPENTELEMETRY_DEBUG env var
+  pure ()
 
 createLightStepSpanExporter :: LightStepConfig -> IO (Exporter Span)
 createLightStepSpanExporter cfg = do
@@ -80,21 +87,51 @@ createLightStepSpanExporter cfg = do
   pure
     $! Exporter
       ( \sps -> do
-          reportSpans client sps
+          let q = lscSenderQueue client
+          atomically $ do
+            q_population <- fromIntegral <$> lengthTBQueue q
+            let q_vacancy = fromIntegral (lsSpanQueueSize (lscConfig client) - q_population)
+            -- TODO(divanov): increment dropped span counter by (len sps - q_vacancy)
+            traverse
+              (writeTBQueue q)
+              (take q_vacancy sps)
           pure ExportSuccess
       )
-      (pure ())
+      ( do
+          atomically $
+            writeTVar (lscShutdownVar client) True
+          wait (lscSenderThread client)
+      )
 
 mkClient :: LightStepConfig -> IO LightStepClient
-mkClient lscConfig@(LightStepConfig {..}) = do
+mkClient cfg@(LightStepConfig {..}) = do
   manager <- newManager tlsManagerSettings
-  pure $! LightStepClient manager lscConfig
+  q <- newTBQueueIO (fromIntegral lsSpanQueueSize)
+  shutdown_var <- newTVarIO False
+  sender <- async $ do
+    let loop = do
+          (must_shutdown, sps) <- atomically $ do
+            must_shutdown <- readTVar shutdown_var
+            sps <- flushTBQueue q
+            case (must_shutdown, sps) of
+              (False, []) -> retry
+              _ -> pure (must_shutdown, sps)
+          case sps of
+            [] -> pure ()
+            _ -> reportSpans manager cfg sps
+          d_ ("must_shutdown", must_shutdown)
+          case must_shutdown of
+            True -> pure ()
+            False -> loop
+    loop
+  pure $! LightStepClient cfg sender q shutdown_var
 
-reportSpans :: LightStepClient -> [Span] -> IO ()
-reportSpans client@(LightStepClient {..}) sps = do
+reportSpans :: Manager -> LightStepConfig -> [Span] -> IO ()
+reportSpans httpManager cfg sps = do
+  d_ ("reportSpans", sps)
   let -- TODO(divanov) unhardcode endpoint
       url = "https://ingest.lightstep.com:443/api/v2/spans"
-      body = encode (map (ZipkinSpan lscConfig) sps)
+      body = encode (map (ZipkinSpan cfg) sps)
       request =
         (parseRequest_ url)
           { method = "POST",
@@ -103,5 +140,8 @@ reportSpans client@(LightStepClient {..}) sps = do
           }
   -- TODO(divanov): count reported and rejected spans
   -- TODO(divanov): handle failures
-  resp <- httpLbs request lscHttpManager
+  d_ ("body", body)
+  resp <- httpLbs request httpManager
+  d_ ("resp status", responseStatus resp)
+  d_ ("resp", responseBody resp)
   pure ()

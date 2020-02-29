@@ -3,6 +3,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
 import qualified Data.ByteString.Lazy.Char8 as LBS
+import Data.Function
 import Data.String
 import qualified Data.Text as T
 import GHC.Stats
@@ -41,7 +42,11 @@ main = do
 
 seriousPragmaticMain :: IO ()
 seriousPragmaticMain = do
-  Warp.run 6502 microservice
+  let settings =
+        Warp.defaultSettings
+          & Warp.setPort 6502
+          & Warp.setHost "127.0.0.1"
+  Warp.runSettings settings microservice
 
 microservice :: Wai.Application
 microservice = \req respond -> withSpan "handle_http_request" $ do

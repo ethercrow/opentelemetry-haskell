@@ -47,6 +47,7 @@ library
   build-depends:
     base >= 4.12 && < 5,
     aeson,
+    async,
     bytestring,
     exceptions,
     http-client,
@@ -54,6 +55,7 @@ library
     http-types,
     network,
     opentelemetry,
+    stm,
     text,
     unordered-containers
   hs-source-dirs: src, gen
