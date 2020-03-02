@@ -55,14 +55,16 @@ library
     exceptions,
     hashable,
     random >= 1.1,
+    stm,
     text,
     unordered-containers
   hs-source-dirs: src
   exposed-modules:
     OpenTelemetry.Common
+    OpenTelemetry.Debug
     OpenTelemetry.Explicit
-    OpenTelemetry.Implicit
     OpenTelemetry.FileExporter
+    OpenTelemetry.Implicit
     OpenTelemetry.Propagation
 
 test-suite just-some-usage-code-that-must-compile

@@ -53,7 +53,7 @@ generalWithSpan childness operation action = do
                   _ -> error $ "exporting span failed: " <> show sp
             pure $! GlobalSharedMutableState gSpanExporter tracer
       )
-      (\_ -> action) -- TODO(divanov): set error=true on exception
+      (\_ -> action)
   pure result
 
 setTag :: forall value m. (MonadIO m, ToTagValue value) => T.Text -> value -> m ()

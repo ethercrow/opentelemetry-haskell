@@ -59,7 +59,7 @@ library
     stm,
     text,
     unordered-containers
-  hs-source-dirs: src, gen
+  hs-source-dirs: src
   exposed-modules:
     OpenTelemetry.LightStep
     OpenTelemetry.LightStep.Config
