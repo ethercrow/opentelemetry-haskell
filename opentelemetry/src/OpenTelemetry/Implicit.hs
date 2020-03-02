@@ -12,6 +12,7 @@ import Data.Maybe
 import qualified Data.Text as T
 import OpenTelemetry.Common
 import OpenTelemetry.FileExporter
+import System.Directory
 import System.Environment
 import System.IO.Unsafe
 import System.Random
@@ -103,8 +104,8 @@ data GlobalSharedMutableState
 withZeroConfigOpenTelemetry :: (MonadIO m, MonadMask m) => m a -> m a
 withZeroConfigOpenTelemetry action = do
   -- TODO(divanov): crossplatformer temporary directory
-  (now, prog_name) <- liftIO $ (,) <$> now64 <*> getProgName
-  exporter <- liftIO $ createFileSpanExporter $ printf "/tmp/%s-%d.trace.json" prog_name now
+  (now, prog_name, tmp_dir) <- liftIO $ (,,) <$> now64 <*> getProgName <*> getTemporaryDirectory
+  exporter <- liftIO $ createFileSpanExporter $ printf "%s/%s-%d.trace.json" tmp_dir prog_name now
   let otelConfig = OpenTelemetryConfig {otcSpanExporter = exporter}
   withOpenTelemetry otelConfig action
 

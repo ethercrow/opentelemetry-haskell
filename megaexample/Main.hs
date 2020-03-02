@@ -8,7 +8,7 @@ import Data.String
 import qualified Data.Text as T
 import GHC.Stats
 import Network.HTTP.Client
-import Network.HTTP.Types (status200)
+import Network.HTTP.Types (status200, statusCode)
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import OpenTelemetry.Common
@@ -89,5 +89,5 @@ get (T.unpack -> url) = withSpan "call_http_get" $ do
           }
   manager <- withSpan "newManager" $ newManager defaultManagerSettings
   resp <- httpLbs request manager
-  setTag "http.status" $ show (responseStatus resp)
+  setTag "http.status" $ statusCode (responseStatus resp)
   pure $ responseBody resp

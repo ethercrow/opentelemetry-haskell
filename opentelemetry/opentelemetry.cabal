@@ -52,6 +52,7 @@ library
     base >= 4.12 && < 5,
     bytestring,
     clock >= 0.8,
+    directory,
     exceptions,
     hashable,
     random >= 1.1,

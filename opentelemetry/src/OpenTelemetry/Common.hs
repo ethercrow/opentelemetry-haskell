@@ -80,6 +80,12 @@ class ToTagValue a where
 instance ToTagValue String where
   toTagValue = StringTagValue . T.pack
 
+instance ToTagValue Bool where
+  toTagValue = BoolTagValue
+
+instance ToTagValue Int where
+  toTagValue = IntTagValue
+
 data Span
   = Span
       { spanContext :: {-# UNPACK #-} !SpanContext,

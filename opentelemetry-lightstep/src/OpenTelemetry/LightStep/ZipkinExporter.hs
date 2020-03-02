@@ -2,6 +2,8 @@
 
 module OpenTelemetry.LightStep.ZipkinExporter where
 
+-- Zipkin V2 protocol spec: https://github.com/openzipkin/zipkin-api/blob/master/zipkin2-api.yaml
+
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.Monad.IO.Class
@@ -24,14 +26,15 @@ data ZipkinSpan
         zsSpan :: Span
       }
 
-tagValue2json :: TagValue -> Value
-tagValue2json tv = case tv of
-  (StringTagValue s) -> String s
-  (BoolTagValue b) -> Bool b
-  (IntTagValue i) -> Number (fromIntegral i)
-  (DoubleTagValue d) -> Number (fromFloatDigits d)
+tagValue2text :: TagValue -> T.Text
+tagValue2text tv = case tv of
+  (StringTagValue s) -> s
+  (BoolTagValue b) -> if b then "true" else "false"
+  (IntTagValue i) -> T.pack $ show i
+  (DoubleTagValue d) -> T.pack $ show (fromFloatDigits d)
 
 instance ToJSON ZipkinSpan where
+
   -- FIXME(divanov): deduplicate
   toJSON (ZipkinSpan LightStepConfig {..} s@(Span {..})) =
     let TId tid = spanTraceId s
@@ -50,10 +53,11 @@ instance ToJSON ZipkinSpan where
                     "lightstep.component_name" .= lsServiceName
                   ]
                     <> [k .= v | (k, v) <- lsGlobalTags]
-                    <> [k .= tagValue2json v | (k, v) <- HM.toList spanTags]
+                    <> [k .= tagValue2text v | (k, v) <- HM.toList spanTags]
                 )
           ]
             <> (maybe [] (\(SId psid) -> ["parentId" .= psid]) spanParentId)
+
   toEncoding (ZipkinSpan LightStepConfig {..} s@(Span {..})) =
     let TId tid = spanTraceId s
         SId sid = spanId s
@@ -71,7 +75,7 @@ instance ToJSON ZipkinSpan where
                       "lightstep.component_name" .= lsServiceName
                     ]
                       <> [k .= v | (k, v) <- lsGlobalTags]
-                      <> [k .= tagValue2json v | (k, v) <- HM.toList spanTags]
+                      <> [k .= tagValue2text v | (k, v) <- HM.toList spanTags]
                   )
               <> ( maybe
                      mempty
