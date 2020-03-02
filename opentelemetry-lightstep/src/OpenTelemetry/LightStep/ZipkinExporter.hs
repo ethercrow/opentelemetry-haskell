@@ -144,13 +144,13 @@ reportSpans endpoint httpManager cfg sps = do
             requestBody = RequestBodyLBS body,
             requestHeaders = [("Content-Type", "application/json")]
           }
-  -- TODO(divanov): handle failures
   resp <- httpLbs request httpManager
   case statusCode (responseStatus resp) of
     200 -> do
       inc 1 reportedSpanCountVar
       pure ()
     _ -> do
+      -- TODO(divanov): handle failures
       inc 1 rejectedSpanCountVar
       dd_ "body" body
       dd_ "resp status" $ responseStatus resp

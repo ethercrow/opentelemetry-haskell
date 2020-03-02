@@ -12,8 +12,10 @@ import Data.Maybe
 import qualified Data.Text as T
 import OpenTelemetry.Common
 import OpenTelemetry.FileExporter
+import System.Environment
 import System.IO.Unsafe
 import System.Random
+import Text.Printf
 
 data SpanChildness = Root | ChildOf Span
 
@@ -101,8 +103,8 @@ data GlobalSharedMutableState
 withZeroConfigOpenTelemetry :: (MonadIO m, MonadMask m) => m a -> m a
 withZeroConfigOpenTelemetry action = do
   -- TODO(divanov): crossplatformer temporary directory
-  -- TODO(divanov): include program name and current date in the filename
-  exporter <- liftIO $ createFileSpanExporter "/tmp/opentelemetry.trace.json"
+  (now, prog_name) <- liftIO $ (,) <$> now64 <*> getProgName
+  exporter <- liftIO $ createFileSpanExporter $ printf "/tmp/%s-%d.trace.json" prog_name now
   let otelConfig = OpenTelemetryConfig {otcSpanExporter = exporter}
   withOpenTelemetry otelConfig action
 
@@ -131,7 +133,6 @@ modifyCurrentSpan f = liftIO $ do
              in pure $! g {gTracer = gTracer {tracerSpanStacks = stacks}}
     )
 
--- TODO(divanov): try to merge withSpan and withChildSpanOf
 withChildSpanOf :: (MonadIO m, MonadMask m) => Span -> String -> m a -> m a
 withChildSpanOf parent operation action = generalWithSpan (ChildOf parent) operation action
 
