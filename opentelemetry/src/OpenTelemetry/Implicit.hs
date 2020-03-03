@@ -20,12 +20,19 @@ import Text.Printf
 
 data SpanChildness = Root | ChildOf Span
 
-withSpan :: (MonadIO m, MonadMask m) => String -> m a -> m a
-withSpan = generalWithSpan Root
+data AutoTagError = DoAutoTagError | Don'tAutoTagError
 
--- TODO(divanov): add ability to override automatic error=true tagging on exceptions
-generalWithSpan :: (MonadIO m, MonadMask m) => SpanChildness -> String -> m a -> m a
-generalWithSpan childness operation action = do
+withSpan :: (MonadIO m, MonadMask m) => String -> m a -> m a
+withSpan = generalWithSpan (WithSpanOptions Root DoAutoTagError)
+
+data WithSpanOptions
+  = WithSpanOptions
+      { childness :: SpanChildness,
+        autoTagError :: AutoTagError
+      }
+
+generalWithSpan :: (MonadIO m, MonadMask m) => WithSpanOptions -> String -> m a -> m a
+generalWithSpan WithSpanOptions {childness, autoTagError} operation action = do
   threadId <- liftIO myThreadId
   sid <- liftIO randomIO
   startedAt <- liftIO now64
@@ -47,8 +54,9 @@ generalWithSpan childness operation action = do
               Nothing -> pure ()
               Just sp -> do
                 finishedAt <- liftIO now64
-                let sp' = case exitcase of
-                      ExitCaseSuccess _ -> sp
+                let sp' = case (exitcase, autoTagError) of
+                      (ExitCaseSuccess {}, _) -> sp
+                      (_, Don'tAutoTagError) -> sp
                       _ -> sp {spanTags = HM.insert "error" (BoolTagValue True) (spanTags sp)}
                 res <- export gSpanExporter [sp' {spanFinishedAt = finishedAt}]
                 case res of
@@ -134,7 +142,7 @@ modifyCurrentSpan f = liftIO $ do
     )
 
 withChildSpanOf :: (MonadIO m, MonadMask m) => Span -> String -> m a -> m a
-withChildSpanOf parent operation action = generalWithSpan (ChildOf parent) operation action
+withChildSpanOf parent operation action = generalWithSpan (WithSpanOptions (ChildOf parent) DoAutoTagError) operation action
 
 globalSharedMutableState :: MVar GlobalSharedMutableState
 globalSharedMutableState = unsafePerformIO newEmptyMVar
