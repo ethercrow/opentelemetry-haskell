@@ -21,11 +21,22 @@ Another utopic goal: Haskell development tools like stack, cabal, HIE, hlint, or
 
 ### As a library author
 
-Add `opentelemetry` to dependencies and sprinkle `withSpan` on interesting `IO` actions (or any other `m` satisfying `(MonadIO m, MonadCatch m)`.
+Add `opentelemetry` to dependencies and sprinkle `withSpan` on interesting `IO` actions (or any other `m` satisfying `(MonadIO m, MonadCatch m)`:
 
-See [megaexample](megaexample/README.md).
+```
+module MyLib (avoidSuccess) where
 
-TODO: more examples
+import OpenTelemetry.Implicit
+
+avoidSuccess :: Costs -> IO ()
+avoidSuccess costs = withSpan "MyLib.avoid_success" $ do
+  addEvent "message" "Started avoiding success"
+  setTag "costs" (show costs)
+  addEvent "message" "Finished avoiding success"
+  pure ()
+```
+
+For a comprehensive example see the [megaexample](megaexample/README.md) subproject.
 
 ### As an application author
 
@@ -56,9 +67,41 @@ Explore the profile data to find performance problems and unexpected things, fix
 
 ## How does it work?
 
-TODO
+Please see the [OpenTelemetry documentation](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/overview.md) for the general overview.
+
+One interesting thing specific to this library is how it manages causal relationships of spans. For example here the `bar` span is inferred to be a child of the `foo` span:
+
+```haskell
+withSpan "foo" $ do    -- (1)
+  ...
+  withSpan "bar" $ do  -- (2)
+    do_bar_things
+  ...
+```
+
+Internally the library is maintaining a stack of spans per Haskell thread.
+
+At line `(1)` the `foo` span is created and pushed onto the stack.
+At line `(2)` the `bar` span is created. The top-most span in the stack, namely `foo`, is assigned as its parent. The `bar` span is pushed onto the stack.
+
+This scheme doesn't work when something involving threads happens between `(1)` and `(2)`. In such cases the programmer should connect the spans explicitly like this:
+
+```haskell
+withSpan "foo" $ do    -- (1)
+  foo_span <- getCurrentActiveSpan
+  bar_worker <- async $ do
+    withChildSpanOf foo_span "bar" $ do  -- (2)
+      do_bar_things
+  wait bar_worker
+  ...
+```
 
 ## How do I contribute?
 
-TODO
+Use it in your projects! Report what went well and especially what didn't go
+well. If your usage pattern is unlike anything in the `megaexample` project,
+consider adding it there.
+
+When making a pull request for some user visible change please update the
+CHANGELOG.md file accordingly.
 
