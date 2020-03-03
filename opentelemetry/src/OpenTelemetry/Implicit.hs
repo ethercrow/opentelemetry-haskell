@@ -103,7 +103,6 @@ data GlobalSharedMutableState
 
 withZeroConfigOpenTelemetry :: (MonadIO m, MonadMask m) => m a -> m a
 withZeroConfigOpenTelemetry action = do
-  -- TODO(divanov): crossplatformer temporary directory
   (now, prog_name, tmp_dir) <- liftIO $ (,,) <$> now64 <*> getProgName <*> getTemporaryDirectory
   exporter <- liftIO $ createFileSpanExporter $ printf "%s/%s-%d.trace.json" tmp_dir prog_name now
   let otelConfig = OpenTelemetryConfig {otcSpanExporter = exporter}
