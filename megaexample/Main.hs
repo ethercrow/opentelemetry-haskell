@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
 
+import Control.Concurrent
+import Control.Concurrent.Async
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Function
 import Data.String
@@ -62,7 +64,12 @@ microservice = \req respond -> withSpan "handle_http_request" $ do
       result <- get target
       respond $ Wai.responseLBS status200 [] result
     _ -> do
+      sp <- getCurrentActiveSpan
+      bg_work <- async $ withChildSpanOf sp "background_task" do
+        threadDelay 10000
+        pure ()
       rtsStats <- withSpan "getRTSStats" getRTSStats
+      () <- wait bg_work
       respond $
         Wai.responseLBS
           status200
