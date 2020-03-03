@@ -54,7 +54,11 @@ instance ToJSON ZipkinSpan where
                   ]
                     <> [k .= v | (k, v) <- lsGlobalTags]
                     <> [k .= tagValue2text v | (k, v) <- HM.toList spanTags]
-                )
+                ),
+            "annotations"
+              .= [ object ["timestamp" .= (t `div` 1000), "value" .= v]
+                   | SpanEvent t _ v <- spanEvents
+                 ]
           ]
             <> (maybe [] (\(SId psid) -> ["parentId" .= psid]) spanParentId)
 
@@ -82,6 +86,10 @@ instance ToJSON ZipkinSpan where
                      (\(SId psid) -> "parentId" .= T.pack (printf "%016x" psid))
                      spanParentId
                  )
+              <> "annotations"
+                .= [ object ["timestamp" .= (t `div` 1000), "value" .= v]
+                     | SpanEvent t _ v <- spanEvents
+                   ]
           )
 
 data LightStepClient
