@@ -144,6 +144,9 @@ data OpenTelemetryConfig
       { otcSpanExporter :: Exporter Span
       }
 
+noopExporter :: Exporter whatever
+noopExporter = Exporter (const (pure ExportFailedNotRetryable)) (pure ())
+
 now64 :: IO Timestamp
 now64 = do
   TimeSpec secs nsecs <- getTime Realtime

@@ -97,7 +97,7 @@ withOpenTelemetry OpenTelemetryConfig {..} action = do
   bracket
     ( liftIO $ do
         tracer <- createTracer
-        putMVar globalSharedMutableState (GlobalSharedMutableState otcSpanExporter tracer)
+        modifyMVar_ globalSharedMutableState (\_ -> pure $ GlobalSharedMutableState otcSpanExporter tracer)
         pure ()
     )
     (\_ -> liftIO $ shutdown otcSpanExporter)
@@ -145,5 +145,7 @@ withChildSpanOf :: (MonadIO m, MonadMask m) => Span -> String -> m a -> m a
 withChildSpanOf parent operation action = generalWithSpan (WithSpanOptions (ChildOf parent) DoAutoTagError) operation action
 
 globalSharedMutableState :: MVar GlobalSharedMutableState
-globalSharedMutableState = unsafePerformIO newEmptyMVar
+globalSharedMutableState = unsafePerformIO $ do
+  tracer <- createTracer
+  newMVar (GlobalSharedMutableState noopExporter tracer)
 {-# NOINLINE globalSharedMutableState #-}
