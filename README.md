@@ -61,7 +61,9 @@ Or load it into [Tracy](https://bitbucket.org/wolfpld/tracy/src/master/README.md
 
 ![tracy_screenshot](https://i.imgur.com/nbmma87.png)
 
-Alternatively, configure the exporter to send tracing data to a compatible collector such as Jaeger, Zipkin, LightStep, HoneyComb, etc.
+Alternatively, configure the exporter to send tracing data to a compatible collector such as Jaeger, Zipkin, LightStep, HoneyComb, etc. For example here is how a trace of `stack install` looks loaded in LightStep:
+
+![lightstep_screenshot](https://i.imgur.com/fenCK7f.png)
 
 Explore the profile data to find performance problems and unexpected things, fix those, adjust instrumentation, repeat.
 
