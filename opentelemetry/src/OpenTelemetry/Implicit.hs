@@ -122,11 +122,11 @@ getCurrentSpanContext = do
   GlobalSharedMutableState {..} <- liftIO $ readMVar globalSharedMutableState
   pure $ spanContext <$> tracerGetCurrentActiveSpan gTracer tid
 
-getCurrentActiveSpan :: MonadIO m => m Span
+getCurrentActiveSpan :: MonadIO m => m (Maybe Span)
 getCurrentActiveSpan = do
   tid <- liftIO myThreadId
   GlobalSharedMutableState {..} <- liftIO $ readMVar globalSharedMutableState
-  pure $ fromMaybe emptySpan $ tracerGetCurrentActiveSpan gTracer tid
+  pure $ tracerGetCurrentActiveSpan gTracer tid
 
 modifyCurrentSpan :: MonadIO m => (Span -> Span) -> m ()
 modifyCurrentSpan f = liftIO $ do

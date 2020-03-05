@@ -99,9 +99,6 @@ data Span
       }
   deriving (Show, Eq)
 
-emptySpan :: Span
-emptySpan = Span (SpanContext (SId 0) (TId 0)) "" 0 0 mempty mempty OK Nothing
-
 spanTraceId :: Span -> TraceId
 spanTraceId Span {spanContext = SpanContext _ tid} = tid
 

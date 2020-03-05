@@ -43,7 +43,7 @@ pieceOfSeriousBusinessLogic input = withSpan "serious business" $ do
   addEvent "log" "rpc roundtrip end"
   withSpan "project" $ do
     -- Connecting spans across threads requires some manual plumbing
-    sp <- getCurrentActiveSpan
+    Just sp <- getCurrentActiveSpan
     asyncWork <- async $ withChildSpanOf sp "data science" $ do
       threadDelay 1000000
       pure 42

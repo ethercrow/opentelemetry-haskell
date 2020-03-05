@@ -64,7 +64,7 @@ microservice = \req respond -> withSpan "handle_http_request" $ do
       result <- get target
       respond $ Wai.responseLBS status200 [] result
     _ -> do
-      sp <- getCurrentActiveSpan
+      Just sp <- getCurrentActiveSpan
       bg_work <- async $ withChildSpanOf sp "background_task" do
         threadDelay 10000
         pure ()

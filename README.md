@@ -90,7 +90,7 @@ This scheme doesn't work when something involving threads happens between `(1)` 
 
 ```haskell
 withSpan "foo" $ do    -- (1)
-  foo_span <- getCurrentActiveSpan
+  Just foo_span <- getCurrentActiveSpan
   bar_worker <- async $ do
     withChildSpanOf foo_span "bar" $ do  -- (2)
       do_bar_things

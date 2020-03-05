@@ -1,5 +1,9 @@
 # Revision history for opentelemetry
 
+## 0.2.0 -- In development
+
+* Remove the notion of an empty span, getCurrentActiveSpan now returns (Maybe Span)
+
 ## 0.1.0 -- 2020-03-04
 
 * Add LightStep trace exporter using Zipkin format
