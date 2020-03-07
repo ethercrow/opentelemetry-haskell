@@ -20,7 +20,6 @@ import OpenTelemetry.LightStep.Config
 import OpenTelemetry.LightStep.ZipkinExporter
 import qualified OpenTelemetry.Network.HTTP.Client as HTTPClientTelemetry
 import qualified OpenTelemetry.Network.Wai.Middleware as WaiTelemetry
-import OpenTelemetry.Propagation
 import System.Environment
 import System.Exit
 import Text.Printf
@@ -59,12 +58,6 @@ seriousPragmaticMain = do
 
 microservice :: Wai.Application
 microservice = \req respond -> withSpan "handle_http_request" $ do
-  let hdrs = Wai.requestHeaders req
-  case extractSpanContextFromHeaders hdrs of
-    Just c -> do
-      setParentSpanContext c
-    Nothing -> do
-      pure ()
   case Wai.pathInfo req of
     ("http" : rest) -> do
       let target = "http://" <> T.intercalate "/" rest
