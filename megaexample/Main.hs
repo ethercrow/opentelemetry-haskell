@@ -18,6 +18,7 @@ import OpenTelemetry.FileExporter
 import OpenTelemetry.Implicit
 import OpenTelemetry.LightStep.Config
 import OpenTelemetry.LightStep.ZipkinExporter
+import OpenTelemetry.Network.HTTP.Client (middleware)
 import OpenTelemetry.Propagation
 import System.Environment
 import System.Exit
@@ -84,19 +85,10 @@ microservice = \req respond -> withSpan "handle_http_request" $ do
 
 get :: T.Text -> IO LBS.ByteString
 get (T.unpack -> url) = withSpan "call_http_get" $ do
-  setTag @String "span.kind" "client"
-  setTag "http.url" url
-  mctx <- getCurrentSpanContext
-  let propagationHeaders = case mctx of
-        Nothing -> []
-        Just ctx -> [(fromString k, v) | (k, v) <- inject W3CTraceContext ctx]
   let request =
         ( fromString
             url
         )
-          { requestHeaders = propagationHeaders
-          }
-  manager <- withSpan "newManager" $ newManager defaultManagerSettings
+  manager <- withSpan "newManager" $ newManager (middleware defaultManagerSettings)
   resp <- httpLbs request manager
-  setTag "http.status" $ statusCode (responseStatus resp)
   pure $ responseBody resp

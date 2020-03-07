@@ -80,6 +80,9 @@ class ToTagValue a where
 instance ToTagValue String where
   toTagValue = StringTagValue . T.pack
 
+instance ToTagValue T.Text where
+  toTagValue = StringTagValue
+
 instance ToTagValue Bool where
   toTagValue = BoolTagValue
 
