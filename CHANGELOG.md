@@ -3,6 +3,7 @@
 ## 0.2.0 -- In development
 
 * Remove the notion of an empty span, getCurrentActiveSpan now returns (Maybe Span)
+* OpenTelemetry.Explicit API is removed due to lack of usage
 
 ## 0.1.0 -- 2020-03-04
 

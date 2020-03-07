@@ -19,8 +19,7 @@ data TraceParent = TraceParent Int Int
 extractSpanContextFromHeaders :: (IsString key, Eq key) => [(key, BS.ByteString)] -> Maybe SpanContext
 extractSpanContextFromHeaders headers =
   case find ((== "traceparent") . fst) headers of
-    Just (_, value) -> case parseSpanContext value of
-      Just c -> Just c
+    Just (_, (parseSpanContext -> mctx)) -> mctx
     _ -> Nothing
 
 parseSpanContext :: BS.ByteString -> Maybe SpanContext

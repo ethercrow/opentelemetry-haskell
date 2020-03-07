@@ -63,7 +63,6 @@ library
   exposed-modules:
     OpenTelemetry.Common
     OpenTelemetry.Debug
-    OpenTelemetry.Explicit
     OpenTelemetry.FileExporter
     OpenTelemetry.Implicit
     OpenTelemetry.Propagation
@@ -74,7 +73,6 @@ test-suite just-some-usage-code-that-must-compile
   main-is:    Main.hs
   other-modules:
     SomeUsageOfImplicitApi
-    SomeUsageOfExplicitApi
   hs-source-dirs: just-some-usage-code-that-must-compile
   build-depends:
     base,

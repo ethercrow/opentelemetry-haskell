@@ -10,7 +10,7 @@ import Data.String
 import qualified Data.Text as T
 import GHC.Stats
 import Network.HTTP.Client
-import Network.HTTP.Types (status200, statusCode)
+import Network.HTTP.Types (status200)
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import OpenTelemetry.Common
