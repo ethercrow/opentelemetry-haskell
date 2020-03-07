@@ -18,10 +18,15 @@ import OpenTelemetry.FileExporter
 import OpenTelemetry.Implicit
 import OpenTelemetry.LightStep.Config
 import OpenTelemetry.LightStep.ZipkinExporter
-import OpenTelemetry.Network.HTTP.Client (middleware)
+import qualified OpenTelemetry.Network.HTTP.Client as HTTPClientTelemetry
+import qualified OpenTelemetry.Network.Wai.Middleware as WaiTelemetry
 import OpenTelemetry.Propagation
 import System.Environment
 import System.Exit
+import Text.Printf
+
+megaport :: Int
+megaport = 6502
 
 main :: IO ()
 main = do
@@ -35,7 +40,7 @@ main = do
       putStrLn "Usage:"
       putStrLn "  opentelemetry-megaexample [--lightstep] [--file FILE]"
       putStrLn ""
-      putStrLn "curl http://localhost:6502/http/example.com"
+      printf "curl http://localhost:%d/http/example.com\n"
       exitSuccess
   let otConfig =
         OpenTelemetryConfig
@@ -47,9 +52,10 @@ seriousPragmaticMain :: IO ()
 seriousPragmaticMain = do
   let settings =
         Warp.defaultSettings
-          & Warp.setPort 6502
+          & Warp.setPort megaport
           & Warp.setHost "127.0.0.1"
-  Warp.runSettings settings microservice
+  printf "Listening on 127.0.0.1:%d\n" megaport
+  Warp.runSettings settings (WaiTelemetry.middleware microservice)
 
 microservice :: Wai.Application
 microservice = \req respond -> withSpan "handle_http_request" $ do
@@ -85,10 +91,7 @@ microservice = \req respond -> withSpan "handle_http_request" $ do
 
 get :: T.Text -> IO LBS.ByteString
 get (T.unpack -> url) = withSpan "call_http_get" $ do
-  let request =
-        ( fromString
-            url
-        )
-  manager <- withSpan "newManager" $ newManager (middleware defaultManagerSettings)
+  let request = fromString url
+  manager <- withSpan "newManager" $ newManager (HTTPClientTelemetry.middleware defaultManagerSettings)
   resp <- httpLbs request manager
   pure $ responseBody resp

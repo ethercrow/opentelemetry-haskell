@@ -1,8 +1,8 @@
 cabal-version:       2.4
-name:                megaexample
-description:         The OpenTelemetry Haskell Client (LightStep exporter) https://opentelemetry.io
+name:                opentelemetry-wai
+description:         OpenTelemetry middleware for wai
 category:            OpenTelemetry
-version:             0.2.0
+version:             0.1.0
 license-file:        LICENSE
 license:             Apache-2.0
 author:              Dmitry Ivanov
@@ -19,7 +19,11 @@ common options
     BangPatterns
     BlockArguments
     DataKinds
+    DeriveGeneric
+    DerivingStrategies
+    DerivingVia
     FlexibleInstances
+    InstanceSigs
     LambdaCase
     MultiParamTypeClasses
     MultiWayIf
@@ -42,22 +46,15 @@ common options
     -ferror-spans
     -freverse-errors
 
-executable opentelemetry-megaexample
+library
   import: options
   build-depends:
     base >= 4.12 && < 5,
-    async,
-    bytestring,
-    exceptions,
-    http-client,
-    http-types,
     opentelemetry,
-    opentelemetry-lightstep,
-    opentelemetry-http-client,
-    opentelemetry-wai,
-    servant,
+    http-types,
     text,
-    wai,
-    warp
-  hs-source-dirs: .
-  main-is: Main.hs
+    wai
+  hs-source-dirs: src
+  exposed-modules:
+    OpenTelemetry.Network.Wai.Middleware
+

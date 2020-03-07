@@ -4,6 +4,7 @@ packages:
 - opentelemetry
 - opentelemetry-http-client
 - opentelemetry-lightstep
+- opentelemetry-wai
 - megaexample
 
 extra-deps: []

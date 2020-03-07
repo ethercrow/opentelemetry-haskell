@@ -40,20 +40,11 @@ jobs:
       run: cabal update
     - name: Build
       run: |
-        cd opentelemetry
-        cabal build -f examples
+        cabal build all
     - name: Test
       run: |
         cd opentelemetry
         cabal install tasty-discover
-        env PATH="$HOME/.cabal/bin:$PATH" cabal test
-    - name: Build opentelemetry-lightstep
-      run: |
-        cd opentelemetry-lightstep
-        cabal build -f examples
-    - name: Test opentelemetry-lightstep
-      run: |
-        cd opentelemetry-lightstep
         env PATH="$HOME/.cabal/bin:$PATH" cabal test
 
   linux-stack-lts-14:
