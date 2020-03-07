@@ -8,7 +8,6 @@ import Control.Monad.Catch
 import Control.Monad.IO.Class
 import qualified Data.HashMap.Strict as HM
 import Data.List.NonEmpty (NonEmpty ((:|)))
-import Data.Maybe
 import qualified Data.Text as T
 import OpenTelemetry.Common
 import OpenTelemetry.FileExporter

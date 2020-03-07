@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
-        stack-yaml: ['stack.yaml', 'stack-8.8.2.yaml']
+        stack-yaml: ['stack.yaml', 'stack-8.6.5.yaml']
     steps:
     - uses: actions/checkout@v1
     - uses: actions/cache@v1
@@ -93,7 +93,7 @@ jobs:
     runs-on: macOS-latest
     strategy:
       matrix:
-        stack-yaml: ['stack.yaml', 'stack-8.8.2.yaml']
+        stack-yaml: ['stack.yaml', 'stack-8.6.5.yaml']
     steps:
     - uses: actions/checkout@v1
     - uses: actions/cache@v1
