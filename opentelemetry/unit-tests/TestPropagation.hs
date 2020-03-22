@@ -10,18 +10,23 @@ import OpenTelemetry.Propagation
 import Test.Tasty.HUnit
 import Text.Printf
 
-prop_render_parse_roundtrip :: Word64 -> Word64 -> Bool
-prop_render_parse_roundtrip sid tid =
+prop_render_parse_roundtrip_w3c :: Word64 -> Word64 -> Bool
+prop_render_parse_roundtrip_w3c sid tid =
   let c = SpanContext (SId sid) (TId tid)
-   in Just c == extractSpanContextFromHeaders @String [("traceparent", renderSpanContext c)]
+   in Just c == propagateFromHeaders w3cTraceContext @String (propagateToHeaders w3cTraceContext c)
+
+prop_render_parse_roundtrip_b3 :: Word64 -> Word64 -> Bool
+prop_render_parse_roundtrip_b3 sid tid =
+  let c = SpanContext (SId sid) (TId tid)
+   in Just c == propagateFromHeaders b3 @String (propagateToHeaders b3 c)
 
 unit_render_smoke :: Assertion
 unit_render_smoke =
-  renderSpanContext (SpanContext (SId 1) (TId 2)) @?= "00-2-1-00"
+  propagateToHeaders w3cTraceContext (SpanContext (SId 1) (TId 2)) @?= [("traceparent", "00-2-1-00")]
 
 unit_parse_smoke :: Assertion
 unit_parse_smoke =
-  extractSpanContextFromHeaders @String [("traceparent", "00-2-1-00")] @?= Just (SpanContext (SId 1) (TId 2))
+  propagateFromHeaders w3cTraceContext @String [("traceparent", "00-2-1-00")] @?= Just (SpanContext (SId 1) (TId 2))
 
 prop_fromHex :: Word64 -> Bool
 prop_fromHex x =
