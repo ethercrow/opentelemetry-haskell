@@ -1,26 +1,46 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 
 -- This is an approximate implementation of https://www.w3.org/TR/trace-context
 
-module OpenTelemetry.Propagation where
+module OpenTelemetry.Propagation
+  ( PropagationFormat (..),
+    w3cTraceContext,
+  )
+where
 
-import Data.Word
+import Control.Applicative
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (ord)
 import Data.List (find)
 import Data.String
-import GHC.Generics
+import Data.Word
 import OpenTelemetry.Common
 import Text.Printf
 
-data TraceParent = TraceParent Int Int
-  deriving (Eq, Show, Generic)
+data PropagationFormat
+  = PropagationFormat
+      { propagateFromHeaders :: forall key. (IsString key, Eq key) => [(key, BS.ByteString)] -> Maybe SpanContext,
+        propagateToHeaders :: forall key. (IsString key, Eq key) => SpanContext -> [(key, BS.ByteString)]
+      }
 
-extractSpanContextFromHeaders :: (IsString key, Eq key) => [(key, BS.ByteString)] -> Maybe SpanContext
-extractSpanContextFromHeaders headers =
-  case find ((== "traceparent") . fst) headers of
-    Just (_, (parseSpanContext -> mctx)) -> mctx
-    _ -> Nothing
+-- | (p1 <> p2) parses like p1, then p2 as a fallback. (p1 <> p2) injects like p1.
+instance Semigroup PropagationFormat where
+  PropagationFormat from1 to1 <> PropagationFormat from2 _to2 =
+    let from headers = from1 headers <|> from2 headers
+        to headers = to1 headers
+     in PropagationFormat from to
+
+w3cTraceContext :: PropagationFormat
+w3cTraceContext = PropagationFormat from to
+  where
+    from headers =
+      case find ((== "traceparent") . fst) headers of
+        Just (_, (parseSpanContext -> mctx)) -> mctx
+        _ -> Nothing
+    to (SpanContext (SId sid) (TId tid)) =
+      [("traceparent", BS.pack $ printf "00-%x-%x-00" tid sid)]
 
 parseSpanContext :: BS.ByteString -> Maybe SpanContext
 parseSpanContext input =
@@ -28,10 +48,6 @@ parseSpanContext input =
     ["00", (fromHex -> Just tid), (fromHex -> Just sid), _] ->
       Just $ SpanContext (SId sid) (TId tid)
     _ -> Nothing
-
-renderSpanContext :: SpanContext -> BS.ByteString
-renderSpanContext (SpanContext (SId sid) (TId tid)) =
-  BS.pack $ printf "00-%x-%x-00" tid sid
 
 isLowerHexDigit :: Char -> Bool
 isLowerHexDigit (ord -> w) = (w >= 48 && w <= 57) || (w >= 97 && w <= 102)
@@ -43,8 +59,3 @@ fromHex bytes = BS.foldl' go (Just 0) bytes
     go (Just !result) (ord -> d) | d >= 48 && d < 58 = Just $ result * 16 + fromIntegral d - 48
     go (Just result) (ord -> d) | d >= 97 && d < 124 = Just $ result * 16 + fromIntegral d - 87
     go _ _ = Nothing
-
-data PropagationFormat = W3CTraceContext
-
-inject :: PropagationFormat -> SpanContext -> [(String, BS.ByteString)]
-inject W3CTraceContext ctx = [("traceparent", renderSpanContext ctx)]

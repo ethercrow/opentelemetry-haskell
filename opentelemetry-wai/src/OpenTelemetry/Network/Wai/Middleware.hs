@@ -15,7 +15,7 @@ import OpenTelemetry.Propagation
 middleware :: Application -> Application
 middleware app = \req sendResp -> do
   withSpan "WAI handler" $ do
-    case extractSpanContextFromHeaders (requestHeaders req) of
+    case propagateFromHeaders w3cTraceContext (requestHeaders req) of
       Just ctx -> setParentSpanContext ctx
       _ -> pure ()
     setTag "span.kind" ("server" :: T.Text)

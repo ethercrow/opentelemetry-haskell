@@ -28,7 +28,7 @@ middleware m =
               Just (spanContext -> ctx) ->
                 let propagationHeaders =
                       [ (fromString k, v)
-                        | (k, v) <- inject W3CTraceContext ctx
+                        | (k, v) <- propagateToHeaders w3cTraceContext ctx
                       ]
                  in req {requestHeaders = requestHeaders req <> propagationHeaders}
         result <- managerModifyRequest m req'
