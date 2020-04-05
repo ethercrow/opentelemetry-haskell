@@ -2,9 +2,11 @@ resolver: lts-14.19
 
 packages:
 - opentelemetry
+- opentelemetry-eventlog
 - opentelemetry-http-client
 - opentelemetry-lightstep
 - opentelemetry-wai
 - megaexample
 
-extra-deps: []
+extra-deps:
+- ghc-events-0.12.0

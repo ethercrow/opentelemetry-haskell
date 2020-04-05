@@ -2,9 +2,12 @@ resolver: lts-15.2
 
 packages:
 - opentelemetry
+- opentelemetry-eventlog
 - opentelemetry-http-client
 - opentelemetry-lightstep
 - opentelemetry-wai
+- eventlog-to-lightstep
 - megaexample
 
-extra-deps: []
+extra-deps:
+- ghc-events-0.12.0

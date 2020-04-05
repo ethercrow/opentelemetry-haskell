@@ -50,6 +50,11 @@ compiler: ghc-8.10.0.20200123
 compiler-check: match-exact
 packages:
 - opentelemetry
+- opentelemetry-eventlog
+- opentelemetry-http-client
+- opentelemetry-lightstep
+- opentelemetry-wai
+- megaexample
 
 allow-newer: true
 
