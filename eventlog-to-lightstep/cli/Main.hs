@@ -3,6 +3,7 @@
 import Control.Concurrent (threadDelay)
 import Control.Monad
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap as IM
 import Data.List.NonEmpty as NE
@@ -18,31 +19,37 @@ import OpenTelemetry.LightStep.ZipkinExporter
 import System.Environment
 import System.IO
 import qualified System.Random.SplitMix as R
+import Text.Printf
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
     [path] -> do
+      printf "Sending %s to LightStep...\n" path
       Just lsConfig <- getEnvConfig
       exporter <- createLightStepSpanExporter lsConfig
       withFile path ReadMode (work exporter)
       shutdown exporter
       putStrLn "\nAll done.\n"
     _ -> do
+      -- TODO(divanov): figure out how to get an eventlog of a running process
       putStrLn "Usage:"
       putStrLn "  eventlog-to-lightstep <program.eventlog>"
 
 work :: Exporter Span -> Handle -> IO ()
 work exporter input = do
   smgen <- R.initSMGen -- TODO(divanov): seed the random generator with something more random than current time
+
+  -- TODO(divanov): get the origin timestamp
+
   go (initialState smgen) decodeEventLog
   where
     go s (Produce event next) = do
-      print (evCap event, evSpec event)
+      -- print (evCap event, evSpec event)
       let (s', sps) = processEvent event s
       export exporter sps
-      mapM_ (putStrLn . ("emit " <>) . show) sps
+      -- mapM_ (putStrLn . ("emit " <>) . show) sps
       go s' next
     go s d@(Consume consume) = do
       eof <- hIsEOF input
@@ -54,7 +61,7 @@ work exporter input = do
             go s d
           else go s $ consume chunk
     go s (Done _) = pure ()
-    go s (Error _ err) = do
+    go s (Error _leftover err) = do
       putStrLn err
 
 data State
@@ -77,7 +84,8 @@ processEvent (Event ts ev mcap) st@(S o tm ss r) =
         (RunThread tid, Just cap, _) ->
           -- TODO(divanov): maintain the thread ancestry
           (S o (IM.insert cap tid tm) ss r, [])
-        (StopThread tid tstatus, Just cap, _) | isTerminalThreadStatus tstatus -> (S o (IM.delete cap tm) ss r, [])
+        (StopThread tid tstatus, Just cap, _)
+          | isTerminalThreadStatus tstatus -> (S o (IM.delete cap tm) ss r, [])
         (StartGC, _, _) -> (st, []) -- TODO(divanov): push a gc span on every stack
         (GCStatsGHC {gen}, _, _) -> (modifyAllSpans (setTag "gen" gen) st, [])
         (EndGC, _, _) -> (st, []) -- TODO(divanov): pop the gc span from every stack
