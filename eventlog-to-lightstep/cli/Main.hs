@@ -6,13 +6,13 @@ import qualified Data.ByteString as B
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap as IM
 import Data.List.NonEmpty as NE
+import Data.Maybe
 import qualified Data.Text as T
 import GHC.RTS.Events
 import GHC.RTS.Events.Incremental
 import GHC.Stack
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import qualified OpenTelemetry.Common as OTel
-import OpenTelemetry.FileExporter
 import OpenTelemetry.LightStep.Config
 import OpenTelemetry.LightStep.ZipkinExporter
 import System.Environment
@@ -24,7 +24,6 @@ main = do
   args <- getArgs
   case args of
     [path] -> do
-      -- exporter <- createFileSpanExporter "foo.trace.json"
       Just lsConfig <- getEnvConfig
       exporter <- createLightStepSpanExporter lsConfig
       withFile path ReadMode (work exporter)
@@ -40,7 +39,7 @@ work exporter input = do
   go (initialState smgen) decodeEventLog
   where
     go s (Produce event next) = do
-      -- print (evCap event, evSpec event)
+      print (evCap event, evSpec event)
       let (s', sps) = processEvent event s
       export exporter sps
       mapM_ (putStrLn . ("emit " <>) . show) sps
@@ -121,7 +120,7 @@ modifySpan st cap f =
 pushSpan :: HasCallStack => State -> Int -> String -> OTel.Timestamp -> State
 pushSpan st cap name timestamp = st {spanStacks = new_stacks, randomGen = r'}
   where
-    maybe_parent = spanId . NE.head <$> HM.lookup tid (spanStacks st)
+    maybe_parent = NE.head <$> HM.lookup tid (spanStacks st)
     new_stacks = HM.alter f tid (spanStacks st)
     f Nothing = Just $ sp :| []
     f (Just sps) = Just $ cons sp sps
@@ -129,14 +128,14 @@ pushSpan st cap name timestamp = st {spanStacks = new_stacks, randomGen = r'}
     (sid, r') = R.nextWord64 (randomGen st)
     sp =
       Span
-        { spanContext = SpanContext (SId sid) (TId sid),
+        { spanContext = SpanContext (SId sid) (maybe (TId sid) spanTraceId maybe_parent),
           spanOperation = T.pack name,
           spanStartedAt = timestamp,
           spanFinishedAt = 0,
           spanTags = mempty,
           spanEvents = mempty,
           spanStatus = OK,
-          spanParentId = maybe_parent
+          spanParentId = spanId <$> maybe_parent
         }
 
 popSpan :: HasCallStack => State -> Int -> OTel.Timestamp -> (State, [Span])
