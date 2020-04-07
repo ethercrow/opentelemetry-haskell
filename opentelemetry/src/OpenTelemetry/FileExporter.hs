@@ -4,7 +4,7 @@ module OpenTelemetry.FileExporter where
 
 import Data.Function
 import qualified Data.HashMap.Strict as HM
-import Data.List
+import Data.List (intersperse)
 import qualified Data.Text as T
 import OpenTelemetry.Common
 import System.IO
