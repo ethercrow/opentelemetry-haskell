@@ -54,6 +54,7 @@ packages:
 - opentelemetry-http-client
 - opentelemetry-lightstep
 - opentelemetry-wai
+- eventlog-to-lightstep
 - megaexample
 
 allow-newer: true
