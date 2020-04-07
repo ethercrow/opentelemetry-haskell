@@ -48,7 +48,7 @@ executable eventlog-to-lightstep
     base >= 4.12 && < 5,
     bytestring,
     containers,
-    ghc-events,
+    ghc-events >= 0.13.0,
     http-client,
     http-types,
     opentelemetry,

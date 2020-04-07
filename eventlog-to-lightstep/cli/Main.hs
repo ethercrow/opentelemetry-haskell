@@ -89,11 +89,11 @@ processEvent (Event ts ev mcap) st@(S o tm ss r) =
         (StartGC, _, _) -> (st, []) -- TODO(divanov): push a gc span on every stack
         (GCStatsGHC {gen}, _, _) -> (modifyAllSpans (setTag "gen" gen) st, [])
         (EndGC, _, _) -> (st, []) -- TODO(divanov): pop the gc span from every stack
-        (UserMessage {msg}, Just cap, _) -> case words msg of
+        (UserMessage {msg}, Just cap, _) -> case T.words msg of
           ["ot1", "begin", "span", name] -> (pushSpan st cap name now, [])
           ["ot1", "end", "span"] -> popSpan st cap now
-          ["ot1", "set", "tag", k, v] -> (modifySpan st cap (setTag (T.pack k) v), [])
-          ["ot1", "add", "event", k, v] -> (modifySpan st cap (addEvent (ts, o) (T.pack k) v), [])
+          ["ot1", "set", "tag", k, v] -> (modifySpan st cap (setTag k v), [])
+          ["ot1", "add", "event", k, v] -> (modifySpan st cap (addEvent (ts, o) k v), [])
           _ -> (st, [])
         _ -> (st, [])
 
@@ -125,7 +125,7 @@ modifySpan st cap f =
          in HM.update (\(sp :| sps) -> Just (f sp :| sps)) tid (spanStacks st)
     }
 
-pushSpan :: HasCallStack => State -> Int -> String -> OTel.Timestamp -> State
+pushSpan :: HasCallStack => State -> Int -> T.Text -> OTel.Timestamp -> State
 pushSpan st cap name timestamp = st {spanStacks = new_stacks, randomGen = r'}
   where
     maybe_parent = NE.head <$> HM.lookup tid (spanStacks st)
@@ -137,7 +137,7 @@ pushSpan st cap name timestamp = st {spanStacks = new_stacks, randomGen = r'}
     sp =
       Span
         { spanContext = SpanContext (SId sid) (maybe (TId sid) spanTraceId maybe_parent),
-          spanOperation = T.pack name,
+          spanOperation = name,
           spanStartedAt = timestamp,
           spanFinishedAt = 0,
           spanTags = mempty,
