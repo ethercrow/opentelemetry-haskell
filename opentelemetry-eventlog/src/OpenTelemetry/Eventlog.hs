@@ -29,5 +29,5 @@ withSpan operation action =
   fst
     <$> generalBracket
       (liftIO $ beginSpan operation)
-      (\_span _exitcase -> liftIO endSpan)
+      (\_span _exitcase -> liftIO endSpan) -- TODO(divanov): auto-tag error on exception
       (\_span -> action)

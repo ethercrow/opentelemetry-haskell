@@ -93,7 +93,7 @@ processEvent (Event ts ev mcap) st@(S o tm ss r) =
           ["ot1", "begin", "span", name] -> (pushSpan st cap name now, [])
           ["ot1", "end", "span"] -> popSpan st cap now
           ["ot1", "set", "tag", k, v] -> (modifySpan st cap (setTag k v), [])
-          ["ot1", "add", "event", k, v] -> (modifySpan st cap (addEvent (ts, o) k v), [])
+          ["ot1", "add", "event", k, v] -> (modifySpan st cap (addEvent now k v), [])
           _ -> (st, [])
         _ -> (st, [])
 
@@ -103,10 +103,11 @@ setTag k v sp =
     { spanTags = HM.insert k (toTagValue v) (spanTags sp)
     }
 
-addEvent :: ToTagValue v => (Timestamp, Timestamp) -> T.Text -> v -> Span -> Span
+addEvent :: Timestamp -> T.Text -> T.Text -> Span -> Span
 addEvent ts k v sp = sp {spanEvents = new_events}
   where
-    new_events = spanEvents sp -- TODO(divanov): implement
+    new_events = ev : spanEvents sp
+    ev = SpanEvent ts k v
 
 modifyAllSpans :: (Span -> Span) -> State -> State
 modifyAllSpans f st =
