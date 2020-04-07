@@ -56,3 +56,16 @@ library
   exposed-modules:
     OpenTelemetry.Eventlog
 
+executable opentelemetry-eventlog-example
+  import: options
+  ghc-options:
+    -threaded
+    -rtsopts
+    -eventlog
+  build-depends:
+    base >= 4.12 && < 5,
+    async,
+    opentelemetry-eventlog
+  main-is: Main.hs
+  hs-source-dirs: example
+
