@@ -92,16 +92,16 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
           (st { threadMap = IM.insert cap tid threadMap}, [])
         (StopThread tid tstatus, Just cap, _)
           | isTerminalThreadStatus tstatus -> (st { threadMap = IM.delete cap threadMap}, [])
-        (StartGC, _, _) -> (st, []) -- TODO(divanov): push a gc span on every stack
+        (StartGC, _, _) -> (pushGCSpans st now, [])
         (GCStatsGHC {gen}, _, _) -> (modifyAllSpans (setTag "gen" gen) st, [])
-        (EndGC, _, _) -> (st, []) -- TODO(divanov): pop the gc span from every stack
+        (EndGC, _, _) -> popSpansAcrossAllThreads now st
         (HeapAllocated {allocBytes}, _, Just tid) ->
-          (modifySpan st tid (addEvent now "heap_alloc_bytes" (showT allocBytes)), [])
+          (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
         (UserMessage {msg}, _, Just tid) -> case T.words msg of
-          ["ot1", "begin", "span", name] -> (pushSpan st tid name now, [])
-          ["ot1", "end", "span"] -> popSpan st tid now
-          ["ot1", "set", "tag", k, v] -> (modifySpan st tid (setTag k v), [])
-          ["ot1", "add", "event", k, v] -> (modifySpan st tid (addEvent now k v), [])
+          ["ot1", "begin", "span", name] -> (pushSpan tid name now st, [])
+          ["ot1", "end", "span"] -> popSpan tid now st
+          ["ot1", "set", "tag", k, v] -> (modifySpan tid (setTag k v) st, [])
+          ["ot1", "add", "event", k, v] -> (modifySpan tid (addEvent now k v) st, [])
           _ -> (st, [])
         _ -> (st, [])
 
@@ -126,15 +126,15 @@ modifyAllSpans f st =
           (spanStacks st)
     }
 
-modifySpan :: HasCallStack => State -> ThreadId -> (Span -> Span) -> State
-modifySpan st tid f =
+modifySpan :: HasCallStack => ThreadId -> (Span -> Span) -> State -> State
+modifySpan tid f st =
   st
     { spanStacks =
          HM.update (\(sp :| sps) -> Just (f sp :| sps)) tid (spanStacks st)
     }
 
-pushSpan :: HasCallStack => State -> ThreadId -> T.Text -> OTel.Timestamp -> State
-pushSpan st tid name timestamp = st {spanStacks = new_stacks, randomGen = new_randomGen, traceMap = new_traceMap}
+pushSpan :: HasCallStack => ThreadId -> T.Text -> OTel.Timestamp -> State -> State
+pushSpan tid name timestamp st = st {spanStacks = new_stacks, randomGen = new_randomGen, traceMap = new_traceMap}
   where
     maybe_parent = NE.head <$> HM.lookup tid (spanStacks st)
     new_stacks = HM.alter f tid (spanStacks st)
@@ -157,13 +157,27 @@ pushSpan st tid name timestamp = st {spanStacks = new_stacks, randomGen = new_ra
           spanParentId = spanId <$> maybe_parent
         }
 
-popSpan :: HasCallStack => State -> ThreadId -> OTel.Timestamp -> (State, [Span])
-popSpan st tid now = (st {spanStacks = new_stacks, traceMap = new_traceMap}, [sp {spanFinishedAt = now}])
+popSpan :: HasCallStack => ThreadId -> OTel.Timestamp -> State -> (State, [Span])
+popSpan tid timestamp st = (st {spanStacks = new_stacks, traceMap = new_traceMap}, [sp {spanFinishedAt = timestamp}])
   where
     sp :| new_stack = spanStacks st HM.! tid
     (new_traceMap, new_stacks) = case new_stack of
       [] -> (HM.delete tid (traceMap st), HM.delete tid (spanStacks st))
       (x : xs) -> (traceMap st, HM.insert tid (x :| xs) (spanStacks st))
+
+pushGCSpans :: HasCallStack => State -> OTel.Timestamp -> State
+pushGCSpans st timestamp = foldr go st tids
+  where
+  tids = HM.keys (spanStacks st)
+  go tid = pushSpan tid "gc" timestamp
+
+popSpansAcrossAllThreads :: HasCallStack => OTel.Timestamp -> State -> (State, [Span])
+popSpansAcrossAllThreads timestamp st = foldr go (st, []) tids
+  where
+  tids = HM.keys (spanStacks st)
+  go tid (st', sps) =
+    let (st'', sps') = popSpan tid timestamp st'
+    in (st'', sps' <> sps)
 
 isTerminalThreadStatus :: ThreadStopStatus -> Bool
 isTerminalThreadStatus HeapOverflow = True
