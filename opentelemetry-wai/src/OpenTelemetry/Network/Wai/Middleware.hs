@@ -3,13 +3,10 @@
 module OpenTelemetry.Network.Wai.Middleware where
 
 import qualified Data.ByteString.Char8 as BS8
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import Network.HTTP.Types
 import Network.Wai
 import OpenTelemetry.Eventlog
 import OpenTelemetry.Propagation
-import OpenTelemetry.SpanContext
 
 -- Semantic conventions for HTTP spans:
 -- https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-http.md

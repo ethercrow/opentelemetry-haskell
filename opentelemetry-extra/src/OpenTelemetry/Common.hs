@@ -3,16 +3,11 @@
 module OpenTelemetry.Common where
 
 import qualified Data.HashMap.Strict as HM
-import Data.Hashable
-import qualified Data.List.NonEmpty as NE
-import Data.List.NonEmpty ((<|), NonEmpty ((:|)))
 import qualified Data.Text as T
 import Data.Word
-import GHC.Generics
 import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import System.Clock
-import Text.Printf
 
 type Timestamp = Word64
 
