@@ -10,6 +10,7 @@ import Data.String
 import qualified Data.Text as T
 import GHC.Stats
 import Network.HTTP.Client
+import Network.HTTP.Client.TLS
 import Network.HTTP.Types (status200)
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
@@ -18,7 +19,6 @@ import OpenTelemetry.FileExporter
 import OpenTelemetry.Implicit
 import OpenTelemetry.LightStep.Config
 import OpenTelemetry.LightStep.ZipkinExporter
-import qualified OpenTelemetry.Network.HTTP.Client as HTTPClientTelemetry
 import qualified OpenTelemetry.Network.Wai.Middleware as WaiTelemetry
 import System.Environment
 import System.Exit
@@ -85,6 +85,6 @@ microservice = \req respond -> withSpan "handle_http_request" $ do
 get :: T.Text -> IO LBS.ByteString
 get (T.unpack -> url) = withSpan "call_http_get" $ do
   let request = fromString url
-  manager <- withSpan "newManager" $ newManager (HTTPClientTelemetry.middleware defaultManagerSettings)
+  manager <- withSpan "newManager" $ newManager tlsManagerSettings
   resp <- httpLbs request manager
   pure $ responseBody resp

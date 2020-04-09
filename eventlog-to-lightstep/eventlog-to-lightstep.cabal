@@ -52,6 +52,7 @@ executable eventlog-to-lightstep
     http-client,
     http-types,
     opentelemetry,
+    opentelemetry-extra,
     opentelemetry-lightstep,
     splitmix,
     text,

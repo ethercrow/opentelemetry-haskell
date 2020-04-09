@@ -10,7 +10,10 @@ import qualified Data.HashMap.Strict as HM
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.Text as T
 import OpenTelemetry.Common
+import OpenTelemetry.Exporter
 import OpenTelemetry.FileExporter
+import OpenTelemetry.SpanContext
+import OpenTelemetry.Tracer
 import System.Directory
 import System.Environment
 import System.IO.Unsafe

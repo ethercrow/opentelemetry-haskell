@@ -1,13 +1,12 @@
 resolver: ghc-8.10.1
 compiler: ghc-8.10.1
 packages:
-- opentelemetry
-- opentelemetry-eventlog
-- opentelemetry-http-client
-- opentelemetry-lightstep
-- opentelemetry-wai
 - eventlog-to-lightstep
 - megaexample
+- opentelemetry
+- opentelemetry-extra
+- opentelemetry-lightstep
+- opentelemetry-wai
 
 allow-newer: true
 

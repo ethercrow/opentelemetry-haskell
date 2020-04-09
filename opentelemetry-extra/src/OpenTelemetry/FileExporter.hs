@@ -7,6 +7,8 @@ import qualified Data.HashMap.Strict as HM
 import Data.List (intersperse)
 import qualified Data.Text as T
 import OpenTelemetry.Common
+import OpenTelemetry.Exporter
+import OpenTelemetry.SpanContext
 import System.IO
 import Text.Printf
 import Text.Read

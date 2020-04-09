@@ -1,8 +1,8 @@
 cabal-version:       2.4
-name:                opentelemetry-eventlog
-description:         OpenTelemetry API implementation that sends the telemetry data to eventlog
+name:                opentelemetry-extra
+description:         The OpenTelemetry Haskell Client https://opentelemetry.io
 category:            OpenTelemetry
-version: 0.3.0
+version:             0.3.0
 license-file:        LICENSE
 license:             Apache-2.0
 author:              Dmitry Ivanov
@@ -51,21 +51,51 @@ library
   build-depends:
     base >= 4.12 && < 5,
     bytestring,
-    exceptions
+    clock >= 0.8,
+    directory,
+    exceptions,
+    hashable,
+    random >= 1.1,
+    stm,
+    text,
+    opentelemetry,
+    unordered-containers
   hs-source-dirs: src
   exposed-modules:
-    OpenTelemetry.Eventlog
+    OpenTelemetry.Common
+    OpenTelemetry.Tracer
+    OpenTelemetry.Debug
+    OpenTelemetry.FileExporter
+    OpenTelemetry.Implicit
 
-executable opentelemetry-eventlog-example
+test-suite just-some-usage-code-that-must-compile
   import: options
-  ghc-options:
-    -threaded
-    -rtsopts
-    -eventlog
+  type:       exitcode-stdio-1.0
+  main-is:    Main.hs
+  other-modules:
+    SomeUsageOfImplicitApi
+  hs-source-dirs: just-some-usage-code-that-must-compile
   build-depends:
-    base >= 4.12 && < 5,
+    base,
     async,
-    opentelemetry-eventlog
-  main-is: Main.hs
-  hs-source-dirs: example
+    opentelemetry,
+    opentelemetry-extra
+
+test-suite unit-tests
+  import: options
+  type:       exitcode-stdio-1.0
+  main-is:    Main.hs
+  other-modules:
+    TestCommon
+    TestPropagation
+  hs-source-dirs: unit-tests
+  build-depends:
+    base,
+    bytestring,
+    tasty,
+    tasty-quickcheck,
+    tasty-hunit,
+    tasty-discover,
+    opentelemetry,
+    opentelemetry-extra
 

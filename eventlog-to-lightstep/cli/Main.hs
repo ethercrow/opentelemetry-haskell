@@ -14,8 +14,10 @@ import GHC.RTS.Events.Incremental
 import GHC.Stack
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import qualified OpenTelemetry.Common as OTel
+import OpenTelemetry.Exporter
 import OpenTelemetry.LightStep.Config
 import OpenTelemetry.LightStep.ZipkinExporter
+import OpenTelemetry.SpanContext
 import System.Environment
 import System.IO
 import qualified System.Random.SplitMix as R
@@ -89,9 +91,9 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
             Just trace_id -> (st {traceMap = HM.insert new_tid trace_id traceMap}, [])
             _ -> (st, [])
         (RunThread tid, Just cap, _) ->
-          (st { threadMap = IM.insert cap tid threadMap}, [])
+          (st {threadMap = IM.insert cap tid threadMap}, [])
         (StopThread tid tstatus, Just cap, _)
-          | isTerminalThreadStatus tstatus -> (st { threadMap = IM.delete cap threadMap}, [])
+          | isTerminalThreadStatus tstatus -> (st {threadMap = IM.delete cap threadMap}, [])
         (StartGC, _, _) -> (pushGCSpans st now, [])
         (GCStatsGHC {gen}, _, _) -> (modifyAllSpans (setTag "gen" gen) st, [])
         (EndGC, _, _) -> popSpansAcrossAllThreads now st
@@ -130,7 +132,7 @@ modifySpan :: HasCallStack => ThreadId -> (Span -> Span) -> State -> State
 modifySpan tid f st =
   st
     { spanStacks =
-         HM.update (\(sp :| sps) -> Just (f sp :| sps)) tid (spanStacks st)
+        HM.update (\(sp :| sps) -> Just (f sp :| sps)) tid (spanStacks st)
     }
 
 pushSpan :: HasCallStack => ThreadId -> T.Text -> OTel.Timestamp -> State -> State
@@ -168,16 +170,16 @@ popSpan tid timestamp st = (st {spanStacks = new_stacks, traceMap = new_traceMap
 pushGCSpans :: HasCallStack => State -> OTel.Timestamp -> State
 pushGCSpans st timestamp = foldr go st tids
   where
-  tids = HM.keys (spanStacks st)
-  go tid = pushSpan tid "gc" timestamp
+    tids = HM.keys (spanStacks st)
+    go tid = pushSpan tid "gc" timestamp
 
 popSpansAcrossAllThreads :: HasCallStack => OTel.Timestamp -> State -> (State, [Span])
 popSpansAcrossAllThreads timestamp st = foldr go (st, []) tids
   where
-  tids = HM.keys (spanStacks st)
-  go tid (st', sps) =
-    let (st'', sps') = popSpan tid timestamp st'
-    in (st'', sps' <> sps)
+    tids = HM.keys (spanStacks st)
+    go tid (st', sps) =
+      let (st'', sps') = popSpan tid timestamp st'
+       in (st'', sps' <> sps)
 
 isTerminalThreadStatus :: ThreadStopStatus -> Bool
 isTerminalThreadStatus HeapOverflow = True

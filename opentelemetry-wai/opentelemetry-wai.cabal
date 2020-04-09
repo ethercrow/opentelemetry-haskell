@@ -50,7 +50,8 @@ library
   import: options
   build-depends:
     base >= 4.12 && < 5,
-    opentelemetry,
+    bytestring,
+    opentelemetry >= 0.3.0,
     http-types,
     text,
     wai

@@ -5,8 +5,8 @@ module TestPropagation where
 
 import qualified Data.ByteString.Char8 as BS
 import Data.Word
-import OpenTelemetry.Common
 import OpenTelemetry.Propagation
+import OpenTelemetry.SpanContext
 import Test.Tasty.HUnit
 import Text.Printf
 

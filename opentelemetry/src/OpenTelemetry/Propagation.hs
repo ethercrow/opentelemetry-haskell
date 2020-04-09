@@ -13,7 +13,7 @@ import Data.Char (ord)
 import Data.List (find)
 import Data.String
 import Data.Word
-import OpenTelemetry.Common
+import OpenTelemetry.SpanContext
 import Text.Printf
 
 data PropagationFormat
