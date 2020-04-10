@@ -35,9 +35,14 @@ main = do
       shutdown exporter
       putStrLn "\nAll done.\n"
     _ -> do
-      -- TODO(divanov): figure out how to get an eventlog of a running process
       putStrLn "Usage:"
       putStrLn "  eventlog-to-lightstep <program.eventlog>"
+      putStrLn ""
+      putStrLn "To stream the span data from a running program:"
+      putStrLn ""
+      putStrLn "  mkfifo eventlog.pipe"
+      putStrLn "  instrumented-program +RTS -l -oleventlog.pipe &"
+      putStrLn "  eventlog-to-lightstep eventlog.pipe"
 
 work :: Exporter Span -> Handle -> IO ()
 work exporter input = do
@@ -48,7 +53,7 @@ work exporter input = do
   go (initialState smgen) decodeEventLog
   where
     go s (Produce event next) = do
-      -- print (evCap event, evSpec event)
+      print (evCap event, evSpec event)
       let (s', sps) = processEvent event s
       export exporter sps
       -- print s'
