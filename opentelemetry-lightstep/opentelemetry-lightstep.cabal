@@ -62,20 +62,5 @@ library
     unordered-containers
   hs-source-dirs: src
   exposed-modules:
-    OpenTelemetry.LightStep
     OpenTelemetry.LightStep.Config
     OpenTelemetry.LightStep.ZipkinExporter
-
-test-suite just-some-usage-code-that-must-compile
-  import: options
-  type:       exitcode-stdio-1.0
-  main-is:    Main.hs
-  other-modules:
-    SomeUsageOfImplicitApi
-  hs-source-dirs: just-some-usage-code-that-must-compile
-  build-depends:
-    base,
-    async,
-    opentelemetry,
-    opentelemetry-extra,
-    opentelemetry-lightstep

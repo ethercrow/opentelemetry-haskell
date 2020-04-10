@@ -66,20 +66,6 @@ library
     OpenTelemetry.Tracer
     OpenTelemetry.Debug
     OpenTelemetry.FileExporter
-    OpenTelemetry.Implicit
-
-test-suite just-some-usage-code-that-must-compile
-  import: options
-  type:       exitcode-stdio-1.0
-  main-is:    Main.hs
-  other-modules:
-    SomeUsageOfImplicitApi
-  hs-source-dirs: just-some-usage-code-that-must-compile
-  build-depends:
-    base,
-    async,
-    opentelemetry,
-    opentelemetry-extra
 
 test-suite unit-tests
   import: options
