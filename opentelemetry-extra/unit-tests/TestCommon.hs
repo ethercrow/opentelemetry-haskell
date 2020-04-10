@@ -4,6 +4,8 @@ module TestCommon where
 
 import Data.Word
 import OpenTelemetry.Common
+import OpenTelemetry.SpanContext
+import OpenTelemetry.Tracer
 
 mkTestSpan :: Word64 -> Word64 -> Span
 mkTestSpan sid tid =

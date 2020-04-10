@@ -16,7 +16,9 @@ import Network.HTTP.Client.TLS
 import Network.HTTP.Types
 import OpenTelemetry.Common
 import OpenTelemetry.Debug
+import OpenTelemetry.Exporter
 import OpenTelemetry.LightStep.Config
+import OpenTelemetry.SpanContext
 import System.IO.Unsafe
 import Text.Printf
 
@@ -34,7 +36,6 @@ tagValue2text tv = case tv of
   (DoubleTagValue d) -> T.pack $ show (fromFloatDigits d)
 
 instance ToJSON ZipkinSpan where
-
   -- FIXME(divanov): deduplicate
   toJSON (ZipkinSpan LightStepConfig {..} s@(Span {..})) =
     let TId tid = spanTraceId s

@@ -1,6 +1,6 @@
 cabal-version:       2.4
-name:                opentelemetry-lightstep
-description:         The OpenTelemetry Haskell Client (LightStep exporter) https://opentelemetry.io
+name:                eventlog-to-lightstep
+description:         Stream eventlog to Lightstep
 category:            OpenTelemetry
 version: 0.3.0
 license-file:        LICENSE
@@ -19,7 +19,11 @@ common options
     BangPatterns
     BlockArguments
     DataKinds
+    DeriveGeneric
+    DerivingStrategies
+    DerivingVia
     FlexibleInstances
+    InstanceSigs
     LambdaCase
     MultiParamTypeClasses
     MultiWayIf
@@ -31,36 +35,29 @@ common options
     TypeApplications
     ViewPatterns
   ghc-options:
-    -Wall
-    -Wcompat
-    -Widentities
-    -Wincomplete-record-updates
-    -Wincomplete-uni-patterns
-    -Wpartial-fields
-    -Wredundant-constraints
-    -fhide-source-paths
     -ferror-spans
     -freverse-errors
 
-library
+executable eventlog-to-lightstep
   import: options
+  ghc-options:
+    -threaded
+    -rtsopts
+    -eventlog
   build-depends:
     base >= 4.12 && < 5,
-    aeson,
-    async,
     bytestring,
-    exceptions,
+    containers,
+    ghc-events >= 0.13.0,
     http-client,
-    http-client-tls,
     http-types,
-    network,
     opentelemetry,
     opentelemetry-extra,
-    scientific,
-    stm,
+    opentelemetry-lightstep,
+    splitmix,
+    filepath,
     text,
     unordered-containers
-  hs-source-dirs: src
-  exposed-modules:
-    OpenTelemetry.LightStep.Config
-    OpenTelemetry.LightStep.ZipkinExporter
+  main-is: Main.hs
+  hs-source-dirs: cli
+

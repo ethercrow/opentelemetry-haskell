@@ -51,47 +51,10 @@ library
   build-depends:
     base >= 4.12 && < 5,
     bytestring,
-    clock >= 0.8,
-    directory,
-    exceptions,
-    hashable,
-    random >= 1.1,
-    stm,
-    text,
-    unordered-containers
+    exceptions
   hs-source-dirs: src
   exposed-modules:
-    OpenTelemetry.Common
-    OpenTelemetry.Debug
-    OpenTelemetry.FileExporter
-    OpenTelemetry.Implicit
+    OpenTelemetry.SpanContext
+    OpenTelemetry.Exporter
     OpenTelemetry.Propagation
-
-test-suite just-some-usage-code-that-must-compile
-  import: options
-  type:       exitcode-stdio-1.0
-  main-is:    Main.hs
-  other-modules:
-    SomeUsageOfImplicitApi
-  hs-source-dirs: just-some-usage-code-that-must-compile
-  build-depends:
-    base,
-    async,
-    opentelemetry
-
-test-suite unit-tests
-  import: options
-  type:       exitcode-stdio-1.0
-  main-is:    Main.hs
-  other-modules:
-    TestCommon
-    TestPropagation
-  hs-source-dirs: unit-tests
-  build-depends:
-    base,
-    bytestring,
-    tasty,
-    tasty-quickcheck,
-    tasty-hunit,
-    tasty-discover,
-    opentelemetry
+    OpenTelemetry.Eventlog

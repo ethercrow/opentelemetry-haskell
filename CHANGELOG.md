@@ -2,6 +2,7 @@
 
 ## 0.3.0 -- In development
 
+* Restructuring of libraries
 * Propagation is now configurable to enable interop with other instrumentation like Zipkin B3 headers.
 
 ## 0.2.0 -- 2020-03-07

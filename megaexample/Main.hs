@@ -10,42 +10,20 @@ import Data.String
 import qualified Data.Text as T
 import GHC.Stats
 import Network.HTTP.Client
+import Network.HTTP.Client.TLS
 import Network.HTTP.Types (status200)
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
-import OpenTelemetry.Common
-import OpenTelemetry.FileExporter
-import OpenTelemetry.Implicit
-import OpenTelemetry.LightStep.Config
-import OpenTelemetry.LightStep.ZipkinExporter
-import qualified OpenTelemetry.Network.HTTP.Client as HTTPClientTelemetry
+import OpenTelemetry.Eventlog
 import qualified OpenTelemetry.Network.Wai.Middleware as WaiTelemetry
-import System.Environment
-import System.Exit
+import System.Mem
 import Text.Printf
 
 megaport :: Int
 megaport = 6502
 
 main :: IO ()
-main = do
-  args <- tail <$> getArgs
-  exporter <- case args of
-    ["--file", f] -> createFileSpanExporter f
-    ["--lightstep"] -> do
-      Just cfg <- getEnvConfig
-      createLightStepSpanExporter cfg
-    _ -> do
-      putStrLn "Usage:"
-      putStrLn "  opentelemetry-megaexample [--lightstep] [--file FILE]"
-      putStrLn ""
-      printf "curl http://localhost:%d/http/example.com\n"
-      exitSuccess
-  let otConfig =
-        OpenTelemetryConfig
-          { otcSpanExporter = exporter
-          }
-  withOpenTelemetry otConfig $ seriousPragmaticMain
+main = seriousPragmaticMain
 
 seriousPragmaticMain :: IO ()
 seriousPragmaticMain = do
@@ -59,13 +37,15 @@ seriousPragmaticMain = do
 microservice :: Wai.Application
 microservice = \req respond -> withSpan "handle_http_request" $ do
   case Wai.pathInfo req of
+    ["gc"] -> do
+      performGC
+      respond $ Wai.responseLBS status200 [] ""
     ("http" : rest) -> do
       let target = "http://" <> T.intercalate "/" rest
       result <- get target
       respond $ Wai.responseLBS status200 [] result
     _ -> do
-      Just sp <- getCurrentActiveSpan
-      bg_work <- async $ withChildSpanOf sp "background_task" do
+      bg_work <- async $ withSpan "background_task" do
         threadDelay 10000
         pure ()
       addEvent "message" "started bg work"
@@ -85,6 +65,8 @@ microservice = \req respond -> withSpan "handle_http_request" $ do
 get :: T.Text -> IO LBS.ByteString
 get (T.unpack -> url) = withSpan "call_http_get" $ do
   let request = fromString url
-  manager <- withSpan "newManager" $ newManager (HTTPClientTelemetry.middleware defaultManagerSettings)
+  -- A new manager is created for every request
+  -- so that it's visible in the trace how much this hurts performance.
+  manager <- withSpan "newManager" $ newManager tlsManagerSettings
   resp <- httpLbs request manager
   pure $ responseBody resp

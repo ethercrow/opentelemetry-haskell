@@ -44,16 +44,21 @@ common options
 
 executable opentelemetry-megaexample
   import: options
+  ghc-options:
+    -threaded
+    -rtsopts
+    -eventlog
   build-depends:
     base >= 4.12 && < 5,
     async,
     bytestring,
     exceptions,
     http-client,
+    http-client-tls,
     http-types,
     opentelemetry,
+    opentelemetry-extra,
     opentelemetry-lightstep,
-    opentelemetry-http-client,
     opentelemetry-wai,
     servant,
     text,

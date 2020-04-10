@@ -21,18 +21,19 @@ Another utopic goal: Haskell development tools like stack, cabal, HIE, hlint, or
 
 ### As a library author
 
-Add `opentelemetry` to dependencies and sprinkle `withSpan` on interesting `IO` actions (or any other `m` satisfying `(MonadIO m, MonadCatch m)`:
+Add `opentelemetry` to dependencies, `import OpenTelemetry.Eventlog` and sprinkle `withSpan` on interesting `IO` actions (or any other `m` satisfying `(MonadIO m, MonadMask m)`:
 
 ```
 module MyLib (avoidSuccess) where
 
-import OpenTelemetry.Implicit
+import OpenTelemetry.Eventlog
 
 avoidSuccess :: Costs -> IO ()
 avoidSuccess costs = withSpan "MyLib.avoid_success" $ do
   addEvent "message" "Started avoiding success"
-  setTag "costs" (show costs)
+  setTag "costs" "all"
   addEvent "message" "Finished avoiding success"
+  ...
   pure ()
 ```
 
@@ -40,63 +41,21 @@ For a comprehensive example see the [megaexample](megaexample/README.md) subproj
 
 ### As an application author
 
-At the start of your application you configure the OpenTelemetry exporter. Here's the simplest way that exports to a file:
+Compile your executable with `-eventlog` and run with `+RTS -l -olmy_application.eventlog`.
 
-```haskell
-import OpenTelemetry.FileExporter
-
-main = do
-  exporter <- createFileSpanExporter "my-application.trace.json"
-  let otConfig = OpenTelemetryConfig { otcSpanExporter = exporter }
-  withOpenTelemetry otConfig $ do
-    ... the rest of the application ...
-```
-
-
-After you run your instrumented application, you'll have a `my-application.trace.json` file that you can load into Chrome's `about:tracing` page and get something like this:
-
-![chrome_tracing_screenshot](https://i.imgur.com/q62yAkC.png)
-
-Or load it into [Tracy](https://bitbucket.org/wolfpld/tracy/src/master/README.md), much more capable profile visualizer:
-
-![tracy_screenshot](https://i.imgur.com/nbmma87.png)
-
-Alternatively, configure the exporter to send tracing data to a compatible collector such as Jaeger, Zipkin, LightStep, HoneyComb, etc. For example here is how a trace of `stack install` looks loaded in LightStep:
+Upload the result trace data to LightStep: `eventlog-to-lightstep my_application.eventlog`. Here is how a trace of `stack install` looks loaded in LightStep:
 
 ![lightstep_screenshot](https://i.imgur.com/fenCK7f.png)
+
+TODO: describe how to view the eventlog locally in Chrome or Tracy.
+
+TODO: describe how to stream the eventlog of a running application to LightStep.
 
 Explore the profile data to find performance problems and unexpected things, fix those, adjust instrumentation, repeat.
 
 ## How does it work?
 
 Please see the [OpenTelemetry documentation](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/overview.md) for the general overview.
-
-One interesting thing specific to this library is how it manages causal relationships of spans. For example here the `bar` span is inferred to be a child of the `foo` span:
-
-```haskell
-withSpan "foo" $ do    -- (1)
-  ...
-  withSpan "bar" $ do  -- (2)
-    do_bar_things
-  ...
-```
-
-Internally the library is maintaining a stack of spans per Haskell thread.
-
-At line `(1)` the `foo` span is created and pushed onto the stack.
-At line `(2)` the `bar` span is created. The top-most span in the stack, namely `foo`, is assigned as its parent. The `bar` span is pushed onto the stack.
-
-This scheme doesn't work when something involving threads happens between `(1)` and `(2)`. In such cases the programmer should connect the spans explicitly like this:
-
-```haskell
-withSpan "foo" $ do    -- (1)
-  Just foo_span <- getCurrentActiveSpan
-  bar_worker <- async $ do
-    withChildSpanOf foo_span "bar" $ do  -- (2)
-      do_bar_things
-  wait bar_worker
-  ...
-```
 
 ## How do I contribute?
 
