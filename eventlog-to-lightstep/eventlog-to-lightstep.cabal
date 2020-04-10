@@ -55,6 +55,7 @@ executable eventlog-to-lightstep
     opentelemetry-extra,
     opentelemetry-lightstep,
     splitmix,
+    filepath,
     text,
     unordered-containers
   main-is: Main.hs

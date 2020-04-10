@@ -19,6 +19,7 @@ import OpenTelemetry.LightStep.Config
 import OpenTelemetry.LightStep.ZipkinExporter
 import OpenTelemetry.SpanContext
 import System.Environment
+import System.FilePath
 import System.IO
 import qualified System.Random.SplitMix as R
 import Text.Printf
@@ -30,7 +31,8 @@ main = do
     [path] -> do
       printf "Sending %s to LightStep...\n" path
       Just lsConfig <- getEnvConfig
-      exporter <- createLightStepSpanExporter lsConfig
+      let service_name = T.pack $ takeBaseName path
+      exporter <- createLightStepSpanExporter lsConfig {lsServiceName = service_name}
       withFile path ReadMode (work exporter)
       shutdown exporter
       putStrLn "\nAll done.\n"
@@ -47,13 +49,10 @@ main = do
 work :: Exporter Span -> Handle -> IO ()
 work exporter input = do
   smgen <- R.initSMGen -- TODO(divanov): seed the random generator with something more random than current time
-
-  -- TODO(divanov): get the origin timestamp
-
   go (initialState smgen) decodeEventLog
   where
     go s (Produce event next) = do
-      print (evCap event, evSpec event)
+      print (evTime event, evCap event, evSpec event)
       let (s', sps) = processEvent event s
       export exporter sps
       -- print s'
@@ -91,6 +90,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
       m_thread_id = m_cap >>= flip IM.lookup threadMap
       m_trace_id = m_thread_id >>= flip HM.lookup traceMap
    in case (ev, m_cap, m_thread_id) of
+        (WallClockTime {sec, nsec}, _, _) -> (st {originTimestamp = sec * 1_000_000_000 + fromIntegral nsec - ts}, [])
         (CreateThread new_tid, _, _) ->
           case m_trace_id of
             Just trace_id -> (st {traceMap = HM.insert new_tid trace_id traceMap}, [])
@@ -109,6 +109,10 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
             (pushSpan tid (T.intercalate " " name) now st, [])
           ("ot1" : "end" : "span" : _) -> popSpan tid now st
           ["ot1", "set", "tag", k, v] -> (modifySpan tid (setTag k v) st, [])
+          ["ot1", "set", "traceid", trace_id] ->
+            (modifySpan tid (setTraceId (TId (read ("0x" <> T.unpack trace_id)))) st, [])
+          ["ot1", "set", "spanid", span_id] ->
+            (modifySpan tid (setSpanId (SId (read ("0x" <> T.unpack span_id)))) st, [])
           ["ot1", "set", "parent", trace_id, sid] ->
             (modifySpan tid (setParent (TId (read ("0x" <> T.unpack trace_id))) (SId $ read ("0x" <> T.unpack sid))) st, [])
           ["ot1", "add", "event", k, v] -> (modifySpan tid (addEvent now k v) st, [])
@@ -120,6 +124,18 @@ setTag :: ToTagValue v => T.Text -> v -> Span -> Span
 setTag k v sp =
   sp
     { spanTags = HM.insert k (toTagValue v) (spanTags sp)
+    }
+
+setSpanId :: SpanId -> Span -> Span
+setSpanId sid sp =
+  sp
+    { spanContext = SpanContext sid (spanTraceId sp)
+    }
+
+setTraceId :: TraceId -> Span -> Span
+setTraceId tid sp =
+  sp
+    { spanContext = SpanContext (spanId sp) tid
     }
 
 setParent :: TraceId -> SpanId -> Span -> Span

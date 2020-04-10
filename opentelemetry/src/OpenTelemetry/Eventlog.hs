@@ -1,14 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module OpenTelemetry.Eventlog
-  ( beginSpan,
-    endSpan,
-    setTag,
-    addEvent,
-    withSpan,
-    setParentSpanContext,
-  )
-where
+module OpenTelemetry.Eventlog where
 
 import Control.Monad.Catch
 import Control.Monad.IO.Class
@@ -34,6 +26,14 @@ addEvent k v = liftIO $ traceEventIO (printf "ot1 add event %s %s" k (BS8.unpack
 setParentSpanContext :: MonadIO m => SpanContext -> m ()
 setParentSpanContext (SpanContext (SId sid) (TId tid)) =
   liftIO $ traceEventIO (printf "ot1 set parent %016x %016x" tid sid)
+
+setTraceId :: MonadIO m => TraceId -> m ()
+setTraceId (TId tid) =
+  liftIO $ traceEventIO (printf "ot1 set traceid %016x" tid)
+
+setSpanId :: MonadIO m => SpanId -> m ()
+setSpanId (SId sid) =
+  liftIO $ traceEventIO (printf "ot1 set spanid %016x" sid)
 
 withSpan :: forall m a. (MonadIO m, MonadMask m) => String -> m a -> m a
 withSpan operation action =
