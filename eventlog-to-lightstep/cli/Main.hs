@@ -48,11 +48,11 @@ work exporter input = do
   go (initialState smgen) decodeEventLog
   where
     go s (Produce event next) = do
-      print (evCap event, evSpec event)
+      -- print (evCap event, evSpec event)
       let (s', sps) = processEvent event s
       export exporter sps
-      print s'
-      mapM_ (putStrLn . ("emit " <>) . show) sps
+      -- print s'
+      -- mapM_ (putStrLn . ("emit " <>) . show) sps
       go s' next
     go s d@(Consume consume) = do
       eof <- hIsEOF input
@@ -100,10 +100,14 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
         (HeapAllocated {allocBytes}, _, Just tid) ->
           (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
         (UserMessage {msg}, _, Just tid) -> case T.words msg of
-          ["ot1", "begin", "span", name] -> (pushSpan tid name now st, [])
-          ["ot1", "end", "span"] -> popSpan tid now st
+          ("ot1" : "begin" : "span" : name) ->
+            (pushSpan tid (T.intercalate " " name) now st, [])
+          ("ot1" : "end" : "span" : _) -> popSpan tid now st
           ["ot1", "set", "tag", k, v] -> (modifySpan tid (setTag k v) st, [])
+          ["ot1", "set", "parent", trace_id, sid] ->
+            (modifySpan tid (setParent (TId (read ("0x" <> T.unpack trace_id))) (SId $ read ("0x" <> T.unpack sid))) st, [])
           ["ot1", "add", "event", k, v] -> (modifySpan tid (addEvent now k v) st, [])
+          ("ot1" : rest) -> error $ printf "Unrecognized %s" (show rest)
           _ -> (st, [])
         _ -> (st, [])
 
@@ -111,6 +115,13 @@ setTag :: ToTagValue v => T.Text -> v -> Span -> Span
 setTag k v sp =
   sp
     { spanTags = HM.insert k (toTagValue v) (spanTags sp)
+    }
+
+setParent :: TraceId -> SpanId -> Span -> Span
+setParent ptid psid sp =
+  sp
+    { spanParentId = Just psid,
+      spanContext = SpanContext (spanId sp) ptid
     }
 
 addEvent :: Timestamp -> T.Text -> T.Text -> Span -> Span
@@ -153,7 +164,7 @@ pushSpan tid name timestamp st = st {spanStacks = new_stacks, randomGen = new_ra
           spanOperation = name,
           spanStartedAt = timestamp,
           spanFinishedAt = 0,
-          spanTags = mempty,
+          spanTags = HM.singleton "tid" (IntTagValue $ fromIntegral tid),
           spanEvents = mempty,
           spanStatus = OK,
           spanParentId = spanId <$> maybe_parent
@@ -162,10 +173,10 @@ pushSpan tid name timestamp st = st {spanStacks = new_stacks, randomGen = new_ra
 popSpan :: HasCallStack => ThreadId -> OTel.Timestamp -> State -> (State, [Span])
 popSpan tid timestamp st = (st {spanStacks = new_stacks, traceMap = new_traceMap}, [sp {spanFinishedAt = timestamp}])
   where
-    sp :| new_stack = spanStacks st HM.! tid
+    sp :| new_stack = fromMaybe (error $ printf "popSpan: missing span stack for thread %d" tid) $ HM.lookup tid (spanStacks st)
     (new_traceMap, new_stacks) = case new_stack of
       [] -> (HM.delete tid (traceMap st), HM.delete tid (spanStacks st))
-      (x : xs) -> (traceMap st, HM.insert tid (x :| xs) (spanStacks st))
+      x : xs -> (traceMap st, HM.insert tid (x :| xs) (spanStacks st))
 
 pushGCSpans :: HasCallStack => State -> OTel.Timestamp -> State
 pushGCSpans st timestamp = foldr go st tids

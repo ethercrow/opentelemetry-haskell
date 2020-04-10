@@ -46,6 +46,7 @@ executable opentelemetry-megaexample
   import: options
   ghc-options:
     -threaded
+    -rtsopts
     -eventlog
   build-depends:
     base >= 4.12 && < 5,
