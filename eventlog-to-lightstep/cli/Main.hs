@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import Control.Concurrent (threadDelay)
+import Control.Concurrent.Async
 import Control.Monad
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
+import Data.Function
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap as IM
 import Data.List.NonEmpty as NE
@@ -18,9 +20,10 @@ import OpenTelemetry.Exporter
 import OpenTelemetry.LightStep.Config
 import OpenTelemetry.LightStep.ZipkinExporter
 import OpenTelemetry.SpanContext
-import System.Environment
+import System.Environment (getArgs, getEnvironment)
 import System.FilePath
 import System.IO
+import System.Process.Typed
 import qualified System.Random.SplitMix as R
 import Text.Printf
 
@@ -28,7 +31,7 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
-    [path] -> do
+    ["read", path] -> do
       printf "Sending %s to LightStep...\n" path
       Just lsConfig <- getEnvConfig
       let service_name = T.pack $ takeBaseName path
@@ -36,18 +39,27 @@ main = do
       withFile path ReadMode (work exporter)
       shutdown exporter
       putStrLn "\nAll done.\n"
+    ("run" : program : "--" : args) -> do
+      printf "Streaming eventlog of %s to LightStep...\n" program
+      Just lsConfig <- getEnvConfig
+      exporter <- createLightStepSpanExporter lsConfig {lsServiceName = T.pack program}
+      let pipe = program <> "-opentelemetry.pipe"
+      runProcess $ proc "mkfifo" [pipe]
+      restreamer <- async $ withFile pipe ReadMode (work exporter)
+      env <- (("GHCRTS", "-l -ol" <> pipe) :) <$> getEnvironment
+      runProcess (proc program args & setEnv env)
+      wait restreamer
+      shutdown exporter
+      putStrLn "\nAll done.\n"
     _ -> do
       putStrLn "Usage:"
-      putStrLn "  eventlog-to-lightstep <program.eventlog>"
       putStrLn ""
-      putStrLn "To stream the span data from a running program:"
-      putStrLn ""
-      putStrLn "  mkfifo eventlog.pipe"
-      putStrLn "  instrumented-program +RTS -l -oleventlog.pipe &"
-      putStrLn "  eventlog-to-lightstep eventlog.pipe"
+      putStrLn "  eventlog-to-lightstep read <program.eventlog>"
+      putStrLn "  eventlog-to-lightstep run <program> -- <program-args>"
 
 work :: Exporter Span -> Handle -> IO ()
 work exporter input = do
+  putStrLn "Starting the eventlog reader"
   smgen <- R.initSMGen -- TODO(divanov): seed the random generator with something more random than current time
   go (initialState smgen) decodeEventLog
   where
@@ -55,8 +67,8 @@ work exporter input = do
       print (evTime event, evCap event, evSpec event)
       let (s', sps) = processEvent event s
       export exporter sps
-      -- print s'
-      -- mapM_ (putStrLn . ("emit " <>) . show) sps
+      print s'
+      mapM_ (putStrLn . ("emit " <>) . show) sps
       go s' next
     go s d@(Consume consume) = do
       eof <- hIsEOF input
@@ -71,14 +83,13 @@ work exporter input = do
     go s (Error _leftover err) = do
       putStrLn err
 
-data State
-  = S
-      { originTimestamp :: Timestamp,
-        threadMap :: IM.IntMap ThreadId,
-        spanStacks :: HM.HashMap ThreadId (NonEmpty Span),
-        traceMap :: HM.HashMap ThreadId TraceId,
-        randomGen :: R.SMGen
-      }
+data State = S
+  { originTimestamp :: Timestamp,
+    threadMap :: IM.IntMap ThreadId,
+    spanStacks :: HM.HashMap ThreadId (NonEmpty Span),
+    traceMap :: HM.HashMap ThreadId TraceId,
+    randomGen :: R.SMGen
+  }
   deriving (Show)
 
 initialState :: R.SMGen -> State

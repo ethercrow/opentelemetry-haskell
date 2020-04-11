@@ -46,8 +46,10 @@ executable eventlog-to-lightstep
     -eventlog
   build-depends:
     base >= 4.12 && < 5,
+    async,
     bytestring,
     containers,
+    filepath,
     ghc-events >= 0.13.0,
     http-client,
     http-types,
@@ -55,8 +57,8 @@ executable eventlog-to-lightstep
     opentelemetry-extra,
     opentelemetry-lightstep,
     splitmix,
-    filepath,
     text,
+    typed-process,
     unordered-containers
   main-is: Main.hs
   hs-source-dirs: cli
