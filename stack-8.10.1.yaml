@@ -104,3 +104,5 @@ extra-deps:
 - x509-1.7.5@sha256:01185a9a17bee4e89287d9e32bfaa673133cf2b09a39759627bed1f72ea528fd,2305
 - cabal-doctest-1.0.8@sha256:34dff6369d417df2699af4e15f06bc181d495eca9c51efde173deae2053c197c,1491
 - distributive-0.6.1@sha256:90cef5a2d9c2477775e382c96fc716763e517ffd99dc6843046b3eabb2a7ff29,3062
+- typed-process-0.2.6.0
+- unliftio-core-0.2.0.1
