@@ -41,7 +41,6 @@ common options
     -Wincomplete-record-updates
     -Wincomplete-uni-patterns
     -Wpartial-fields
-    -Wredundant-constraints
     -fhide-source-paths
     -ferror-spans
     -freverse-errors
@@ -50,12 +49,18 @@ library
   import: options
   build-depends:
     base >= 4.12 && < 5,
+    async,
+    containers,
+    ghc-events,
     bytestring,
     clock >= 0.8,
     directory,
     exceptions,
     hashable,
     random >= 1.1,
+    typed-process,
+    filepath,
+    splitmix,
     stm,
     text,
     opentelemetry,
@@ -66,6 +71,7 @@ library
     OpenTelemetry.Tracer
     OpenTelemetry.Debug
     OpenTelemetry.FileExporter
+    OpenTelemetry.EventlogStreaming_Internal
 
 test-suite unit-tests
   import: options

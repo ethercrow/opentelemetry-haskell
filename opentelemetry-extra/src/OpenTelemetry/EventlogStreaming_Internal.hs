@@ -1,86 +1,71 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+module OpenTelemetry.EventlogStreaming_Internal where
+
 import Control.Concurrent (threadDelay)
-import Control.Concurrent.Async
-import Control.Monad
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as BL
-import Data.Function
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap as IM
 import Data.List.NonEmpty as NE
 import Data.Maybe
 import qualified Data.Text as T
+import Data.Word
 import GHC.RTS.Events
 import GHC.RTS.Events.Incremental
 import GHC.Stack
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import qualified OpenTelemetry.Common as OTel
 import OpenTelemetry.Exporter
-import OpenTelemetry.LightStep.Config
-import OpenTelemetry.LightStep.ZipkinExporter
 import OpenTelemetry.SpanContext
-import System.Environment (getArgs, getEnvironment)
-import System.FilePath
 import System.IO
-import System.Process.Typed
 import qualified System.Random.SplitMix as R
 import Text.Printf
 
-main :: IO ()
-main = do
-  args <- getArgs
-  case args of
-    ["read", path] -> do
-      printf "Sending %s to LightStep...\n" path
-      Just lsConfig <- getEnvConfig
-      let service_name = T.pack $ takeBaseName path
-      exporter <- createLightStepSpanExporter lsConfig {lsServiceName = service_name}
-      withFile path ReadMode (work exporter)
-      shutdown exporter
-      putStrLn "\nAll done.\n"
-    ("run" : program : "--" : args) -> do
-      printf "Streaming eventlog of %s to LightStep...\n" program
-      Just lsConfig <- getEnvConfig
-      exporter <- createLightStepSpanExporter lsConfig {lsServiceName = T.pack program}
-      let pipe = program <> "-opentelemetry.pipe"
-      runProcess $ proc "mkfifo" [pipe]
-      restreamer <- async $ withFile pipe ReadMode (work exporter)
-      env <- (("GHCRTS", "-l -ol" <> pipe) :) <$> getEnvironment
-      runProcess (proc program args & setEnv env)
-      wait restreamer
-      shutdown exporter
-      putStrLn "\nAll done.\n"
-    _ -> do
-      putStrLn "Usage:"
-      putStrLn ""
-      putStrLn "  eventlog-to-lightstep read <program.eventlog>"
-      putStrLn "  eventlog-to-lightstep run <program> -- <program-args>"
-
-work :: Exporter Span -> Handle -> IO ()
-work exporter input = do
+work :: Timestamp -> Exporter Span -> Handle -> IO ()
+work origin_timestamp exporter input = do
   putStrLn "Starting the eventlog reader"
   smgen <- R.initSMGen -- TODO(divanov): seed the random generator with something more random than current time
-  go (initialState smgen) decodeEventLog
+  go (initialState origin_timestamp smgen) decodeEventLog
+  putStrLn "no more work"
   where
     go s (Produce event next) = do
-      print (evTime event, evCap event, evSpec event)
-      let (s', sps) = processEvent event s
-      export exporter sps
-      print s'
-      mapM_ (putStrLn . ("emit " <>) . show) sps
-      go s' next
+      case evSpec event of
+        Shutdown {} -> do
+          putStrLn "Shutdown-like event detected"
+        CapDelete {} -> do
+          putStrLn "Shutdown-like event detected"
+        CapsetDelete {} -> do
+          putStrLn "Shutdown-like event detected"
+        _ -> do
+          putStrLn "go Produce"
+          print (evTime event, evCap event, evSpec event)
+          let (s', sps) = processEvent event s
+          _ <- export exporter sps
+          print s'
+          mapM_ (putStrLn . ("emit " <>) . show) sps
+          go s' next
     go s d@(Consume consume) = do
+      -- putStrLn "go Consume"
       eof <- hIsEOF input
-      when (not eof) $ do
-        chunk <- B.hGetSome input 4096
-        if B.null chunk
-          then do
-            threadDelay 1000 -- TODO(divanov): remove the sleep by replacing the hGetSome with something that blocks until data is available
-            go s d
-          else go s $ consume chunk
-    go s (Done _) = pure ()
-    go s (Error _leftover err) = do
+      case eof of
+        False -> do
+          chunk <- B.hGetSome input 4096
+          -- printf "chunk = %d bytes\n" (B.length chunk)
+          if B.null chunk
+            then do
+              -- putStrLn "chunk is null"
+              threadDelay 1000 -- TODO(divanov): remove the sleep by replacing the hGetSome with something that blocks until data is available
+              go s d
+            else do
+              -- putStrLn "chunk is not null"
+              go s $ consume chunk
+        True -> do
+          putStrLn "EOF"
+    go _ (Done _) = do
+      putStrLn "go Done"
+      pure ()
+    go _ (Error _leftover err) = do
+      putStrLn "go Error"
       putStrLn err
 
 data State = S
@@ -92,8 +77,8 @@ data State = S
   }
   deriving (Show)
 
-initialState :: R.SMGen -> State
-initialState = S 0 mempty mempty mempty
+initialState :: Word64 -> R.SMGen -> State
+initialState timestamp = S timestamp mempty mempty mempty
 
 processEvent :: Event -> State -> (State, [Span])
 processEvent (Event ts ev m_cap) st@(S {..}) =
@@ -108,7 +93,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
             _ -> (st, [])
         (RunThread tid, Just cap, _) ->
           (st {threadMap = IM.insert cap tid threadMap}, [])
-        (StopThread tid tstatus, Just cap, _)
+        (StopThread _ tstatus, Just cap, _)
           | isTerminalThreadStatus tstatus -> (st {threadMap = IM.delete cap threadMap}, [])
         (StartGC, _, _) -> (pushGCSpans st now, [])
         (GCStatsGHC {gen}, _, _) -> (modifyAllSpans (setTag "gen" gen) st, [])
@@ -188,7 +173,7 @@ pushSpan tid name timestamp st = st {spanStacks = new_stacks, randomGen = new_ra
     (sid, new_randomGen) = R.nextWord64 (randomGen st)
     (new_traceMap, trace_id) = case (maybe_parent, HM.lookup tid (traceMap st)) of
       (Just parent, _) -> (traceMap st, spanTraceId parent)
-      (_, Just trace_id) -> (traceMap st, trace_id)
+      (_, Just trace_id') -> (traceMap st, trace_id')
       _ -> let new_trace_id = TId sid in (HM.insert tid new_trace_id (traceMap st), new_trace_id)
     sp =
       Span

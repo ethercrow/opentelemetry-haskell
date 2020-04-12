@@ -16,6 +16,7 @@ import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import OpenTelemetry.Eventlog
 import qualified OpenTelemetry.Network.Wai.Middleware as WaiTelemetry
+import System.Environment
 import System.Mem
 import Text.Printf
 
@@ -23,7 +24,10 @@ megaport :: Int
 megaport = 6502
 
 main :: IO ()
-main = seriousPragmaticMain
+main = do
+  ghcrts <- lookupEnv "GHCRTS"
+  printf "GHCRTS = %s\n" (show ghcrts)
+  seriousPragmaticMain
 
 seriousPragmaticMain :: IO ()
 seriousPragmaticMain = do
