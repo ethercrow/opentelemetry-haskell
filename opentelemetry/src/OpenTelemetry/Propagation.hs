@@ -16,11 +16,10 @@ import Data.Word
 import OpenTelemetry.SpanContext
 import Text.Printf
 
-data PropagationFormat
-  = PropagationFormat
-      { propagateFromHeaders :: forall key. (Semigroup key, IsString key, Eq key) => [(key, BS.ByteString)] -> Maybe SpanContext,
-        propagateToHeaders :: forall key. (Semigroup key, IsString key, Eq key) => SpanContext -> [(key, BS.ByteString)]
-      }
+data PropagationFormat = PropagationFormat
+  { propagateFromHeaders :: forall key. (Semigroup key, IsString key, Eq key) => [(key, BS.ByteString)] -> Maybe SpanContext,
+    propagateToHeaders :: forall key. (Semigroup key, IsString key, Eq key) => SpanContext -> [(key, BS.ByteString)]
+  }
 
 -- | (p1 <> p2) parses like p1, then p2 as a fallback. (p1 <> p2) injects like p1.
 instance Semigroup PropagationFormat where
