@@ -22,11 +22,10 @@ import OpenTelemetry.SpanContext
 import System.IO.Unsafe
 import Text.Printf
 
-data ZipkinSpan
-  = ZipkinSpan
-      { zsConfig :: LightStepConfig,
-        zsSpan :: Span
-      }
+data ZipkinSpan = ZipkinSpan
+  { zsConfig :: LightStepConfig,
+    zsSpan :: Span
+  }
 
 tagValue2text :: TagValue -> T.Text
 tagValue2text tv = case tv of
@@ -93,13 +92,12 @@ instance ToJSON ZipkinSpan where
                    ]
           )
 
-data LightStepClient
-  = LightStepClient
-      { lscConfig :: LightStepConfig,
-        lscSenderThread :: Async (),
-        lscSenderQueue :: TBQueue Span,
-        lscShutdownVar :: TVar Bool
-      }
+data LightStepClient = LightStepClient
+  { lscConfig :: LightStepConfig,
+    lscSenderThread :: Async (),
+    lscSenderQueue :: TBQueue Span,
+    lscShutdownVar :: TVar Bool
+  }
 
 createLightStepSpanExporter :: MonadIO m => LightStepConfig -> m (Exporter Span)
 createLightStepSpanExporter cfg = liftIO do
@@ -125,7 +123,7 @@ createLightStepSpanExporter cfg = liftIO do
 
 mkClient :: LightStepConfig -> IO LightStepClient
 mkClient cfg@(LightStepConfig {..}) = do
-  let endpoint = printf "https://%s:%d/api/v2/spans" lsHostName (fromIntegral lsPort :: Int)
+  let endpoint = printf "http://%s:%d/api/v2/spans" lsHostName (fromIntegral lsPort :: Int)
   manager <- newManager tlsManagerSettings
   q <- newTBQueueIO (fromIntegral lsSpanQueueSize)
   shutdown_var <- newTVarIO False
@@ -161,6 +159,7 @@ reportSpans endpoint httpManager cfg sps = do
   case statusCode (responseStatus resp) of
     200 -> do
       inc 1 reportedSpanCountVar
+      dd_ "200" "200"
       pure ()
     _ -> do
       -- TODO(divanov): handle failures

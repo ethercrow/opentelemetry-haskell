@@ -37,7 +37,7 @@ work origin_timestamp exporter input = do
         CapsetDelete {} -> do
           putStrLn "Shutdown-like event detected"
         _ -> do
-          putStrLn "go Produce"
+          -- putStrLn "go Produce"
           print (evTime event, evCap event, evSpec event)
           let (s', sps) = processEvent event s
           _ <- export exporter sps

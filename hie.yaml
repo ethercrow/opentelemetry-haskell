@@ -1,0 +1,16 @@
+cradle:
+  multi:
+  - path: "./opentelemetry/src"
+    config: { cradle: {stack: {component: "opentelemetry:lib"}} }
+  - path: "./opentelemetry-lightstep/src"
+    config: { cradle: {stack: {component: "opentelemetry-lightstep:lib"}} }
+  - path: "./opentelemetry-lightstep/exe/eventlog-to-lightstep"
+    config: { cradle: {stack: {component: "opentelemetry-lightstep:exe:eventlog-to-lightstep"}} }
+  - path: "./opentelemetry-extra/src"
+    config: { cradle: {stack: {component: "opentelemetry-extra:lib"}} }
+  - path: "./opentelemetry-wai/src"
+    config: { cradle: {stack: {component: "opentelemetry-wai:lib"}} }
+  - path: "./opentelemetry-extra/unit-tests"
+    config: { cradle: {stack: {component: "opentelemetry-extra:test:unit-tests"}} }
+  - path: "./megaexample"
+    config: { cradle: {stack: {component: "megaexample:exe:opentelemetry-megaexample"}} }
