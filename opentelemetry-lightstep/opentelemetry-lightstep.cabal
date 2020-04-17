@@ -62,7 +62,7 @@ library
   hs-source-dirs: src
   exposed-modules:
     OpenTelemetry.LightStep.Config
-    OpenTelemetry.LightStep.ZipkinExporter
+    OpenTelemetry.LightStep.Exporter
 
 executable eventlog-to-lightstep
   import: options

@@ -1,13 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+module Main where
+
 import Control.Concurrent.Async
 import Control.Monad.Catch
 import Data.Function
 import qualified Data.Text as T
 import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.Exporter
-import OpenTelemetry.LightStep.Config
-import OpenTelemetry.LightStep.Exporter
+import OpenTelemetry.ZipkinExporter
 import System.Clock
 import System.Environment (getArgs, getEnvironment)
 import System.FilePath
@@ -20,18 +21,16 @@ main = do
   args <- getArgs
   case args of
     ["read", path] -> do
-      printf "Sending %s to LightStep...\n" path
-      Just lsConfig <- getEnvConfig
+      printf "Sending %s to Zipkin...\n" path
       let service_name = T.pack $ takeBaseName path
-      exporter <- createLightStepSpanExporter lsConfig {lsServiceName = service_name}
+      exporter <- createZipkinSpanExporter $ localhostZipkinConfig service_name
       origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime
       withFile path ReadMode (work origin_timestamp exporter)
       shutdown exporter
       putStrLn "\nAll done.\n"
     ("run" : program : "--" : args') -> do
-      printf "Streaming eventlog of %s to LightStep...\n" program
-      Just lsConfig <- getEnvConfig
-      exporter <- createLightStepSpanExporter lsConfig {lsServiceName = T.pack program}
+      printf "Streaming eventlog of %s to Zipkin...\n" program
+      exporter <- createZipkinSpanExporter $ localhostZipkinConfig (T.pack program)
       let pipe = program <> "-opentelemetry.pipe"
       runProcess $ proc "mkfifo" [pipe]
       origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime

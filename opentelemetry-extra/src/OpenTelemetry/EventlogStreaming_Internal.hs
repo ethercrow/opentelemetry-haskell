@@ -38,10 +38,10 @@ work origin_timestamp exporter input = do
           putStrLn "Shutdown-like event detected"
         _ -> do
           -- putStrLn "go Produce"
-          print (evTime event, evCap event, evSpec event)
+          -- print (evTime event, evCap event, evSpec event)
           let (s', sps) = processEvent event s
           _ <- export exporter sps
-          print s'
+          -- print s'
           mapM_ (putStrLn . ("emit " <>) . show) sps
           go s' next
     go s d@(Consume consume) = do
@@ -104,7 +104,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
           ("ot1" : "begin" : "span" : name) ->
             (pushSpan tid (T.intercalate " " name) now st, [])
           ("ot1" : "end" : "span" : _) -> popSpan tid now st
-          ["ot1", "set", "tag", k, v] -> (modifySpan tid (setTag k v) st, [])
+          ("ot1" : "set" : "tag" : k : v) -> (modifySpan tid (setTag k (T.unwords v)) st, [])
           ["ot1", "set", "traceid", trace_id] ->
             (modifySpan tid (setTraceId (TId (read ("0x" <> T.unpack trace_id)))) st, [])
           ["ot1", "set", "spanid", span_id] ->
