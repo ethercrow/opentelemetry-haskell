@@ -15,6 +15,7 @@ import GHC.RTS.Events.Incremental
 import GHC.Stack
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import qualified OpenTelemetry.Common as OTel
+import OpenTelemetry.Debug
 import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import System.IO
@@ -23,29 +24,29 @@ import Text.Printf
 
 work :: Timestamp -> Exporter Span -> Handle -> IO ()
 work origin_timestamp exporter input = do
-  putStrLn "Starting the eventlog reader"
+  d_ "Starting the eventlog reader"
   smgen <- R.initSMGen -- TODO(divanov): seed the random generator with something more random than current time
   go (initialState origin_timestamp smgen) decodeEventLog
-  putStrLn "no more work"
+  d_ "no more work"
   where
     go s (Produce event next) = do
       case evSpec event of
         Shutdown {} -> do
-          putStrLn "Shutdown-like event detected"
+          d_ "Shutdown-like event detected"
         CapDelete {} -> do
-          putStrLn "Shutdown-like event detected"
+          d_ "Shutdown-like event detected"
         CapsetDelete {} -> do
-          putStrLn "Shutdown-like event detected"
+          d_ "Shutdown-like event detected"
         _ -> do
-          -- putStrLn "go Produce"
+          -- d_ "go Produce"
           -- print (evTime event, evCap event, evSpec event)
           let (s', sps) = processEvent event s
           _ <- export exporter sps
           -- print s'
-          mapM_ (putStrLn . ("emit " <>) . show) sps
+          mapM_ (d_ . ("emit " <>) . show) sps
           go s' next
     go s d@(Consume consume) = do
-      -- putStrLn "go Consume"
+      -- d_ "go Consume"
       eof <- hIsEOF input
       case eof of
         False -> do
@@ -53,20 +54,20 @@ work origin_timestamp exporter input = do
           -- printf "chunk = %d bytes\n" (B.length chunk)
           if B.null chunk
             then do
-              -- putStrLn "chunk is null"
+              -- d_ "chunk is null"
               threadDelay 1000 -- TODO(divanov): remove the sleep by replacing the hGetSome with something that blocks until data is available
               go s d
             else do
-              -- putStrLn "chunk is not null"
+              -- d_ "chunk is not null"
               go s $ consume chunk
         True -> do
-          putStrLn "EOF"
+          d_ "EOF"
     go _ (Done _) = do
-      putStrLn "go Done"
+      d_ "go Done"
       pure ()
     go _ (Error _leftover err) = do
-      putStrLn "go Error"
-      putStrLn err
+      d_ "go Error"
+      d_ err
 
 data State = S
   { originTimestamp :: Timestamp,
@@ -111,7 +112,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
             (modifySpan tid (setSpanId (SId (read ("0x" <> T.unpack span_id)))) st, [])
           ["ot1", "set", "parent", trace_id, sid] ->
             (modifySpan tid (setParent (TId (read ("0x" <> T.unpack trace_id))) (SId $ read ("0x" <> T.unpack sid))) st, [])
-          ["ot1", "add", "event", k, v] -> (modifySpan tid (addEvent now k v) st, [])
+          ("ot1" : "add" : "event" : k : v) -> (modifySpan tid (addEvent now k (T.unwords v)) st, [])
           ("ot1" : rest) -> error $ printf "Unrecognized %s" (show rest)
           _ -> (st, [])
         _ -> (st, [])

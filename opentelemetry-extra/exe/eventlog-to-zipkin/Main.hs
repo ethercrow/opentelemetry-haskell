@@ -27,7 +27,7 @@ main = do
       origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime
       withFile path ReadMode (work origin_timestamp exporter)
       shutdown exporter
-      putStrLn "\nAll done.\n"
+      putStrLn "\nAll done."
     ("run" : program : "--" : args') -> do
       printf "Streaming eventlog of %s to Zipkin...\n" program
       exporter <- createZipkinSpanExporter $ localhostZipkinConfig (T.pack program)
@@ -45,7 +45,7 @@ main = do
             env <- (("GHCRTS", "-l -ol" <> pipe) :) <$> getEnvironment
             runProcess (proc program args' & setEnv env)
         )
-      putStrLn "\nAll done.\n"
+      putStrLn "\nAll done."
     _ -> do
       putStrLn "Usage:"
       putStrLn ""
