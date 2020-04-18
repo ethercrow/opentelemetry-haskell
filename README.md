@@ -97,6 +97,9 @@ docker run -p 9411:9411 honeycombio/honeycomb-opentracing-proxy -k <my_api_key> 
 eventlog-to-zipkin read my_application.eventlog
 ```
 
+Here is how a trace of `stack install` looks loaded in Honeycomb:
+
+![honeycomb_screenshot](https://i.imgur.com/fenCK7f.png)
 
 ### Lightstep
 
@@ -109,7 +112,7 @@ eventlog-to-lightstep read my_application.eventlog
 
 Here is how a trace of `stack install` looks loaded in Lightstep:
 
-![lightstep_screenshot](https://i.imgur.com/fenCK7f.png)
+![lightstep_screenshot](https://i.imgur.com/GVNrHR9.png)
 
 ## How does it work?
 
