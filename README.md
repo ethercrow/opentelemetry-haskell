@@ -41,17 +41,68 @@ For a comprehensive example see the [megaexample](megaexample/README.md) subproj
 
 ### As an application author
 
-Compile your executable with `-eventlog` and run with `+RTS -l -olmy_application.eventlog`.
+1. Instrument interesting parts of the code, same as in the section above.
+2. Compile your executable with `-eventlog`.
+3. Run it with `+RTS -l -olmy_application.eventlog`.
+4. Export the resulting eventlog to some program or service capable of trace data presentation, see [Exporters] below.
+5. Explore the profile data to find performance problems and unexpected things, fix those, adjust instrumentation, repeat.
 
-Upload the result trace data to LightStep: `eventlog-to-lightstep my_application.eventlog`. Here is how a trace of `stack install` looks loaded in LightStep:
+Note that currently 
+
+## Exporters
+
+TODO: Document how to export trace data to Chrome or Tracy.
+
+### Zipkin
+
+```
+# Launch a Zipkin instance on localhost.
+# See https://zipkin.io/pages/quickstart.html for a non-docker alternative.
+docker run -p 9411:9411 openzipkin/zipkin-slim
+
+# Export the eventlog.
+eventlog-to-zipkin read my_application.eventlog
+```
+
+Open `http://localhost:9411/zipkin` in your browser.
+
+### Jaeger
+
+```
+# Launch a Zipkin-compatible Jaeger service locally.
+# Binaries and docker images are available at https://www.jaegertracing.io/docs/latest/getting-started/.
+jaeger-all-in-one --collector.zipkin.http-port=9411
+
+# Export the eventlog.
+eventlog-to-zipkin read my_application.eventlog
+```
+
+Open `http://localhost:16686/search` in your browser.
+
+### Honeycomb
+
+```
+# Launch a HoneyComb relay that accepts trace data in Zipkin format.
+# https://docs.honeycomb.io/working-with-your-data/tracing/send-trace-data/#opentracing.
+docker run -p 9411:9411 honeycombio/honeycomb-opentracing-proxy -k <my_api_key> -d traces
+
+# Export the eventlog.
+eventlog-to-zipkin read my_application.eventlog
+```
+
+
+### Lightstep
+
+```
+export LIGHTSTEP_TOKEN=<my_token>
+
+# Export the eventlog
+eventlog-to-lightstep read my_application.eventlog
+```
+
+Here is how a trace of `stack install` looks loaded in LightStep:
 
 ![lightstep_screenshot](https://i.imgur.com/fenCK7f.png)
-
-TODO: describe how to view the eventlog locally in Chrome or Tracy.
-
-TODO: describe how to stream the eventlog of a running application to LightStep.
-
-Explore the profile data to find performance problems and unexpected things, fix those, adjust instrumentation, repeat.
 
 ## How does it work?
 

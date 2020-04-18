@@ -1,88 +1,85 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+module OpenTelemetry.EventlogStreaming_Internal where
+
 import Control.Concurrent (threadDelay)
-import Control.Monad
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap as IM
 import Data.List.NonEmpty as NE
 import Data.Maybe
 import qualified Data.Text as T
+import Data.Word
 import GHC.RTS.Events
 import GHC.RTS.Events.Incremental
 import GHC.Stack
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import qualified OpenTelemetry.Common as OTel
+import OpenTelemetry.Debug
 import OpenTelemetry.Exporter
-import OpenTelemetry.LightStep.Config
-import OpenTelemetry.LightStep.ZipkinExporter
 import OpenTelemetry.SpanContext
-import System.Environment
-import System.FilePath
 import System.IO
 import qualified System.Random.SplitMix as R
 import Text.Printf
 
-main :: IO ()
-main = do
-  args <- getArgs
-  case args of
-    [path] -> do
-      printf "Sending %s to LightStep...\n" path
-      Just lsConfig <- getEnvConfig
-      let service_name = T.pack $ takeBaseName path
-      exporter <- createLightStepSpanExporter lsConfig {lsServiceName = service_name}
-      withFile path ReadMode (work exporter)
-      shutdown exporter
-      putStrLn "\nAll done.\n"
-    _ -> do
-      putStrLn "Usage:"
-      putStrLn "  eventlog-to-lightstep <program.eventlog>"
-      putStrLn ""
-      putStrLn "To stream the span data from a running program:"
-      putStrLn ""
-      putStrLn "  mkfifo eventlog.pipe"
-      putStrLn "  instrumented-program +RTS -l -oleventlog.pipe &"
-      putStrLn "  eventlog-to-lightstep eventlog.pipe"
-
-work :: Exporter Span -> Handle -> IO ()
-work exporter input = do
+work :: Timestamp -> Exporter Span -> Handle -> IO ()
+work origin_timestamp exporter input = do
+  d_ "Starting the eventlog reader"
   smgen <- R.initSMGen -- TODO(divanov): seed the random generator with something more random than current time
-  go (initialState smgen) decodeEventLog
+  go (initialState origin_timestamp smgen) decodeEventLog
+  d_ "no more work"
   where
     go s (Produce event next) = do
-      print (evTime event, evCap event, evSpec event)
-      let (s', sps) = processEvent event s
-      export exporter sps
-      -- print s'
-      -- mapM_ (putStrLn . ("emit " <>) . show) sps
-      go s' next
+      case evSpec event of
+        Shutdown {} -> do
+          d_ "Shutdown-like event detected"
+        CapDelete {} -> do
+          d_ "Shutdown-like event detected"
+        CapsetDelete {} -> do
+          d_ "Shutdown-like event detected"
+        _ -> do
+          -- d_ "go Produce"
+          -- print (evTime event, evCap event, evSpec event)
+          let (s', sps) = processEvent event s
+          _ <- export exporter sps
+          -- print s'
+          mapM_ (d_ . ("emit " <>) . show) sps
+          go s' next
     go s d@(Consume consume) = do
+      -- d_ "go Consume"
       eof <- hIsEOF input
-      when (not eof) $ do
-        chunk <- B.hGetSome input 4096
-        if B.null chunk
-          then do
-            threadDelay 1000 -- TODO(divanov): remove the sleep by replacing the hGetSome with something that blocks until data is available
-            go s d
-          else go s $ consume chunk
-    go s (Done _) = pure ()
-    go s (Error _leftover err) = do
-      putStrLn err
+      case eof of
+        False -> do
+          chunk <- B.hGetSome input 4096
+          -- printf "chunk = %d bytes\n" (B.length chunk)
+          if B.null chunk
+            then do
+              -- d_ "chunk is null"
+              threadDelay 1000 -- TODO(divanov): remove the sleep by replacing the hGetSome with something that blocks until data is available
+              go s d
+            else do
+              -- d_ "chunk is not null"
+              go s $ consume chunk
+        True -> do
+          d_ "EOF"
+    go _ (Done _) = do
+      d_ "go Done"
+      pure ()
+    go _ (Error _leftover err) = do
+      d_ "go Error"
+      d_ err
 
-data State
-  = S
-      { originTimestamp :: Timestamp,
-        threadMap :: IM.IntMap ThreadId,
-        spanStacks :: HM.HashMap ThreadId (NonEmpty Span),
-        traceMap :: HM.HashMap ThreadId TraceId,
-        randomGen :: R.SMGen
-      }
+data State = S
+  { originTimestamp :: Timestamp,
+    threadMap :: IM.IntMap ThreadId,
+    spanStacks :: HM.HashMap ThreadId (NonEmpty Span),
+    traceMap :: HM.HashMap ThreadId TraceId,
+    randomGen :: R.SMGen
+  }
   deriving (Show)
 
-initialState :: R.SMGen -> State
-initialState = S 0 mempty mempty mempty
+initialState :: Word64 -> R.SMGen -> State
+initialState timestamp = S timestamp mempty mempty mempty
 
 processEvent :: Event -> State -> (State, [Span])
 processEvent (Event ts ev m_cap) st@(S {..}) =
@@ -97,7 +94,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
             _ -> (st, [])
         (RunThread tid, Just cap, _) ->
           (st {threadMap = IM.insert cap tid threadMap}, [])
-        (StopThread tid tstatus, Just cap, _)
+        (StopThread _ tstatus, Just cap, _)
           | isTerminalThreadStatus tstatus -> (st {threadMap = IM.delete cap threadMap}, [])
         (StartGC, _, _) -> (pushGCSpans st now, [])
         (GCStatsGHC {gen}, _, _) -> (modifyAllSpans (setTag "gen" gen) st, [])
@@ -108,14 +105,14 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
           ("ot1" : "begin" : "span" : name) ->
             (pushSpan tid (T.intercalate " " name) now st, [])
           ("ot1" : "end" : "span" : _) -> popSpan tid now st
-          ["ot1", "set", "tag", k, v] -> (modifySpan tid (setTag k v) st, [])
+          ("ot1" : "set" : "tag" : k : v) -> (modifySpan tid (setTag k (T.unwords v)) st, [])
           ["ot1", "set", "traceid", trace_id] ->
             (modifySpan tid (setTraceId (TId (read ("0x" <> T.unpack trace_id)))) st, [])
           ["ot1", "set", "spanid", span_id] ->
             (modifySpan tid (setSpanId (SId (read ("0x" <> T.unpack span_id)))) st, [])
           ["ot1", "set", "parent", trace_id, sid] ->
             (modifySpan tid (setParent (TId (read ("0x" <> T.unpack trace_id))) (SId $ read ("0x" <> T.unpack sid))) st, [])
-          ["ot1", "add", "event", k, v] -> (modifySpan tid (addEvent now k v) st, [])
+          ("ot1" : "add" : "event" : k : v) -> (modifySpan tid (addEvent now k (T.unwords v)) st, [])
           ("ot1" : rest) -> error $ printf "Unrecognized %s" (show rest)
           _ -> (st, [])
         _ -> (st, [])
@@ -177,7 +174,7 @@ pushSpan tid name timestamp st = st {spanStacks = new_stacks, randomGen = new_ra
     (sid, new_randomGen) = R.nextWord64 (randomGen st)
     (new_traceMap, trace_id) = case (maybe_parent, HM.lookup tid (traceMap st)) of
       (Just parent, _) -> (traceMap st, spanTraceId parent)
-      (_, Just trace_id) -> (traceMap st, trace_id)
+      (_, Just trace_id') -> (traceMap st, trace_id')
       _ -> let new_trace_id = TId sid in (HM.insert tid new_trace_id (traceMap st), new_trace_id)
     sp =
       Span

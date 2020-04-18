@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 
-module OpenTelemetry.LightStep.ZipkinExporter where
+module OpenTelemetry.ZipkinExporter where
 
 -- Zipkin V2 protocol spec: https://github.com/openzipkin/zipkin-api/blob/master/zipkin2-api.yaml
 
@@ -17,16 +18,14 @@ import Network.HTTP.Types
 import OpenTelemetry.Common
 import OpenTelemetry.Debug
 import OpenTelemetry.Exporter
-import OpenTelemetry.LightStep.Config
 import OpenTelemetry.SpanContext
 import System.IO.Unsafe
 import Text.Printf
 
-data ZipkinSpan
-  = ZipkinSpan
-      { zsConfig :: LightStepConfig,
-        zsSpan :: Span
-      }
+data ZipkinSpan = ZipkinSpan
+  { zsConfig :: ZipkinConfig,
+    zsSpan :: Span
+  }
 
 tagValue2text :: TagValue -> T.Text
 tagValue2text tv = case tv of
@@ -37,7 +36,7 @@ tagValue2text tv = case tv of
 
 instance ToJSON ZipkinSpan where
   -- FIXME(divanov): deduplicate
-  toJSON (ZipkinSpan LightStepConfig {..} s@(Span {..})) =
+  toJSON (ZipkinSpan ZipkinConfig {..} s@(Span {..})) =
     let TId tid = spanTraceId s
         SId sid = spanId s
         ts = spanStartedAt `div` 1000
@@ -48,12 +47,10 @@ instance ToJSON ZipkinSpan where
             "id" .= T.pack (printf "%016x" sid),
             "timestamp" .= ts,
             "duration" .= duration,
+            "localEndpoint" .= object ["serviceName" .= zServiceName],
             "tags"
               .= object
-                ( [ "lightstep.access_token" .= lsToken,
-                    "lightstep.component_name" .= lsServiceName
-                  ]
-                    <> [k .= v | (k, v) <- lsGlobalTags]
+                ( [k .= v | (k, v) <- zGlobalTags]
                     <> [k .= tagValue2text v | (k, v) <- HM.toList spanTags]
                 ),
             "annotations"
@@ -63,7 +60,7 @@ instance ToJSON ZipkinSpan where
           ]
             <> (maybe [] (\(SId psid) -> ["parentId" .= psid]) spanParentId)
 
-  toEncoding (ZipkinSpan LightStepConfig {..} s@(Span {..})) =
+  toEncoding (ZipkinSpan ZipkinConfig {..} s@(Span {..})) =
     let TId tid = spanTraceId s
         SId sid = spanId s
         ts = spanStartedAt `div` 1000
@@ -74,12 +71,10 @@ instance ToJSON ZipkinSpan where
               <> "id" .= T.pack (printf "%016x" sid)
               <> "timestamp" .= ts
               <> "duration" .= duration
+              <> "localEndpoint" .= object ["serviceName" .= zServiceName]
               <> "tags"
                 .= object
-                  ( [ "lightstep.access_token" .= lsToken,
-                      "lightstep.component_name" .= lsServiceName
-                    ]
-                      <> [k .= v | (k, v) <- lsGlobalTags]
+                  ( [k .= v | (k, v) <- zGlobalTags]
                       <> [k .= tagValue2text v | (k, v) <- HM.toList spanTags]
                   )
               <> ( maybe
@@ -93,24 +88,41 @@ instance ToJSON ZipkinSpan where
                    ]
           )
 
-data LightStepClient
-  = LightStepClient
-      { lscConfig :: LightStepConfig,
-        lscSenderThread :: Async (),
-        lscSenderQueue :: TBQueue Span,
-        lscShutdownVar :: TVar Bool
-      }
+data ZipkinConfig = ZipkinConfig
+  { zEndpoint :: String,
+    zServiceName :: T.Text,
+    zGlobalTags :: [(T.Text, T.Text)],
+    zGracefulShutdownTimeoutSeconds :: Word,
+    zSpanQueueSize :: Word
+  }
 
-createLightStepSpanExporter :: MonadIO m => LightStepConfig -> m (Exporter Span)
-createLightStepSpanExporter cfg = liftIO do
+localhostZipkinConfig :: T.Text -> ZipkinConfig
+localhostZipkinConfig service =
+  ZipkinConfig
+    { zEndpoint = "http://localhost:9411/api/v2/spans",
+      zServiceName = service,
+      zGlobalTags = mempty,
+      zGracefulShutdownTimeoutSeconds = 5,
+      zSpanQueueSize = 2048
+    }
+
+data ZipkinClient = ZipkinClient
+  { zcConfig :: ZipkinConfig,
+    zcSenderThread :: Async (),
+    zcSenderQueue :: TBQueue Span,
+    zcShutdownVar :: TVar Bool
+  }
+
+createZipkinSpanExporter :: MonadIO m => ZipkinConfig -> m (Exporter Span)
+createZipkinSpanExporter cfg = liftIO do
   client <- mkClient cfg
   pure
     $! Exporter
       ( \sps -> do
-          let q = lscSenderQueue client
+          let q = zcSenderQueue client
           atomically $ do
             q_population <- fromIntegral <$> lengthTBQueue q
-            let q_vacancy = fromIntegral (lsSpanQueueSize (lscConfig client) - q_population)
+            let q_vacancy = fromIntegral (zSpanQueueSize (zcConfig client) - q_population)
             modifyTVar droppedSpanCountVar (\x -> x + length sps - q_vacancy)
             mapM_
               (writeTBQueue q)
@@ -119,15 +131,14 @@ createLightStepSpanExporter cfg = liftIO do
       )
       ( do
           atomically $
-            writeTVar (lscShutdownVar client) True
-          wait (lscSenderThread client)
+            writeTVar (zcShutdownVar client) True
+          wait (zcSenderThread client)
       )
 
-mkClient :: LightStepConfig -> IO LightStepClient
-mkClient cfg@(LightStepConfig {..}) = do
-  let endpoint = printf "https://%s:%d/api/v2/spans" lsHostName (fromIntegral lsPort :: Int)
+mkClient :: ZipkinConfig -> IO ZipkinClient
+mkClient cfg@(ZipkinConfig {..}) = do
   manager <- newManager tlsManagerSettings
-  q <- newTBQueueIO (fromIntegral lsSpanQueueSize)
+  q <- newTBQueueIO (fromIntegral zSpanQueueSize)
   shutdown_var <- newTVarIO False
   sender <- async $ do
     let loop = do
@@ -139,15 +150,15 @@ mkClient cfg@(LightStepConfig {..}) = do
               _ -> pure (must_shutdown, sps)
           case sps of
             [] -> pure ()
-            _ -> reportSpans endpoint manager cfg sps
+            _ -> reportSpans zEndpoint manager cfg sps
           dd_ "must_shutdown" must_shutdown
           case must_shutdown of
             True -> pure ()
             False -> loop
     loop
-  pure $! LightStepClient cfg sender q shutdown_var
+  pure $! ZipkinClient cfg sender q shutdown_var
 
-reportSpans :: String -> Manager -> LightStepConfig -> [Span] -> IO ()
+reportSpans :: String -> Manager -> ZipkinConfig -> [Span] -> IO ()
 reportSpans endpoint httpManager cfg sps = do
   dd_ "reportSpans" sps
   let body = encode (map (ZipkinSpan cfg) sps)
@@ -161,6 +172,7 @@ reportSpans endpoint httpManager cfg sps = do
   case statusCode (responseStatus resp) of
     200 -> do
       inc 1 reportedSpanCountVar
+      dd_ @String "200" "200"
       pure ()
     _ -> do
       -- TODO(divanov): handle failures

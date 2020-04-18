@@ -9,13 +9,17 @@ import Debug.Trace
 import OpenTelemetry.SpanContext
 import Text.Printf
 
+foreign import ccall "flushTrace" flushTrace :: IO ()
+
 -- TODO(divanov): replace traceEventIO with the bytestring based equivalent
 
 beginSpan :: MonadIO m => String -> m ()
 beginSpan operation = liftIO $ traceEventIO (printf "ot1 begin span %s" operation)
 
 endSpan :: MonadIO m => m ()
-endSpan = liftIO $ traceEventIO (printf "ot1 end span")
+endSpan = liftIO $ do
+  traceEventIO (printf "ot1 end span")
+  flushTrace
 
 setTag :: MonadIO m => String -> BS8.ByteString -> m ()
 setTag k v = liftIO $ traceEventIO (printf "ot1 set tag %s %s" k (BS8.unpack v))

@@ -16,6 +16,7 @@ import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import OpenTelemetry.Eventlog
 import qualified OpenTelemetry.Network.Wai.Middleware as WaiTelemetry
+import System.Environment
 import System.Mem
 import Text.Printf
 
@@ -23,16 +24,31 @@ megaport :: Int
 megaport = 6502
 
 main :: IO ()
-main = seriousPragmaticMain
+main = do
+  args <- getArgs
+  ghcrts <- lookupEnv "GHCRTS"
+  printf "GHCRTS = %s\n" (show ghcrts)
+  case "--interactive" `elem` args of
+    True -> serverMain
+    False -> race_ serverMain clientMain
 
-seriousPragmaticMain :: IO ()
-seriousPragmaticMain = do
+serverMain :: IO ()
+serverMain = withSpan "serverMain" $ do
   let settings =
         Warp.defaultSettings
           & Warp.setPort megaport
           & Warp.setHost "127.0.0.1"
   printf "Listening on 127.0.0.1:%d\n" megaport
   Warp.runSettings settings (WaiTelemetry.middleware microservice)
+
+clientMain :: IO ()
+clientMain = withSpan "clientMain" $ do
+  threadDelay 100000
+  manager <- withSpan "newManager" $ newManager defaultManagerSettings
+  _ <- httpLbs (fromString $ printf "http://127.0.0.1:%d/http/127.0.0.1:%d/haskell.org" megaport megaport) manager
+  _ <- httpLbs (fromString $ printf "http://127.0.0.1:%d/http/127.0.0.1:%d/gc" megaport megaport) manager
+  resp <- httpLbs (fromString $ printf "http://127.0.0.1:%d/http/127.0.0.1:%d/stuff" megaport megaport) manager
+  print resp
 
 microservice :: Wai.Application
 microservice = \req respond -> withSpan "handle_http_request" $ do
@@ -58,7 +74,7 @@ microservice = \req respond -> withSpan "handle_http_request" $ do
           [("Content-Type", "text/plain")]
           ( LBS.pack $
               unlines
-                [ "RAM usage: " <> show (max_live_bytes rtsStats `div` 1_000) <> " KB"
+                [ printf "RAM usage: %d bytes" (max_live_bytes rtsStats)
                 ]
           )
 

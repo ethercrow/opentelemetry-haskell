@@ -41,7 +41,6 @@ common options
     -Wincomplete-record-updates
     -Wincomplete-uni-patterns
     -Wpartial-fields
-    -Wredundant-constraints
     -fhide-source-paths
     -ferror-spans
     -freverse-errors
@@ -50,22 +49,36 @@ library
   import: options
   build-depends:
     base >= 4.12 && < 5,
+    aeson,
+    async,
     bytestring,
     clock >= 0.8,
+    containers,
     directory,
     exceptions,
+    filepath,
+    ghc-events,
     hashable,
+    http-client,
+    http-client-tls,
+    http-types,
+    opentelemetry,
     random >= 1.1,
+    scientific,
+    splitmix,
     stm,
     text,
-    opentelemetry,
+    typed-process,
     unordered-containers
+
   hs-source-dirs: src
   exposed-modules:
     OpenTelemetry.Common
     OpenTelemetry.Tracer
     OpenTelemetry.Debug
     OpenTelemetry.FileExporter
+    OpenTelemetry.EventlogStreaming_Internal
+    OpenTelemetry.ZipkinExporter
 
 test-suite unit-tests
   import: options
@@ -85,3 +98,19 @@ test-suite unit-tests
     opentelemetry,
     opentelemetry-extra
 
+executable eventlog-to-zipkin
+  import: options
+  main-is:    Main.hs
+  hs-source-dirs: exe/eventlog-to-zipkin
+  build-depends:
+    base,
+    async,
+    exceptions,
+    clock,
+    filepath,
+    http-client,
+    http-client-tls,
+    opentelemetry,
+    opentelemetry-extra,
+    text,
+    typed-process

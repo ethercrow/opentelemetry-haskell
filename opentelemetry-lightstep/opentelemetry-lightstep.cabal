@@ -37,7 +37,6 @@ common options
     -Wincomplete-record-updates
     -Wincomplete-uni-patterns
     -Wpartial-fields
-    -Wredundant-constraints
     -fhide-source-paths
     -ferror-spans
     -freverse-errors
@@ -63,4 +62,32 @@ library
   hs-source-dirs: src
   exposed-modules:
     OpenTelemetry.LightStep.Config
-    OpenTelemetry.LightStep.ZipkinExporter
+    OpenTelemetry.LightStep.Exporter
+
+executable eventlog-to-lightstep
+  import: options
+  ghc-options:
+    -threaded
+    -rtsopts
+    -eventlog
+  build-depends:
+    base >= 4.12 && < 5,
+    async,
+    bytestring,
+    clock,
+    containers,
+    exceptions,
+    filepath,
+    ghc-events >= 0.13.0,
+    http-client,
+    http-types,
+    opentelemetry,
+    opentelemetry-extra,
+    opentelemetry-lightstep,
+    splitmix,
+    text,
+    typed-process,
+    unordered-containers
+  main-is: Main.hs
+  hs-source-dirs: exe/eventlog-to-lightstep
+

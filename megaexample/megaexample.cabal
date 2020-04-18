@@ -37,7 +37,6 @@ common options
     -Wincomplete-record-updates
     -Wincomplete-uni-patterns
     -Wpartial-fields
-    -Wredundant-constraints
     -fhide-source-paths
     -ferror-spans
     -freverse-errors
