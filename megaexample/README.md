@@ -25,10 +25,10 @@ Or ask the service to perform a GC:
 $ curl http://127.0.0.1:6502/gc
 ```
 
-After stopping the megaexample service we can upload `megaexample.eventlog` to LightStep:
+After stopping the megaexample service we can upload `megaexample.eventlog` (see the root level README for more examples):
 
 ```
-eventlog-to-lightstep megaexample.eventlog
+eventlog-to-zipkin megaexample.eventlog
 ```
 
 TODO: describe how to load the eventlog in Chrome or Tracy

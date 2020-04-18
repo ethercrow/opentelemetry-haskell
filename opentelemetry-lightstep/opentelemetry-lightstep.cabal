@@ -1,6 +1,6 @@
 cabal-version:       2.4
 name:                opentelemetry-lightstep
-description:         The OpenTelemetry Haskell Client (LightStep exporter) https://opentelemetry.io
+description:         The OpenTelemetry Haskell Client (Lightstep exporter) https://opentelemetry.io
 category:            OpenTelemetry
 version: 0.3.0
 license-file:        LICENSE
@@ -61,8 +61,8 @@ library
     unordered-containers
   hs-source-dirs: src
   exposed-modules:
-    OpenTelemetry.LightStep.Config
-    OpenTelemetry.LightStep.Exporter
+    OpenTelemetry.Lightstep.Config
+    OpenTelemetry.Lightstep.Exporter
 
 executable eventlog-to-lightstep
   import: options

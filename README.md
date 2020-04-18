@@ -51,6 +51,13 @@ Note that currently
 
 ## Exporters
 
+There are many programs and services that can accept and present trace data.
+
+Zipkin and Jaeger are open source so you can run them locally (with or without docker).
+
+To my knowledge Honeycomb and Lightstep are the only ones among the hosted services that have
+a free tier.
+
 TODO: Document how to export trace data to Chrome or Tracy.
 
 ### Zipkin
@@ -100,7 +107,7 @@ export LIGHTSTEP_TOKEN=<my_token>
 eventlog-to-lightstep read my_application.eventlog
 ```
 
-Here is how a trace of `stack install` looks loaded in LightStep:
+Here is how a trace of `stack install` looks loaded in Lightstep:
 
 ![lightstep_screenshot](https://i.imgur.com/fenCK7f.png)
 
