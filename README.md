@@ -47,7 +47,7 @@ For a comprehensive example see the [megaexample](megaexample/README.md) subproj
 4. Export the resulting eventlog to some program or service capable of trace data presentation, see [Exporters] below.
 5. Explore the profile data to find performance problems and unexpected things, fix those, adjust instrumentation, repeat.
 
-Note that currently 
+As an example please have a look at the [PR that adds instrumentation to stack](https://github.com/commercialhaskell/stack/pull/5260/files).
 
 ## Exporters
 
