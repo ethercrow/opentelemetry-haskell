@@ -48,7 +48,7 @@ common options
 library
   import: options
   build-depends:
-    base >= 4.12 && < 5,
+    base >= 4.11 && < 5,
     bytestring,
     exceptions
   hs-source-dirs: src
