@@ -73,6 +73,10 @@ eventlog-to-zipkin read my_application.eventlog
 
 Open `http://localhost:9411/zipkin` in your browser.
 
+Here is how a trace of `stack install` looks loaded in Zipkin UI:
+
+![zipkin_screenshot](https://i.imgur.com/1AoxuvX.png)
+
 ### Jaeger
 
 ```
@@ -85,6 +89,10 @@ eventlog-to-zipkin read my_application.eventlog
 ```
 
 Open `http://localhost:16686/search` in your browser.
+
+Here is how a trace of `stack install` looks loaded in Jaeger UI:
+
+![jaeger_screenshot](https://i.imgur.com/vyz9zsg.png)
 
 ### Honeycomb
 
