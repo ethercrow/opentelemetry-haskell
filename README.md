@@ -99,7 +99,7 @@ eventlog-to-zipkin read my_application.eventlog
 
 Here is how a trace of `stack install` looks loaded in Honeycomb:
 
-![honeycomb_screenshot](https://i.imgur.com/fenCK7f.png)
+![honeycomb_screenshot](https://i.imgur.com/bNzfga7.png)
 
 ### Lightstep
 
