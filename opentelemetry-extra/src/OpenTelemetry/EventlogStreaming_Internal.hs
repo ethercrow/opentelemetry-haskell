@@ -101,7 +101,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
         (EndGC, _, _) -> popSpansAcrossAllThreads now st
         (HeapAllocated {allocBytes}, _, Just tid) ->
           (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
-        (UserMessage {msg}, _, Just tid) -> case T.words msg of
+        (UserMessage {msg}, _, fromMaybe 1 -> tid) -> case T.words msg of
           ("ot1" : "begin" : "span" : name) ->
             (pushSpan tid (T.intercalate " " name) now st, [])
           ("ot1" : "end" : "span" : _) -> popSpan tid now st
