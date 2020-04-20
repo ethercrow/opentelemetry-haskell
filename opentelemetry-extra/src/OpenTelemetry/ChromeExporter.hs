@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module OpenTelemetry.FileExporter where
+module OpenTelemetry.ChromeExporter where
 
 import Data.Function
 import qualified Data.HashMap.Strict as HM
@@ -44,8 +44,8 @@ showSpan s@(Span {..}) =
         (div spanFinishedAt 1000)
         threadId
 
-createFileSpanExporter :: FilePath -> IO (Exporter Span)
-createFileSpanExporter path = do
+createChromeSpanExporter :: FilePath -> IO (Exporter Span)
+createChromeSpanExporter path = do
   f <- openFile path WriteMode
   hPutStrLn f "["
   pure

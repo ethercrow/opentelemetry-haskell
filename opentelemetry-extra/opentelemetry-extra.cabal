@@ -76,7 +76,7 @@ library
     OpenTelemetry.Common
     OpenTelemetry.Tracer
     OpenTelemetry.Debug
-    OpenTelemetry.FileExporter
+    OpenTelemetry.ChromeExporter
     OpenTelemetry.EventlogStreaming_Internal
     OpenTelemetry.ZipkinExporter
 
@@ -114,3 +114,14 @@ executable eventlog-to-zipkin
     opentelemetry-extra,
     text,
     typed-process
+
+executable eventlog-to-chrome
+  import: options
+  main-is:    Main.hs
+  hs-source-dirs: exe/eventlog-to-chrome
+  build-depends:
+    base,
+    exceptions,
+    clock,
+    opentelemetry,
+    opentelemetry-extra,
