@@ -170,9 +170,8 @@ reportSpans endpoint httpManager cfg sps = do
           }
   resp <- httpLbs request httpManager
   case statusCode (responseStatus resp) of
-    200 -> do
+    s | s `elem` [200, 202] -> do
       inc 1 reportedSpanCountVar
-      dd_ @String "200" "200"
       pure ()
     _ -> do
       -- TODO(divanov): handle failures
