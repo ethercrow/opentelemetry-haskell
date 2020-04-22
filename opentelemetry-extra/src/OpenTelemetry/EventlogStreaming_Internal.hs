@@ -106,12 +106,23 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
             (pushSpan tid (T.intercalate " " name) now st, [])
           ("ot1" : "end" : "span" : _) -> popSpan tid now st
           ("ot1" : "set" : "tag" : k : v) -> (modifySpan tid (setTag k (T.unwords v)) st, [])
-          ["ot1", "set", "traceid", trace_id] ->
-            (modifySpan tid (setTraceId (TId (read ("0x" <> T.unpack trace_id)))) st, [])
+          ["ot1", "set", "traceid", trace_id_text] ->
+            let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+             in ( (modifySpan tid (setTraceId trace_id) st)
+                    { traceMap = HM.insert tid trace_id traceMap
+                    },
+                  []
+                )
           ["ot1", "set", "spanid", span_id] ->
             (modifySpan tid (setSpanId (SId (read ("0x" <> T.unpack span_id)))) st, [])
-          ["ot1", "set", "parent", trace_id, sid] ->
-            (modifySpan tid (setParent (TId (read ("0x" <> T.unpack trace_id))) (SId $ read ("0x" <> T.unpack sid))) st, [])
+          ["ot1", "set", "parent", trace_id_text, span_id_text] ->
+            let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+                sid = SId (read ("0x" <> T.unpack span_id_text))
+             in ( (modifySpan tid (setParent trace_id sid) st)
+                    { traceMap = HM.insert tid trace_id traceMap
+                    },
+                  []
+                )
           ("ot1" : "add" : "event" : k : v) -> (modifySpan tid (addEvent now k (T.unwords v)) st, [])
           ("ot1" : rest) -> error $ printf "Unrecognized %s" (show rest)
           _ -> (st, [])

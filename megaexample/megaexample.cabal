@@ -46,6 +46,7 @@ executable opentelemetry-megaexample
   ghc-options:
     -threaded
     -rtsopts
+    "-with-rtsopts -T"
     -eventlog
   build-depends:
     base >= 4.12 && < 5,
@@ -59,6 +60,7 @@ executable opentelemetry-megaexample
     opentelemetry-extra,
     opentelemetry-lightstep,
     opentelemetry-wai,
+    random,
     servant,
     text,
     wai,
