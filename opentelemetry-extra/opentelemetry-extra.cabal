@@ -62,13 +62,12 @@ library
     http-client,
     http-client-tls,
     http-types,
-    opentelemetry,
+    opentelemetry >= 0.3.0,
     random >= 1.1,
     scientific,
     splitmix,
     stm,
     text,
-    typed-process,
     unordered-containers
 
   hs-source-dirs: src
@@ -95,7 +94,7 @@ test-suite unit-tests
     tasty-quickcheck,
     tasty-hunit,
     tasty-discover,
-    opentelemetry,
+    opentelemetry >= 0.3.0,
     opentelemetry-extra
 
 executable eventlog-to-zipkin
@@ -110,10 +109,9 @@ executable eventlog-to-zipkin
     filepath,
     http-client,
     http-client-tls,
-    opentelemetry,
+    opentelemetry >= 0.3.0,
     opentelemetry-extra,
-    text,
-    typed-process
+    text
 
 executable eventlog-to-chrome
   import: options
@@ -123,5 +121,5 @@ executable eventlog-to-chrome
     base,
     exceptions,
     clock,
-    opentelemetry,
+    opentelemetry >= 0.3.0,
     opentelemetry-extra,

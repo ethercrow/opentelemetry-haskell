@@ -53,7 +53,7 @@ library
     http-client-tls,
     http-types,
     network,
-    opentelemetry,
+    opentelemetry >= 0.3.0,
     opentelemetry-extra,
     scientific,
     stm,
@@ -81,12 +81,11 @@ executable eventlog-to-lightstep
     ghc-events >= 0.13.0,
     http-client,
     http-types,
-    opentelemetry,
+    opentelemetry >= 0.3.0,
     opentelemetry-extra,
     opentelemetry-lightstep,
     splitmix,
     text,
-    typed-process,
     unordered-containers
   main-is: Main.hs
   hs-source-dirs: exe/eventlog-to-lightstep

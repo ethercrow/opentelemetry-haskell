@@ -1,8 +1,9 @@
 # Revision history for opentelemetry
 
-## 0.3.0 -- In development
+## 0.3.0 -- 2020-04-23
 
-* Restructuring of libraries
+* opentelemetry library now writes to eventlogs and keeps no state in the instrumented applications
+* eventlog-to-X executables are introduced to converst the eventlogs into something viewable
 * Propagation is now configurable to enable interop with other instrumentation like Zipkin B3 headers.
 
 ## 0.2.0 -- 2020-03-07

@@ -56,7 +56,7 @@ executable opentelemetry-megaexample
     http-client,
     http-client-tls,
     http-types,
-    opentelemetry,
+    opentelemetry >= 0.3.0,
     opentelemetry-extra,
     opentelemetry-lightstep,
     opentelemetry-wai,
