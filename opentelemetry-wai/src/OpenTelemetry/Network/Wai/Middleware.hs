@@ -9,7 +9,7 @@ import OpenTelemetry.Eventlog
 import OpenTelemetry.Propagation
 
 -- Semantic conventions for HTTP spans:
--- https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-http.md
+-- https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/http.md
 
 middleware :: Application -> Application
 middleware app = \req sendResp -> do
