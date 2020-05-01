@@ -2,47 +2,54 @@
 
 module OpenTelemetry.ChromeExporter where
 
-import Data.Function
+import Data.Aeson
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashMap.Strict as HM
-import Data.List (intersperse)
 import qualified Data.Text as T
 import OpenTelemetry.Common
 import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import System.IO
-import Text.Printf
 import Text.Read
 
-showValue :: TagValue -> String
-showValue (StringTagValue s) = show s
-showValue (IntTagValue i) = show i
-showValue _ = "\"unknown\""
+newtype ChromeBeginSpan = ChromeBegin Span
 
-showSpan :: Span -> String
-showSpan s@(Span {..}) =
-  let (TId tid) = spanTraceId s
-      threadId = case HM.lookup "thread_id" spanTags of
-        Just (StringTagValue (T.stripPrefix "ThreadId " -> Just (readMaybe . T.unpack -> Just t))) -> t
-        Just (IntTagValue t) -> t
-        _ -> 1
-      meta :: String
-      meta =
-        spanTags
-          & HM.toList
-          & map (\(k, v) -> ["\"", T.unpack k, "\":", showValue v])
-          & ([printf "\"traceId\":\"%x\"" tid] :)
-          & intersperse [","]
-          & concat
-          & concat
-   in printf
-        "{\"ph\":\"B\",\"name\":\"%s\",\"pid\":1,\"ts\":%d,\"tid\":%d,\"args\":{%s}},{\"ph\":\"E\",\"name\":\"%s\",\"pid\":1,\"ts\":%d,\"tid\":%d},"
-        spanOperation
-        (div spanStartedAt 1000)
-        threadId
-        meta
-        spanOperation
-        (div spanFinishedAt 1000)
-        threadId
+newtype ChromeEndSpan = ChromeEnd Span
+
+newtype ChromeTagValue = ChromeTagValue TagValue
+
+instance ToJSON ChromeTagValue where
+  toJSON (ChromeTagValue (StringTagValue i)) = Data.Aeson.String i
+  toJSON (ChromeTagValue (IntTagValue i)) = Data.Aeson.Number $ fromIntegral i
+  toJSON (ChromeTagValue (BoolTagValue b)) = Data.Aeson.Bool b
+  toJSON (ChromeTagValue (DoubleTagValue d)) = Data.Aeson.Number $ realToFrac d
+
+instance ToJSON ChromeBeginSpan where
+  toJSON (ChromeBegin Span {..}) =
+    let threadId = case HM.lookup "tid" spanTags of
+          Just (IntTagValue t) -> t
+          _ -> 1
+     in object
+          [ "ph" .= ("B" :: String),
+            "name" .= spanOperation,
+            "pid" .= (1 :: Int),
+            "tid" .= threadId,
+            "ts" .= (div spanStartedAt 1000),
+            "args" .= fmap ChromeTagValue spanTags
+          ]
+
+instance ToJSON ChromeEndSpan where
+  toJSON (ChromeEnd Span {..}) =
+    let threadId = case HM.lookup "tid" spanTags of
+          Just (IntTagValue t) -> t
+          _ -> 1
+     in object
+          [ "ph" .= ("E" :: String),
+            "name" .= spanOperation,
+            "pid" .= (1 :: Int),
+            "tid" .= threadId,
+            "ts" .= (div spanFinishedAt 1000)
+          ]
 
 createChromeSpanExporter :: FilePath -> IO (Exporter Span)
 createChromeSpanExporter path = do
@@ -51,7 +58,14 @@ createChromeSpanExporter path = do
   pure
     $! Exporter
       ( \sps -> do
-          mapM_ (hPutStrLn f . showSpan) sps
+          mapM_
+            ( \sp -> do
+                LBS.hPutStr f $ encode $ ChromeBegin sp
+                LBS.hPutStr f ",\n"
+                LBS.hPutStr f $ encode $ ChromeEnd sp
+                LBS.hPutStr f ",\n"
+            )
+            sps
           pure ExportSuccess
       )
       ( do

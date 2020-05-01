@@ -1,5 +1,9 @@
 # Revision history for opentelemetry
 
+## 0.3.1 -- 2020-05-01
+
+* Fixed eventlog-to-chrome to handle span names containing punctuation
+
 ## 0.3.0 -- 2020-04-23
 
 * opentelemetry library now writes to eventlogs and keeps no state in the instrumented applications

@@ -39,7 +39,7 @@ work origin_timestamp exporter input = do
           d_ "Shutdown-like event detected"
         _ -> do
           -- d_ "go Produce"
-          -- print (evTime event, evCap event, evSpec event)
+          dd_ "event" (evTime event, evCap event, evSpec event)
           let (s', sps) = processEvent event s
           _ <- export exporter sps
           -- print s'
