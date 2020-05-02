@@ -52,3 +52,18 @@ withSpan operation action =
           liftIO endSpan
       )
       (\_span -> action)
+
+-- These two are supposed to be used when you have some custom control flow
+-- and a given span can begin on one thread and end on another. In this case
+-- the ordinary `beginSpan` and `endSpan` functions would assume a wrong thing
+-- and result in
+
+beginSpecificSpan :: TraceId -> SpanId -> String -> IO ()
+beginSpecificSpan (TId tid) (SId sid) k =
+  Debug.Trace.traceEventIO $
+    printf "ot1 begin specific span %d %d %s" tid sid k
+
+endSpecificSpan :: TraceId -> SpanId -> String -> IO ()
+endSpecificSpan (TId tid) (SId sid) k =
+  Debug.Trace.traceEventIO $
+    printf "ot1 end specific span %d %d %s" tid sid k

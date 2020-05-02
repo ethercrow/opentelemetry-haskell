@@ -74,12 +74,13 @@ data State = S
     threadMap :: IM.IntMap ThreadId,
     spanStacks :: HM.HashMap ThreadId (NonEmpty Span),
     traceMap :: HM.HashMap ThreadId TraceId,
+    specificSpans :: HM.HashMap Word64 Span,
     randomGen :: R.SMGen
   }
   deriving (Show)
 
 initialState :: Word64 -> R.SMGen -> State
-initialState timestamp = S timestamp mempty mempty mempty
+initialState timestamp = S timestamp mempty mempty mempty mempty
 
 processEvent :: Event -> State -> (State, [Span])
 processEvent (Event ts ev m_cap) st@(S {..}) =
@@ -102,6 +103,14 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
         (HeapAllocated {allocBytes}, _, Just tid) ->
           (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
         (UserMessage {msg}, _, fromMaybe 1 -> tid) -> case T.words msg of
+          ("ot1" : "begin" : "specific" : "span" : trace_id_text : span_id_text : name) ->
+            let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+                span_id = SId (read ("0x" <> T.unpack span_id_text))
+             in beginSpecificSpan trace_id span_id (T.intercalate " " name) now st
+          ("ot1" : "end" : "specific" : "span" : trace_id_text : span_id_text : _) ->
+            let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+                span_id = SId (read ("0x" <> T.unpack span_id_text))
+             in endSpecificSpan span_id now st
           ("ot1" : "begin" : "span" : name) ->
             (pushSpan tid (T.intercalate " " name) now st, [])
           ("ot1" : "end" : "span" : _) -> popSpan tid now st
@@ -174,6 +183,44 @@ modifySpan tid f st =
     { spanStacks =
         HM.update (\(sp :| sps) -> Just (f sp :| sps)) tid (spanStacks st)
     }
+
+beginSpecificSpan :: TraceId -> SpanId -> T.Text -> OTel.Timestamp -> State -> (State, [Span])
+beginSpecificSpan trace_id span_id@(SId s) name timestamp st =
+  case HM.lookup s (specificSpans st) of
+    Just sp -> (st {specificSpans = HM.delete s (specificSpans st)}, [sp {spanStartedAt = timestamp, spanOperation = name, spanContext = SpanContext span_id trace_id}])
+    Nothing ->
+      (st {specificSpans = HM.insert s sp (specificSpans st)}, [])
+      where
+        sp =
+          Span
+            { spanContext = SpanContext span_id trace_id,
+              spanOperation = name,
+              spanStartedAt = timestamp,
+              spanFinishedAt = 0,
+              spanTags = mempty,
+              spanEvents = mempty,
+              spanStatus = OK,
+              spanParentId = Nothing
+            }
+
+endSpecificSpan :: SpanId -> OTel.Timestamp -> State -> (State, [Span])
+endSpecificSpan span_id@(SId s) timestamp st =
+  case HM.lookup s (specificSpans st) of
+    Just sp -> (st {specificSpans = HM.delete s (specificSpans st)}, [sp {spanFinishedAt = timestamp}])
+    Nothing ->
+      (st {specificSpans = HM.insert s sp (specificSpans st)}, [])
+      where
+        sp =
+          Span
+            { spanContext = SpanContext span_id (TId 0),
+              spanOperation = "unknown",
+              spanStartedAt = 0,
+              spanFinishedAt = timestamp,
+              spanTags = mempty,
+              spanEvents = mempty,
+              spanStatus = OK,
+              spanParentId = Nothing
+            }
 
 pushSpan :: HasCallStack => ThreadId -> T.Text -> OTel.Timestamp -> State -> State
 pushSpan tid name timestamp st = st {spanStacks = new_stacks, randomGen = new_randomGen, traceMap = new_traceMap}

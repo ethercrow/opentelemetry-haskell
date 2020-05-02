@@ -3,3 +3,9 @@
 /bash_completion.sh
 cabal.project.*
 dist-newstyle
+*.tracy
+*.eventlog
+*.trace.json
+*.gif
+*.webm
+*.log
