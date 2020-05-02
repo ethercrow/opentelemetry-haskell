@@ -1,5 +1,10 @@
 # Revision history for opentelemetry
 
+## 0.3.2 -- 2020-05-02
+
+* Added experimental `beginSpecificSpan` and `endSpecificSpan` functions for instrumenting
+  code with custom control flow, where a span can start in one thread and end in another.
+
 ## 0.3.1 -- 2020-05-01
 
 * Fixed eventlog-to-chrome to handle span names containing punctuation
