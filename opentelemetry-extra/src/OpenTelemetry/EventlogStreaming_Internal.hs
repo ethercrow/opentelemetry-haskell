@@ -22,8 +22,10 @@ import System.IO
 import qualified System.Random.SplitMix as R
 import Text.Printf
 
-work :: Timestamp -> Exporter Span -> Handle -> IO ()
-work origin_timestamp exporter input = do
+data WatDoOnEOF = StopOnEOF | SleepAndRetryOnEOF
+
+work :: WatDoOnEOF -> Timestamp -> Exporter Span -> Handle -> IO ()
+work wat_do_on_eof origin_timestamp exporter input = do
   d_ "Starting the eventlog reader"
   smgen <- R.initSMGen -- TODO(divanov): seed the random generator with something more random than current time
   go (initialState origin_timestamp smgen) decodeEventLog
@@ -62,8 +64,11 @@ work origin_timestamp exporter input = do
               go s $ consume chunk
         True -> do
           d_ "EOF"
-          threadDelay 1000
-          go s d
+          case wat_do_on_eof of
+            StopOnEOF -> pure ()
+            SleepAndRetryOnEOF -> do
+              threadDelay 1000
+              go s d
     go _ (Done _) = do
       d_ "go Done"
       pure ()

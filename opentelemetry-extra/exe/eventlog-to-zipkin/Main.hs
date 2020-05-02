@@ -25,7 +25,7 @@ main = do
       let service_name = T.pack $ takeBaseName path
       exporter <- createZipkinSpanExporter $ localhostZipkinConfig service_name
       origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime
-      withFile path ReadMode (work origin_timestamp exporter)
+      withFile path ReadMode (work StopOnEOF origin_timestamp exporter)
       shutdown exporter
       putStrLn "\nAll done."
     ("run" : program : "--" : args') -> do
@@ -36,7 +36,7 @@ main = do
       env <- (("GHCRTS", "-l -ol" <> pipe) :) <$> getEnvironment -- TODO(divanov): please append to existing GHCRTS instead of overwriting
       p <- startProcess (proc program args' & setEnv env)
       origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime
-      restreamer <- async $ withFile pipe ReadMode (work origin_timestamp exporter)
+      restreamer <- async $ withFile pipe ReadMode (work SleepAndRetryOnEOF origin_timestamp exporter)
       waitExitCode p
       wait restreamer
       shutdown exporter
