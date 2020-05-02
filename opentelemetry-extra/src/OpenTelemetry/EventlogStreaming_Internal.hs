@@ -62,6 +62,8 @@ work origin_timestamp exporter input = do
               go s $ consume chunk
         True -> do
           d_ "EOF"
+          threadDelay 1000
+          go s d
     go _ (Done _) = do
       d_ "go Done"
       pure ()

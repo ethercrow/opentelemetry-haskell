@@ -86,6 +86,7 @@ executable eventlog-to-lightstep
     opentelemetry-lightstep,
     splitmix,
     text,
+    typed-process,
     unordered-containers
   main-is: Main.hs
   hs-source-dirs: exe/eventlog-to-lightstep

@@ -58,12 +58,13 @@ withSpan operation action =
 -- the ordinary `beginSpan` and `endSpan` functions would assume a wrong thing
 -- and result in
 
-beginSpecificSpan :: TraceId -> SpanId -> String -> IO ()
-beginSpecificSpan (TId tid) (SId sid) k =
-  Debug.Trace.traceEventIO $
-    printf "ot1 begin specific span %d %d %s" tid sid k
+newtype AbstractEndableSpanThing = AbstractEndableSpanThing SpanContext
 
-endSpecificSpan :: TraceId -> SpanId -> String -> IO ()
-endSpecificSpan (TId tid) (SId sid) k =
-  Debug.Trace.traceEventIO $
-    printf "ot1 end specific span %d %d %s" tid sid k
+beginSpecificSpan :: TraceId -> SpanId -> String -> IO AbstractEndableSpanThing
+beginSpecificSpan t@(TId tid) s@(SId sid) k = do
+  Debug.Trace.traceEventIO $ printf "ot1 begin specific span %d %d %s" tid sid k
+  pure $ AbstractEndableSpanThing $ SpanContext s t
+
+endSpecificSpan :: AbstractEndableSpanThing -> IO ()
+endSpecificSpan (AbstractEndableSpanThing (SpanContext (SId sid) (TId tid))) =
+  Debug.Trace.traceEventIO $ printf "ot1 end specific span %d %d" tid sid

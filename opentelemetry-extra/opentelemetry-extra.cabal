@@ -111,7 +111,8 @@ executable eventlog-to-zipkin
     http-client-tls,
     opentelemetry >= 0.3.0,
     opentelemetry-extra,
-    text
+    text,
+    typed-process
 
 executable eventlog-to-chrome
   import: options
