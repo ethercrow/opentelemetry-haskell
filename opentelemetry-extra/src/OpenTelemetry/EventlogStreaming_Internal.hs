@@ -110,28 +110,22 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
         (HeapAllocated {allocBytes}, _, Just tid) ->
           (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
         (UserMessage {msg}, _, fromMaybe 1 -> tid) -> case T.words msg of
-          ("ot1" : "begin" : "specific" : "span" : trace_id_text : span_id_text : name) ->
-            let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
-                span_id = SId (read ("0x" <> T.unpack span_id_text))
-             in beginSpecificSpan trace_id span_id (T.intercalate " " name) now st
-          ("ot1" : "end" : "specific" : "span" : trace_id_text : span_id_text : _) ->
-            let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
-                span_id = SId (read ("0x" <> T.unpack span_id_text))
-             in endSpecificSpan span_id now st
-          ("ot1" : "begin" : "span" : name) ->
-            (pushSpan tid (T.intercalate " " name) now st, [])
-          ("ot1" : "end" : "span" : _) -> popSpan tid now st
-          ("ot1" : "set" : "tag" : k : v) -> (modifySpan tid (setTag k (T.unwords v)) st, [])
-          ["ot1", "set", "traceid", trace_id_text] ->
+          ("ot2" : "begin" : "span" : serial_text : name) ->
+            let serial = read (T.unpack serial_text)
+                operation = T.intercalate " " name
+             in (pushSpan tid operation now (Just serial) st, [])
+          ("ot2" : "end" : "span" : serial_text : _) -> popSpan tid now st
+          ("ot2" : "set" : "tag" : serial_text : k : v) -> (modifySpan tid (setTag k (T.unwords v)) st, [])
+          ["ot2", "set", "traceid", serial_text, trace_id_text] ->
             let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
              in ( (modifySpan tid (setTraceId trace_id) st)
                     { traceMap = HM.insert tid trace_id traceMap
                     },
                   []
                 )
-          ["ot1", "set", "spanid", span_id] ->
+          ["ot2", "set", "spanid", serial_text, span_id] ->
             (modifySpan tid (setSpanId (SId (read ("0x" <> T.unpack span_id)))) st, [])
-          ["ot1", "set", "parent", trace_id_text, span_id_text] ->
+          ["ot2", "set", "parent", serial_text, trace_id_text, span_id_text] ->
             let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
                 sid = SId (read ("0x" <> T.unpack span_id_text))
              in ( (modifySpan tid (setParent trace_id sid) st)
@@ -139,8 +133,8 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                     },
                   []
                 )
-          ("ot1" : "add" : "event" : k : v) -> (modifySpan tid (addEvent now k (T.unwords v)) st, [])
-          ("ot1" : rest) -> error $ printf "Unrecognized %s" (show rest)
+          ("ot2" : "add" : "event" : serial_text : k : v) -> (modifySpan tid (addEvent now k (T.unwords v)) st, [])
+          ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
           _ -> (st, [])
         _ -> (st, [])
 
@@ -229,8 +223,8 @@ endSpecificSpan span_id@(SId s) timestamp st =
               spanParentId = Nothing
             }
 
-pushSpan :: HasCallStack => ThreadId -> T.Text -> OTel.Timestamp -> State -> State
-pushSpan tid name timestamp st = st {spanStacks = new_stacks, randomGen = new_randomGen, traceMap = new_traceMap}
+pushSpan :: HasCallStack => ThreadId -> T.Text -> OTel.Timestamp -> Maybe Word64 -> State -> State
+pushSpan tid name timestamp serial st = st {spanStacks = new_stacks, randomGen = new_randomGen, traceMap = new_traceMap}
   where
     maybe_parent = NE.head <$> HM.lookup tid (spanStacks st)
     new_stacks = HM.alter f tid (spanStacks st)
@@ -265,7 +259,7 @@ pushGCSpans :: HasCallStack => State -> OTel.Timestamp -> State
 pushGCSpans st timestamp = foldr go st tids
   where
     tids = HM.keys (spanStacks st)
-    go tid = pushSpan tid "gc" timestamp
+    go tid = pushSpan tid "gc" timestamp Nothing
 
 popSpansAcrossAllThreads :: HasCallStack => OTel.Timestamp -> State -> (State, [Span])
 popSpansAcrossAllThreads timestamp st = foldr go (st, []) tids

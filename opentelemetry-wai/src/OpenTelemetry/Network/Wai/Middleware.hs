@@ -13,15 +13,15 @@ import OpenTelemetry.Propagation
 
 middleware :: Application -> Application
 middleware app = \req sendResp -> do
-  withSpan "WAI handler" $ do
+  withSpan "WAI handler" $ \sp -> do
     case propagateFromHeaders w3cTraceContext (requestHeaders req) of
-      Just ctx -> setParentSpanContext ctx
+      Just ctx -> setParentSpanContext sp ctx
       _ -> pure ()
-    setTag "span.kind" "server"
-    setTag "component" "http"
-    setTag "http.method" $ requestMethod req
-    setTag "http.target" $ rawPathInfo req
-    setTag "http.flavor" $ BS8.pack $ show (httpVersion req)
+    setTag sp "span.kind" "server"
+    setTag sp "component" "http"
+    setTag sp "http.method" $ requestMethod req
+    setTag sp "http.target" $ rawPathInfo req
+    setTag sp "http.flavor" $ BS8.pack $ show (httpVersion req)
     app req $ \resp -> do
-      setTag "http.status_code" (BS8.pack $ show $ statusCode $ responseStatus resp)
+      setTag sp "http.status_code" (BS8.pack $ show $ statusCode $ responseStatus resp)
       sendResp resp
