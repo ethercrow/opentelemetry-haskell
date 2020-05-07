@@ -2,7 +2,7 @@ cabal-version:       2.4
 name:                megaexample
 description:         The OpenTelemetry Haskell example https://opentelemetry.io
 category:            OpenTelemetry
-version: 0.3.2
+version: 0.4.0
 license-file:        LICENSE
 license:             Apache-2.0
 author:              Dmitry Ivanov
@@ -56,7 +56,7 @@ executable opentelemetry-megaexample
     http-client,
     http-client-tls,
     http-types,
-    opentelemetry >= 0.3.0,
+    opentelemetry >= 0.4.0,
     opentelemetry-extra,
     opentelemetry-lightstep,
     opentelemetry-wai,

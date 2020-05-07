@@ -7,16 +7,16 @@ import GHC.Generics
 import Text.Printf
 
 newtype TraceId = TId Word64
-  deriving (Eq, Generic)
+  deriving (Eq, Ord, Generic)
 
 instance Show TraceId where
-  show (TId tid) = printf "(TraceId 0x%x)" tid
+  show (TId tid) = printf "(TId 0x%x)" tid
 
 newtype SpanId = SId Word64
-  deriving (Eq, Generic)
+  deriving (Eq, Ord, Generic)
 
 instance Show SpanId where
-  show (SId sid) = printf "(SpanId 0x%x)" sid
+  show (SId sid) = printf "(SId 0x%x)" sid
 
 data SpanContext = SpanContext !SpanId !TraceId
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Ord, Generic)

@@ -1,5 +1,9 @@
 # Revision history for opentelemetry
 
+## 0.4.0 -- 2020-05-DD
+
+`beginSpan/endSpan` can now be called from different threads.
+
 ## 0.3.2 -- 2020-05-02
 
 * Added experimental `beginSpecificSpan` and `endSpecificSpan` functions for instrumenting

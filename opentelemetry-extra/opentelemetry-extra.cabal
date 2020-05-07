@@ -2,7 +2,7 @@ cabal-version:       2.4
 name:                opentelemetry-extra
 description:         The OpenTelemetry Haskell Client https://opentelemetry.io
 category:            OpenTelemetry
-version: 0.3.2
+version: 0.4.0
 license-file:        LICENSE
 license:             Apache-2.0
 author:              Dmitry Ivanov
@@ -62,9 +62,10 @@ library
     http-client,
     http-client-tls,
     http-types,
-    opentelemetry >= 0.3.0,
+    opentelemetry >= 0.4.0,
     random >= 1.1,
     scientific,
+    text-show,
     splitmix,
     stm,
     text,
@@ -73,7 +74,6 @@ library
   hs-source-dirs: src
   exposed-modules:
     OpenTelemetry.Common
-    OpenTelemetry.Tracer
     OpenTelemetry.Debug
     OpenTelemetry.ChromeExporter
     OpenTelemetry.EventlogStreaming_Internal
@@ -84,17 +84,20 @@ test-suite unit-tests
   type:       exitcode-stdio-1.0
   main-is:    Main.hs
   other-modules:
-    TestCommon
     TestPropagation
+    TestEventlogStreaming
   hs-source-dirs: unit-tests
   build-depends:
     base,
     bytestring,
+    ghc-events,
+    QuickCheck,
     tasty,
     tasty-quickcheck,
     tasty-hunit,
     tasty-discover,
-    opentelemetry >= 0.3.0,
+    text,
+    opentelemetry >= 0.4.0,
     opentelemetry-extra
 
 executable eventlog-to-zipkin
@@ -109,7 +112,7 @@ executable eventlog-to-zipkin
     filepath,
     http-client,
     http-client-tls,
-    opentelemetry >= 0.3.0,
+    opentelemetry >= 0.4.0,
     opentelemetry-extra,
     text,
     typed-process
@@ -122,5 +125,5 @@ executable eventlog-to-chrome
     base,
     exceptions,
     clock,
-    opentelemetry >= 0.3.0,
+    opentelemetry >= 0.4.0,
     opentelemetry-extra,
