@@ -162,15 +162,22 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                     let sp = fromMaybe (error $ "end span " <> T.unpack serial_text <> ": span not found for " <> show span_id) $ HM.lookup span_id spans
                         sp' = sp {spanFinishedAt = ts}
                      in (st {spans = HM.delete span_id spans, serial2sid = HM.delete serial serial2sid}, [sp'])
-          -- ("ot2" : "set" : "tag" : serial_text : k : v) ->
-          --   (modifySpan tid (setTag k (T.unwords v)) st, [])
-          -- ["ot2", "set", "traceid", serial_text, trace_id_text] ->
-          --   let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
-          --    in ( (modifySpan tid (setTraceId trace_id) st)
-          --           { traceMap = HM.insert tid trace_id traceMap
-          --           },
-          --         []
-          --       )
+          ("ot2" : "set" : "tag" : serial_text : k : v) ->
+            let serial = read (T.unpack serial_text)
+             in case HM.lookup serial serial2sid of
+                  Nothing -> error $ "set tag: span id not found for serial" <> T.unpack serial_text
+                  Just span_id -> (modifySpan span_id (setTag k (T.unwords v)) st, [])
+          ["ot2", "set", "traceid", serial_text, trace_id_text] ->
+            let serial = read (T.unpack serial_text)
+                trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+             in case HM.lookup serial serial2sid of
+                  Nothing -> error $ "set traceid: span id not found for serial" <> T.unpack serial_text
+                  Just span_id ->
+                   ( (modifySpan span_id (setTraceId trace_id) st)
+                          { traceMap = HM.insert tid trace_id traceMap
+                          },
+                        []
+                      )
           ["ot2", "set", "spanid", serial_text, new_span_id_text] ->
             let serial = read (T.unpack serial_text)
              in case HM.lookup serial serial2sid of

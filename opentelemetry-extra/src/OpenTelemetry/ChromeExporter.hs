@@ -5,12 +5,9 @@ module OpenTelemetry.ChromeExporter where
 import Data.Aeson
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashMap.Strict as HM
-import qualified Data.Text as T
 import OpenTelemetry.Common
 import OpenTelemetry.Exporter
-import OpenTelemetry.SpanContext
 import System.IO
-import Text.Read
 
 newtype ChromeBeginSpan = ChromeBegin Span
 

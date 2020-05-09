@@ -89,16 +89,19 @@ test-suite unit-tests
   hs-source-dirs: unit-tests
   build-depends:
     base,
+    QuickCheck,
     bytestring,
     ghc-events,
-    QuickCheck,
-    tasty,
-    tasty-quickcheck,
-    tasty-hunit,
-    tasty-discover,
-    text,
+    hashable,
     opentelemetry >= 0.4.0,
-    opentelemetry-extra
+    opentelemetry-extra,
+    tasty,
+    tasty-discover,
+    tasty-hunit,
+    tasty-quickcheck,
+    text,
+    text-show,
+    unordered-containers
 
 executable eventlog-to-zipkin
   import: options
