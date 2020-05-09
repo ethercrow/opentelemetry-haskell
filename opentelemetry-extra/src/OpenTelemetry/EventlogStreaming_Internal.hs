@@ -173,11 +173,11 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
              in case HM.lookup serial serial2sid of
                   Nothing -> error $ "set traceid: span id not found for serial" <> T.unpack serial_text
                   Just span_id ->
-                   ( (modifySpan span_id (setTraceId trace_id) st)
-                          { traceMap = HM.insert tid trace_id traceMap
-                          },
-                        []
-                      )
+                    ( (modifySpan span_id (setTraceId trace_id) st)
+                        { traceMap = HM.insert tid trace_id traceMap
+                        },
+                      []
+                    )
           ["ot2", "set", "spanid", serial_text, new_span_id_text] ->
             let serial = read (T.unpack serial_text)
              in case HM.lookup serial serial2sid of
@@ -195,11 +195,11 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
           --             []
           --           )
           --         Nothing -> error $ "set parent: span not found for serial " <> show serial
-          -- ("ot2" : "add" : "event" : serial_text : k : v) ->
-          --   let serial = read (T.unpack serial_text)
-          --    in case HM.lookup serial serial2sid of
-          --         Just span_id -> (modifySpan span_id (addEvent now k (T.unwords v)) st, [])
-          --         Nothing -> error $ "add event: span not found for serial " <> show serial
+          ("ot2" : "add" : "event" : serial_text : k : v) ->
+            let serial = read (T.unpack serial_text)
+             in case HM.lookup serial serial2sid of
+                  Just span_id -> (modifySpan span_id (addEvent now k (T.unwords v)) st, [])
+                  Nothing -> error $ "add event: span not found for serial " <> show serial
           ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
           _ -> (st, [])
         _ -> (st, [])

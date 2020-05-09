@@ -52,29 +52,34 @@ prop_user_specified_things_are_used :: [(Word64, SpanId, Int)] -> Property
 prop_user_specified_things_are_used spans =
   distinct (map (\(serial, _, _) -> serial) spans)
     ==> distinct (map (\(_, span_id, _) -> span_id) spans)
-    ==> let input_events = concatMap convert spans
-            convert (span_serial_number, SId sid, thread_id) =
-              [ Event 0 (UserMessage {msg = T.pack $ printf "ot2 begin span %d %d" span_serial_number thread_id}) (Just 0),
-                Event 1 (UserMessage {msg = T.pack $ printf "ot2 set spanid %d %016x" span_serial_number sid}) (Just 0),
-                Event 2 (UserMessage {msg = T.pack $ printf "ot2 set tag %d color %d" span_serial_number sid}) (Just 0),
-                Event 3 (UserMessage {msg = T.pack $ printf "ot2 set traceid %d %016x" span_serial_number sid}) (Just 0),
-                -- Event 4 (UserMessage {msg = T.pack $ printf "ot2 add event %d %016x" span_serial_number sid}) (Just 0),
-                Event 42 (UserMessage {msg = T.pack $ printf "ot2 end span %d" span_serial_number}) (Just 0)
-              ]
-            (_end_state, emitted_spans) = processEvents input_events (initialState 0 (error "randomGen seed"))
-            corresponding_span_was_emitted (_serial, SId sid, _thread_id) =
-              emitted_spans
-                & filter
-                  ( \sp ->
-                      and
-                        [ spanId sp == SId sid,
-                          spanTraceId sp == TId sid,
-                          HM.lookup "color" (spanTags sp) == Just (StringTagValue (showt sid))
-                        ]
-                  )
-                & length
-                & (== (1 :: Int))
-         in all corresponding_span_was_emitted spans
+    ==> classify (length spans > 1) "multiple spans"
+    $ let input_events = concatMap convert spans
+          convert (span_serial_number, SId sid, thread_id) =
+            [ Event 0 (UserMessage {msg = T.pack $ printf "ot2 begin span %d %d" span_serial_number thread_id}) (Just 0),
+              Event 1 (UserMessage {msg = T.pack $ printf "ot2 set spanid %d %016x" span_serial_number sid}) (Just 0),
+              Event 2 (UserMessage {msg = T.pack $ printf "ot2 set tag %d color %d" span_serial_number sid}) (Just 0),
+              Event 3 (UserMessage {msg = T.pack $ printf "ot2 set traceid %d %016x" span_serial_number sid}) (Just 0),
+              Event 4 (UserMessage {msg = T.pack $ printf "ot2 add event %d message %d" span_serial_number sid}) (Just 0),
+              -- Event 4 (UserMessage {msg = T.pack $ printf "ot2 add event %d %016x" span_serial_number sid}) (Just 0),
+              Event 42 (UserMessage {msg = T.pack $ printf "ot2 end span %d" span_serial_number}) (Just 0)
+            ]
+          (_end_state, emitted_spans) = processEvents input_events (initialState 0 (error "randomGen seed"))
+          corresponding_span_was_emitted (_serial, SId sid, _thread_id) =
+            emitted_spans
+              & filter
+                ( \sp ->
+                    and
+                      [ spanId sp == SId sid,
+                        spanTraceId sp == TId sid,
+                        HM.lookup "color" (spanTags sp) == Just (StringTagValue (showt sid)),
+                        any
+                          (\SpanEvent {..} -> spanEventKey == "message" && spanEventValue == showt sid)
+                          (spanEvents sp)
+                      ]
+                )
+              & length
+              & (== (1 :: Int))
+       in all corresponding_span_was_emitted spans
 
 distinct :: (Eq a, Hashable a) => [a] -> Bool
 distinct things = length things == HS.size (foldMap HS.singleton things)
