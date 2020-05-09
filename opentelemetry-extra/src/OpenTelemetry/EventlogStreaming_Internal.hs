@@ -83,12 +83,13 @@ data State = S
     spans :: HM.HashMap SpanId Span,
     traceMap :: HM.HashMap ThreadId TraceId,
     serial2sid :: HM.HashMap Word64 SpanId,
+    thread2sid :: HM.HashMap ThreadId SpanId,
     randomGen :: R.SMGen
   }
   deriving (Show)
 
 initialState :: Word64 -> R.SMGen -> State
-initialState timestamp = S timestamp mempty mempty mempty mempty
+initialState timestamp = S timestamp mempty mempty mempty mempty mempty
 
 inventSpanId :: Word64 -> State -> (State, SpanId)
 inventSpanId serial st = (st {serial2sid = HM.insert serial sid (serial2sid st)}, sid)
@@ -133,6 +134,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
              in case HM.lookup serial serial2sid of
                   Nothing ->
                     let (st', span_id) = inventSpanId serial st
+                        parent = HM.lookup tid thread2sid
                         sp =
                           Span
                             { spanContext = SpanContext span_id (fromMaybe (TId 42) m_trace_id),
@@ -142,17 +144,23 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                               spanTags = mempty,
                               spanEvents = mempty,
                               spanStatus = OK,
-                              spanParentId = Nothing
+                              spanParentId = parent
                             }
-                     in (st' {spans = HM.insert span_id sp spans}, [])
+                     in ( st'
+                            { spans = HM.insert span_id sp spans,
+                              thread2sid = HM.insert tid span_id thread2sid
+                            },
+                          []
+                        )
                   Just span_id ->
-                    let (st', sp) = emitSpan serial span_id st
+                    let (st', sp) = emitSpan serial span_id tid st
                      in (st', [sp {spanOperation = operation, spanStartedAt = now}])
           ["ot2", "end", "span", serial_text] ->
             let serial = read (T.unpack serial_text)
              in case HM.lookup serial serial2sid of
                   Nothing ->
                     let (st', span_id) = inventSpanId serial st
+                        parent = HM.lookup tid thread2sid
                         sp =
                           Span
                             { spanContext = SpanContext span_id (fromMaybe (TId 42) m_trace_id),
@@ -162,12 +170,17 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                               spanTags = mempty,
                               spanEvents = mempty,
                               spanStatus = OK,
-                              spanParentId = Nothing
+                              spanParentId = parent
                             }
-                     in (st' {spans = HM.insert span_id sp spans}, [])
+                     in ( st'
+                            { spans = HM.insert span_id sp spans,
+                              thread2sid = HM.insert tid span_id thread2sid
+                            },
+                          []
+                        )
                   Just span_id ->
-                    let (st', sp) = emitSpan serial span_id st
-                    in (st', [sp {spanFinishedAt = now}])
+                    let (st', sp) = emitSpan serial span_id tid st
+                     in (st', [sp {spanFinishedAt = now}])
           ("ot2" : "set" : "tag" : serial_text : k : v) ->
             let serial = read (T.unpack serial_text)
              in case HM.lookup serial serial2sid of
@@ -346,10 +359,16 @@ isTerminalThreadStatus _ = False
 showT :: Show a => a -> T.Text
 showT = T.pack . show
 
-emitSpan :: Word64 -> SpanId -> State -> (State, Span)
-emitSpan serial span_id st@S {..} =
+emitSpan :: Word64 -> SpanId -> ThreadId -> State -> (State, Span)
+emitSpan serial span_id thread_id st@S {..} =
   case (HM.lookup serial serial2sid, HM.lookup span_id spans) of
     (Just span_id', Just sp)
       | span_id == span_id' ->
-        (st {spans = HM.delete span_id spans, serial2sid = HM.delete serial serial2sid}, sp)
+        ( st
+            { spans = HM.delete span_id spans,
+              serial2sid = HM.delete serial serial2sid,
+              thread2sid = HM.update (const $ spanParentId sp) thread_id thread2sid
+            },
+          sp
+        )
     _ -> error "emitSpan invariants violated"
