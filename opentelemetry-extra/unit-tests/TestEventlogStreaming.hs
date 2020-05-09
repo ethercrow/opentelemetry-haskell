@@ -79,7 +79,20 @@ prop_user_specified_things_are_used spans =
                 )
               & length
               & (== (1 :: Int))
-       in all corresponding_span_was_emitted spans
+       in conjoin $ map corresponding_span_was_emitted spans
+
+prop_parenting_works_when_everything_is_on_one_thread_and_nested_properly :: [Word64] -> Property
+prop_parenting_works_when_everything_is_on_one_thread_and_nested_properly serials =
+  distinct serials ==> length serials > 1
+    ==> let input_events = prelude <> map convert_begin serials <> map convert_end (reverse serials)
+            prelude = [Event 0 (CreateThread 1) (Just 0)]
+            convert_begin serial =
+              Event 1 (UserMessage {msg = T.pack $ printf "ot2 begin span %d %d" serial serial}) (Just 0)
+            convert_end serial =
+              Event 42 (UserMessage {msg = T.pack $ printf "ot2 end span %d" serial}) (Just 0)
+            (_end_state, emitted_spans) = processEvents input_events (initialState 0 (error "randomGen seed"))
+            check_relationship (sp, psp) = spanParentId sp === Just (spanId psp)
+         in conjoin $ map check_relationship (zip (tail emitted_spans) emitted_spans)
 
 distinct :: (Eq a, Hashable a) => [a] -> Bool
 distinct things = length things == HS.size (foldMap HS.singleton things)

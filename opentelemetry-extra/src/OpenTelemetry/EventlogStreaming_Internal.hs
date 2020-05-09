@@ -101,15 +101,23 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
       m_thread_id = m_cap >>= flip IM.lookup threadMap
       m_trace_id = m_thread_id >>= flip HM.lookup traceMap
    in case (ev, m_cap, m_thread_id) of
-        (WallClockTime {sec, nsec}, _, _) -> (st {originTimestamp = sec * 1_000_000_000 + fromIntegral nsec - ts}, [])
+        (WallClockTime {sec, nsec}, _, _) ->
+          (st {originTimestamp = sec * 1_000_000_000 + fromIntegral nsec - ts}, [])
         (CreateThread new_tid, _, _) ->
-          case m_trace_id of
-            Just trace_id -> (st {traceMap = HM.insert new_tid trace_id traceMap}, [])
-            _ -> (st, [])
+          let trace_id = case m_trace_id of
+                Just t -> t
+                Nothing -> TId originTimestamp -- TODO: something more random
+           in (st {traceMap = HM.insert new_tid trace_id traceMap}, [])
         (RunThread tid, Just cap, _) ->
           (st {threadMap = IM.insert cap tid threadMap}, [])
-        (StopThread _ tstatus, Just cap, _)
-          | isTerminalThreadStatus tstatus -> (st {threadMap = IM.delete cap threadMap}, [])
+        (StopThread tid tstatus, Just cap, _)
+          | isTerminalThreadStatus tstatus ->
+            ( st
+                { threadMap = IM.delete cap threadMap,
+                  traceMap = HM.delete tid traceMap
+                },
+              []
+            )
         -- (StartGC, _, _) ->
         --   (pushGCSpans st now, [])
         -- (GCStatsGHC {gen}, _, _) ->
@@ -127,7 +135,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                     let (st', span_id) = inventSpanId serial st
                         sp =
                           Span
-                            { spanContext = SpanContext span_id (TId 42),
+                            { spanContext = SpanContext span_id (fromMaybe (TId 42) m_trace_id),
                               spanOperation = operation,
                               spanStartedAt = now,
                               spanFinishedAt = 0,
@@ -138,9 +146,8 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                             }
                      in (st' {spans = HM.insert span_id sp spans}, [])
                   Just span_id ->
-                    let sp = fromMaybe (error $ "span not found for " <> show span_id) $ HM.lookup span_id spans
-                        sp' = sp {spanOperation = operation, spanStartedAt = ts}
-                     in (st {spans = HM.delete span_id spans, serial2sid = HM.delete serial serial2sid}, [sp'])
+                    let (st', sp) = emitSpan serial span_id st
+                     in (st', [sp {spanOperation = operation, spanStartedAt = now}])
           ["ot2", "end", "span", serial_text] ->
             let serial = read (T.unpack serial_text)
              in case HM.lookup serial serial2sid of
@@ -148,7 +155,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                     let (st', span_id) = inventSpanId serial st
                         sp =
                           Span
-                            { spanContext = SpanContext span_id (TId 42),
+                            { spanContext = SpanContext span_id (fromMaybe (TId 42) m_trace_id),
                               spanOperation = "",
                               spanStartedAt = 0,
                               spanFinishedAt = now,
@@ -159,9 +166,8 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                             }
                      in (st' {spans = HM.insert span_id sp spans}, [])
                   Just span_id ->
-                    let sp = fromMaybe (error $ "end span " <> T.unpack serial_text <> ": span not found for " <> show span_id) $ HM.lookup span_id spans
-                        sp' = sp {spanFinishedAt = ts}
-                     in (st {spans = HM.delete span_id spans, serial2sid = HM.delete serial serial2sid}, [sp'])
+                    let (st', sp) = emitSpan serial span_id st
+                    in (st', [sp {spanFinishedAt = now}])
           ("ot2" : "set" : "tag" : serial_text : k : v) ->
             let serial = read (T.unpack serial_text)
              in case HM.lookup serial serial2sid of
@@ -183,18 +189,18 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
              in case HM.lookup serial serial2sid of
                   Just old_span_id -> (modifySpan old_span_id (setSpanId (SId (read ("0x" <> T.unpack new_span_id_text)))) st, [])
                   Nothing -> error $ "set spanid " <> T.unpack serial_text <> " " <> T.unpack new_span_id_text <> ": span id not found"
-          -- ["ot2", "set", "parent", serial_text, trace_id_text, parent_span_id_text] ->
-          --   let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
-          --       serial = read (T.unpack serial_text)
-          --       psid = SId (read ("0x" <> T.unpack parent_span_id_text))
-          --    in case HM.lookup serial serial2sid of
-          --         Just span_id ->
-          --           ( (modifySpan span_id (setParent trace_id psid) st)
-          --               { traceMap = HM.insert tid trace_id traceMap
-          --               },
-          --             []
-          --           )
-          --         Nothing -> error $ "set parent: span not found for serial " <> show serial
+          ["ot2", "set", "parent", serial_text, trace_id_text, parent_span_id_text] ->
+            let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+                serial = read (T.unpack serial_text)
+                psid = SId (read ("0x" <> T.unpack parent_span_id_text))
+             in case HM.lookup serial serial2sid of
+                  Just span_id ->
+                    ( (modifySpan span_id (setParent trace_id psid) st)
+                        { traceMap = HM.insert tid trace_id traceMap
+                        },
+                      []
+                    )
+                  Nothing -> error $ "set parent: span not found for serial " <> show serial
           ("ot2" : "add" : "event" : serial_text : k : v) ->
             let serial = read (T.unpack serial_text)
              in case HM.lookup serial serial2sid of
@@ -339,3 +345,11 @@ isTerminalThreadStatus _ = False
 
 showT :: Show a => a -> T.Text
 showT = T.pack . show
+
+emitSpan :: Word64 -> SpanId -> State -> (State, Span)
+emitSpan serial span_id st@S {..} =
+  case (HM.lookup serial serial2sid, HM.lookup span_id spans) of
+    (Just span_id', Just sp)
+      | span_id == span_id' ->
+        (st {spans = HM.delete span_id spans, serial2sid = HM.delete serial serial2sid}, sp)
+    _ -> error "emitSpan invariants violated"
