@@ -23,28 +23,22 @@ instance ToJSON ChromeTagValue where
 
 instance ToJSON ChromeBeginSpan where
   toJSON (ChromeBegin Span {..}) =
-    let threadId = case HM.lookup "tid" spanTags of
-          Just (IntTagValue t) -> t
-          _ -> 1
-     in object
-          [ "ph" .= ("B" :: String),
-            "name" .= spanOperation,
-            "pid" .= (1 :: Int),
-            "tid" .= threadId,
-            "ts" .= (div spanStartedAt 1000),
-            "args" .= fmap ChromeTagValue spanTags
-          ]
+    object
+      [ "ph" .= ("B" :: String),
+        "name" .= spanOperation,
+        "pid" .= (1 :: Int),
+        "tid" .= spanThreadId,
+        "ts" .= (div spanStartedAt 1000),
+        "args" .= fmap ChromeTagValue spanTags
+      ]
 
 instance ToJSON ChromeEndSpan where
   toJSON (ChromeEnd Span {..}) =
-    let threadId = case HM.lookup "tid" spanTags of
-          Just (IntTagValue t) -> t
-          _ -> 1
-     in object
+     object
           [ "ph" .= ("E" :: String),
             "name" .= spanOperation,
             "pid" .= (1 :: Int),
-            "tid" .= threadId,
+            "tid" .= spanThreadId,
             "ts" .= (div spanFinishedAt 1000)
           ]
 

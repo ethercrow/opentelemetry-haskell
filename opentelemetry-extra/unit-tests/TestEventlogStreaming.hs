@@ -110,6 +110,7 @@ prop_beginning_a_span_on_one_thread_and_ending_on_another_is_fine serial begin_t
           spanOperation (head emitted_spans) === showt serial,
           spanStartedAt (head emitted_spans) === 2,
           spanFinishedAt (head emitted_spans) === 5,
+          spanThreadId (head emitted_spans) === begin_tid,
           True === null (spans end_state),
           True === null (serial2sid end_state)
         ]

@@ -139,6 +139,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                           Span
                             { spanContext = SpanContext span_id (fromMaybe (TId 42) m_trace_id),
                               spanOperation = operation,
+                              spanThreadId = tid,
                               spanStartedAt = now,
                               spanFinishedAt = 0,
                               spanTags = mempty,
@@ -153,8 +154,8 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                           []
                         )
                   Just span_id ->
-                    let (st', sp) = emitSpan serial span_id tid st
-                     in (st', [sp {spanOperation = operation, spanStartedAt = now}])
+                    let (st', sp) = emitSpan serial span_id st
+                     in (st', [sp {spanOperation = operation, spanStartedAt = now, spanThreadId = tid}])
           ["ot2", "end", "span", serial_text] ->
             let serial = read (T.unpack serial_text)
              in case HM.lookup serial serial2sid of
@@ -165,6 +166,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                           Span
                             { spanContext = SpanContext span_id (fromMaybe (TId 42) m_trace_id),
                               spanOperation = "",
+                              spanThreadId = tid,
                               spanStartedAt = 0,
                               spanFinishedAt = now,
                               spanTags = mempty,
@@ -179,7 +181,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                           []
                         )
                   Just span_id ->
-                    let (st', sp) = emitSpan serial span_id tid st
+                    let (st', sp) = emitSpan serial span_id st
                      in (st', [sp {spanFinishedAt = now}])
           ("ot2" : "set" : "tag" : serial_text : k : v) ->
             let serial = read (T.unpack serial_text)
@@ -359,15 +361,15 @@ isTerminalThreadStatus _ = False
 showT :: Show a => a -> T.Text
 showT = T.pack . show
 
-emitSpan :: Word64 -> SpanId -> ThreadId -> State -> (State, Span)
-emitSpan serial span_id thread_id st@S {..} =
+emitSpan :: Word64 -> SpanId -> State -> (State, Span)
+emitSpan serial span_id st@S {..} =
   case (HM.lookup serial serial2sid, HM.lookup span_id spans) of
     (Just span_id', Just sp)
       | span_id == span_id' ->
         ( st
             { spans = HM.delete span_id spans,
               serial2sid = HM.delete serial serial2sid,
-              thread2sid = HM.update (const $ spanParentId sp) thread_id thread2sid
+              thread2sid = HM.update (const $ spanParentId sp) (spanThreadId sp) thread2sid
             },
           sp
         )

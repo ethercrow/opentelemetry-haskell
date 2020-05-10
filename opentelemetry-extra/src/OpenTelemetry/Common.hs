@@ -33,17 +33,17 @@ instance ToTagValue Bool where
 instance ToTagValue Int where
   toTagValue = IntTagValue
 
-data Span
-  = Span
-      { spanContext :: {-# UNPACK #-} !SpanContext,
-        spanOperation :: T.Text,
-        spanStartedAt :: !Timestamp,
-        spanFinishedAt :: !Timestamp,
-        spanTags :: !(HM.HashMap T.Text TagValue),
-        spanEvents :: [SpanEvent],
-        spanStatus :: !SpanStatus,
-        spanParentId :: Maybe SpanId
-      }
+data Span = Span
+  { spanContext :: {-# UNPACK #-} !SpanContext,
+    spanOperation :: T.Text,
+    spanThreadId :: Word32,
+    spanStartedAt :: !Timestamp,
+    spanFinishedAt :: !Timestamp,
+    spanTags :: !(HM.HashMap T.Text TagValue),
+    spanEvents :: [SpanEvent],
+    spanStatus :: !SpanStatus,
+    spanParentId :: Maybe SpanId
+  }
   deriving (Show, Eq)
 
 spanTraceId :: Span -> TraceId
@@ -52,12 +52,11 @@ spanTraceId Span {spanContext = SpanContext _ tid} = tid
 spanId :: Span -> SpanId
 spanId Span {spanContext = SpanContext sid _} = sid
 
-data SpanEvent
-  = SpanEvent
-      { spanEventTimestamp :: !Timestamp,
-        spanEventKey :: !T.Text,
-        spanEventValue :: !T.Text
-      }
+data SpanEvent = SpanEvent
+  { spanEventTimestamp :: !Timestamp,
+    spanEventKey :: !T.Text,
+    spanEventValue :: !T.Text
+  }
   deriving (Show, Eq)
 
 data SpanStatus = OK
@@ -67,16 +66,14 @@ data Event
   = Event T.Text Timestamp
   deriving (Show, Eq)
 
-data SpanProcessor
-  = SpanProcessor
-      { onStart :: Span -> IO (),
-        onEnd :: Span -> IO ()
-      }
+data SpanProcessor = SpanProcessor
+  { onStart :: Span -> IO (),
+    onEnd :: Span -> IO ()
+  }
 
-data OpenTelemetryConfig
-  = OpenTelemetryConfig
-      { otcSpanExporter :: Exporter Span
-      }
+data OpenTelemetryConfig = OpenTelemetryConfig
+  { otcSpanExporter :: Exporter Span
+  }
 
 now64 :: IO Timestamp
 now64 = do
