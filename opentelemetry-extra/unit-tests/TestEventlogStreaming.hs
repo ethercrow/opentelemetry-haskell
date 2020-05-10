@@ -94,5 +94,25 @@ prop_parenting_works_when_everything_is_on_one_thread_and_nested_properly serial
             check_relationship (sp, psp) = spanParentId sp === Just (spanId psp)
          in conjoin $ map check_relationship (zip (tail emitted_spans) emitted_spans)
 
+prop_beginning_a_span_on_one_thread_and_ending_on_another_is_fine :: Word64 -> ThreadId -> ThreadId -> Int -> Int -> Property
+prop_beginning_a_span_on_one_thread_and_ending_on_another_is_fine serial begin_tid end_tid begin_cap end_cap =
+  let input_events =
+        [ Event 0 (CreateThread begin_tid) (Just begin_cap),
+          Event 1 (RunThread begin_tid) (Just begin_cap),
+          Event 2 (UserMessage {msg = T.pack $ printf "ot2 begin span %d %d" serial serial}) (Just begin_cap),
+          Event 3 (CreateThread end_tid) (Just end_cap),
+          Event 4 (RunThread end_tid) (Just end_cap),
+          Event 5 (UserMessage {msg = T.pack $ printf "ot2 end span %d" serial}) (Just end_cap)
+        ]
+      (end_state, emitted_spans) = processEvents input_events (initialState 0 (error "randomGen seed"))
+   in conjoin
+        [ length emitted_spans === 1,
+          spanOperation (head emitted_spans) === showt serial,
+          spanStartedAt (head emitted_spans) === 2,
+          spanFinishedAt (head emitted_spans) === 5,
+          True === null (spans end_state),
+          True === null (serial2sid end_state)
+        ]
+
 distinct :: (Eq a, Hashable a) => [a] -> Bool
 distinct things = length things == HS.size (foldMap HS.singleton things)
