@@ -60,7 +60,6 @@ prop_user_specified_things_are_used spans =
               Event 2 (UserMessage {msg = T.pack $ printf "ot2 set tag %d color %d" span_serial_number sid}) (Just 0),
               Event 3 (UserMessage {msg = T.pack $ printf "ot2 set traceid %d %016x" span_serial_number sid}) (Just 0),
               Event 4 (UserMessage {msg = T.pack $ printf "ot2 add event %d message %d" span_serial_number sid}) (Just 0),
-              -- Event 4 (UserMessage {msg = T.pack $ printf "ot2 add event %d %016x" span_serial_number sid}) (Just 0),
               Event 42 (UserMessage {msg = T.pack $ printf "ot2 end span %d" span_serial_number}) (Just 0)
             ]
           (_end_state, emitted_spans) = processEvents input_events (initialState 0 (error "randomGen seed"))
