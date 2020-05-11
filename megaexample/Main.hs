@@ -37,7 +37,7 @@ main = do
     False -> race_ serverMain clientMain
 
 serverMain :: IO ()
-serverMain = withSpan "serverMain" $ do
+serverMain = withSpan_ "serverMain" $ do
   let settings =
         Warp.defaultSettings
           & Warp.setPort megaport
@@ -46,28 +46,28 @@ serverMain = withSpan "serverMain" $ do
   Warp.runSettings settings (WaiTelemetry.middleware microservice)
 
 clientMain :: IO ()
-clientMain = withSpan "clientMain" $ do
+clientMain = withSpan "clientMain" $ \sp -> do
   trace_id <- TId <$> randomIO
-  setTraceId trace_id
+  setTraceId sp trace_id
   span_id <- SId <$> randomIO
-  setSpanId span_id
+  setSpanId sp span_id
   threadDelay 100000
   let propagationHeaders = propagateToHeaders w3cTraceContext $ SpanContext span_id trace_id
-  manager <- withSpan "newManager" $ newManager defaultManagerSettings
+  manager <- withSpan_ "newManager" $ newManager defaultManagerSettings
   _ <- httpLbs ((fromString $ printf "http://127.0.0.1:%d/http/127.0.0.1:%d/haskell.org" megaport megaport) {requestHeaders = propagationHeaders}) manager
   _ <- httpLbs ((fromString $ printf "http://127.0.0.1:%d/http/127.0.0.1:%d/gc" megaport megaport) {requestHeaders = propagationHeaders}) manager
   resp <- httpLbs ((fromString $ printf "http://127.0.0.1:%d/http/127.0.0.1:%d/stuff" megaport megaport) {requestHeaders = propagationHeaders}) manager
   print resp
 
 microservice :: Wai.Application
-microservice = \req respond -> withSpan "handle_http_request" $ do
+microservice = \req respond -> withSpan "handle_http_request" $ \sp -> do
   my_trace_id <- case propagateFromHeaders w3cTraceContext (Wai.requestHeaders req) of
     Nothing -> do
       trace_id <- TId <$> randomIO
-      setTraceId trace_id
+      setTraceId sp trace_id
       pure trace_id
     Just ctx@(SpanContext _span_id trace_id) -> do
-      setParentSpanContext ctx
+      setParentSpanContext sp ctx
       pure trace_id
 
   case Wai.pathInfo req of
@@ -79,13 +79,13 @@ microservice = \req respond -> withSpan "handle_http_request" $ do
       result <- get my_trace_id target
       respond $ Wai.responseLBS status200 [] result
     _ -> do
-      bg_work <- async $ withSpan "background_task" do
+      bg_work <- async $ withSpan_ "background_task" do
         threadDelay 10000
         pure ()
-      addEvent "message" "started bg work"
-      rtsStats <- withSpan "getRTSStats" getRTSStats
+      addEvent sp "message" "started bg work"
+      rtsStats <- withSpan_ "getRTSStats" getRTSStats
       () <- wait bg_work
-      addEvent "message" "finished bg work"
+      addEvent sp "message" "finished bg work"
       respond $
         Wai.responseLBS
           status200
@@ -97,16 +97,16 @@ microservice = \req respond -> withSpan "handle_http_request" $ do
           )
 
 get :: TraceId -> T.Text -> IO LBS.ByteString
-get trace_id (T.unpack -> url) = withSpan "call_http_get" $ do
+get trace_id (T.unpack -> url) = withSpan "call_http_get" $ \sp -> do
   span_id <- SId <$> randomIO
-  setSpanId span_id
+  setSpanId sp span_id
 
   let request = (fromString url) {requestHeaders = propagationHeaders}
       propagationHeaders = propagateToHeaders w3cTraceContext $ SpanContext span_id trace_id
   -- A new manager is created for every request
   -- so that it's visible in the trace how much this hurts performance.
-  manager <- withSpan "newManager" $ newManager tlsManagerSettings
+  manager <- withSpan_ "newManager" $ newManager tlsManagerSettings
 
   resp <- httpLbs request manager
-  setTag "http.status_code" (BS.pack (printf "%d" (statusCode $ responseStatus resp)))
+  setTag sp "http.status_code" (BS.pack (printf "%d" (statusCode $ responseStatus resp)))
   pure $ responseBody resp

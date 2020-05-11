@@ -5,66 +5,65 @@ module OpenTelemetry.Eventlog where
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import qualified Data.ByteString.Char8 as BS8
+import Data.Unique
+import Data.Word
 import Debug.Trace
 import OpenTelemetry.SpanContext
 import Text.Printf
+import Prelude hiding (span)
 
 -- TODO(divanov): replace traceEventIO with the bytestring based equivalent
 
-beginSpan :: MonadIO m => String -> m ()
-beginSpan operation = liftIO $ traceEventIO (printf "ot1 begin span %s" operation)
+-- This is not a Span Id in terms of OpenTelemetry.
+-- It's unique only in scope of one process, not globally.
+type ProcessLocalSpanSerialNumber = Word64
 
-endSpan :: MonadIO m => m ()
-endSpan = liftIO $ traceEventIO (printf "ot1 end span")
+newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber
 
-setTag :: MonadIO m => String -> BS8.ByteString -> m ()
-setTag k v = liftIO $ traceEventIO (printf "ot1 set tag %s %s" k (BS8.unpack v))
+beginSpan :: MonadIO m => String -> m SpanInFlight
+beginSpan operation = do
+  u64 <- fromIntegral . hashUnique <$> liftIO newUnique
+  liftIO $ traceEventIO (printf "ot2 begin span %d %s" u64 operation)
+  pure $ SpanInFlight u64
 
-addEvent :: MonadIO m => String -> BS8.ByteString -> m ()
-addEvent k v = liftIO $ traceEventIO (printf "ot1 add event %s %s" k (BS8.unpack v))
+endSpan :: MonadIO m => SpanInFlight -> m ()
+endSpan (SpanInFlight u64) = liftIO $ traceEventIO (printf "ot2 end span %d" u64)
 
-setParentSpanContext :: MonadIO m => SpanContext -> m ()
-setParentSpanContext (SpanContext (SId sid) (TId tid)) =
-  liftIO $ traceEventIO (printf "ot1 set parent %016x %016x" tid sid)
+setTag :: MonadIO m => SpanInFlight -> String -> BS8.ByteString -> m ()
+setTag (SpanInFlight u64) k v = liftIO $ traceEventIO (printf "ot2 set tag %d %s %s" u64 k (BS8.unpack v))
 
-setTraceId :: MonadIO m => TraceId -> m ()
-setTraceId (TId tid) =
-  liftIO $ traceEventIO (printf "ot1 set traceid %016x" tid)
+addEvent :: MonadIO m => SpanInFlight -> String -> BS8.ByteString -> m ()
+addEvent (SpanInFlight u64) k v = liftIO $ traceEventIO (printf "ot2 add event %d %s %s" u64 k (BS8.unpack v))
 
-setSpanId :: MonadIO m => SpanId -> m ()
-setSpanId (SId sid) =
-  liftIO $ traceEventIO (printf "ot1 set spanid %016x" sid)
+setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
+setParentSpanContext (SpanInFlight u64) (SpanContext (SId sid) (TId tid)) =
+  liftIO $ traceEventIO (printf "ot2 set parent %d %016x %016x" u64 tid sid)
 
-withSpan :: forall m a. (MonadIO m, MonadMask m) => String -> m a -> m a
+setTraceId :: MonadIO m => SpanInFlight -> TraceId -> m ()
+setTraceId (SpanInFlight u64) (TId tid) =
+  liftIO $ traceEventIO (printf "ot2 set traceid %d %016x" u64 tid)
+
+setSpanId :: MonadIO m => SpanInFlight -> SpanId -> m ()
+setSpanId (SpanInFlight u64) (SId sid) =
+  liftIO $ traceEventIO (printf "ot2 set spanid %d %016x" u64 sid)
+
+withSpan :: forall m a. (MonadIO m, MonadMask m) => String -> (SpanInFlight -> m a) -> m a
 withSpan operation action =
   fst
     <$> generalBracket
       (liftIO $ beginSpan operation)
-      ( \_span exitcase -> liftIO $ do
+      ( \span exitcase -> liftIO $ do
           case exitcase of
             ExitCaseSuccess _ -> pure ()
             ExitCaseException e -> do
-              setTag "error" "true"
-              setTag "error.message" (BS8.pack $ show e)
+              setTag span "error" "true"
+              setTag span "error.message" (BS8.pack $ show e)
             ExitCaseAbort -> do
-              setTag "error" "true"
-              setTag "error.message" "abort"
-          liftIO endSpan
+              setTag span "error" "true"
+              setTag span "error.message" "abort"
+          liftIO $ endSpan span
       )
-      (\_span -> action)
+      action
 
--- These two are supposed to be used when you have some custom control flow
--- and a given span can begin on one thread and end on another. In this case
--- the ordinary `beginSpan` and `endSpan` functions would assume a wrong thing
--- and result in
-
-newtype AbstractEndableSpanThing = AbstractEndableSpanThing SpanContext
-
-beginSpecificSpan :: TraceId -> SpanId -> String -> IO AbstractEndableSpanThing
-beginSpecificSpan t@(TId tid) s@(SId sid) k = do
-  Debug.Trace.traceEventIO $ printf "ot1 begin specific span %d %d %s" tid sid k
-  pure $ AbstractEndableSpanThing $ SpanContext s t
-
-endSpecificSpan :: AbstractEndableSpanThing -> IO ()
-endSpecificSpan (AbstractEndableSpanThing (SpanContext (SId sid) (TId tid))) =
-  Debug.Trace.traceEventIO $ printf "ot1 end specific span %d %d" tid sid
+withSpan_ :: (MonadIO m, MonadMask m) => String -> m a -> m a
+withSpan_ operation action = withSpan operation (const action)

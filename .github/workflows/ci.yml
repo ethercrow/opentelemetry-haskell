@@ -84,7 +84,7 @@ jobs:
     runs-on: macOS-latest
     strategy:
       matrix:
-        stack-yaml: ['stack.yaml', 'stack-8.6.5.yaml', 'stack-8.10.1.yaml']
+        stack-yaml: ['stack.yaml', 'stack-8.10.1.yaml']
     steps:
     - uses: actions/checkout@v1
     - uses: actions/cache@v1
