@@ -124,3 +124,4 @@ executable eventlog-to-chrome
     clock,
     opentelemetry >= 0.3.0,
     opentelemetry-extra,
+    optparse-applicative,
