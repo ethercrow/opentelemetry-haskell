@@ -124,3 +124,11 @@ executable eventlog-to-chrome
     clock,
     opentelemetry >= 0.3.0,
     opentelemetry-extra,
+
+executable eventlog-to-tracy
+  import: options
+  main-is:    Main.hs
+  hs-source-dirs: exe/eventlog-to-tracy
+  build-depends:
+    base,
+    process,
