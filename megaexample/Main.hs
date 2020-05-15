@@ -1,10 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE CPP #-}
 
 import Control.Concurrent
 import Control.Concurrent.Async
+#ifdef OPEN_TELEMETRY_USE_BYTESTRING
+import qualified Data.ByteString.Lazy.Char8 as BS
+#else
 import qualified Data.ByteString.Char8 as BS
+#endif
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Function
 import Data.String
@@ -15,7 +20,12 @@ import Network.HTTP.Client.TLS
 import Network.HTTP.Types (status200, statusCode)
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
+-- use to turn on: stack build --flag megaexample:bytestring
+#ifdef OPEN_TELEMETRY_USE_BYTESTRING
+import OpenTelemetry.ByteString.Eventlog
+#else
 import OpenTelemetry.Eventlog
+#endif
 import qualified OpenTelemetry.Network.Wai.Middleware as WaiTelemetry
 import OpenTelemetry.Propagation
 import OpenTelemetry.SpanContext
