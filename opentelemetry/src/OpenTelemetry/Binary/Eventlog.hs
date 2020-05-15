@@ -26,7 +26,7 @@ newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber
 traceBuilder :: MonadIO m => Builder -> m ()
 traceBuilder = liftIO . traceBinaryEventIO . LBS.toStrict . toLazyByteString
 
-newtype MsgType = MsgType Word8
+newtype MsgType = MsgType Word8 deriving (Show)
 
 beginSpanMsg :: MsgType
 beginSpanMsg = MsgType 1
