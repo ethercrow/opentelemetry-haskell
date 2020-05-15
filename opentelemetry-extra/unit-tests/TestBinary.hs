@@ -15,3 +15,7 @@ instance Arbitrary MsgTypeAr where
 prop_header_layout_prefix_ot3 :: MsgTypeAr -> Bool
 prop_header_layout_prefix_ot3 (MsgTypeAr msgType) =
   LBS.take 3 (toLazyByteString (header msgType)) == "OT\03"
+
+prop_header_layout_suffix_msg :: MsgTypeAr -> Bool
+prop_header_layout_suffix_msg (MsgTypeAr msgType@(MsgType msgTypeId)) =
+  LBS.last (toLazyByteString (header msgType)) == msgTypeId
