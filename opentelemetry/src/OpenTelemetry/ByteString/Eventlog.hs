@@ -58,23 +58,23 @@ setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
 setParentSpanContext (SpanInFlight u64) (SpanContext (SId sid) (TId tid)) =
     traceBuilder $ byteString  "ot2 set parent "
                      <> word64Dec u64
-                        <> byteString " 0x"
+                        <> char8 ' '
                            <> word64HexFixed tid
-                              <> byteString " 0x"
+                              <> char8 ' '
                                  <> word64HexFixed sid
 
 setTraceId :: MonadIO m => SpanInFlight -> TraceId -> m ()
 setTraceId (SpanInFlight u64) (TId tid) =
   traceBuilder $ byteString "ot2 set traceid "
                <> word64Dec u64
-                  <> byteString " 0x"
+                  <> char8 ' '
                      <> word64HexFixed tid
 
 setSpanId :: MonadIO m => SpanInFlight -> SpanId -> m ()
 setSpanId (SpanInFlight u64) (SId sid) =
   traceBuilder $ byteString "ot2 set spanid "
                    <> word64Dec u64
-                      <> byteString " 0x"
+                      <> char8 ' '
                          <> word64HexFixed sid
 
 withSpan :: forall m a. (MonadIO m, MonadMask m) => LBS.ByteString -> (SpanInFlight -> m a) -> m a
