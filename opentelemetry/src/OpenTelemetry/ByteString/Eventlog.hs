@@ -2,11 +2,12 @@
 
 module OpenTelemetry.ByteString.Eventlog where
 
+import Prelude hiding (span)
+
 import Control.Monad.Catch
 import Control.Monad.IO.Class
-import qualified Data.ByteString as BS
 import Data.ByteString.Builder
-import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString.Lazy.Char8 as LBS8
 import qualified Data.ByteString.Lazy as LBS
 import Data.Unique
 import Debug.Trace.ByteString
@@ -19,60 +20,80 @@ type ProcessLocalSpanSerialNumber = Word64
 
 newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber
 
+traceBuilder :: MonadIO m => Builder -> m ()
+traceBuilder = liftIO . unsafeTraceEventIO . LBS.toStrict . toLazyByteString
+
 beginSpan :: MonadIO m => LBS.ByteString -> m SpanInFlight
 beginSpan operation = do
-  liftIO $ do
-    u64 <- fromIntegral . hashUnique <$> newUnique
-    unsafeTraceEventIO . LBS.toStrict
-                           . toLazyByteString
-                                 $ (byteString "ot2 begin span ")
-                                       <>  (word64Dec u64)
-                                               <> (byteString " ")
-                                                      <> (lazyByteString operation)
-    return $ SpanInFlight u64
+  u64 <- liftIO $ fromIntegral . hashUnique <$> newUnique
+  traceBuilder $ (byteString "ot2 begin span ")
+                   <>  (word64Dec u64)
+                           <> (char8 ' ')
+                                  <> (lazyByteString operation)
+  pure $ SpanInFlight u64
 
 
--- endSpan :: MonadIO m => SpanInFlight -> m ()
--- endSpan (SpanInFlight u64) =
---     liftIO $ LBS.toStrict joinBsLong "ot2 end span" u64 >>= unsafeTraceEventIO
+endSpan :: MonadIO m => SpanInFlight -> m ()
+endSpan (SpanInFlight u64) =
+    traceBuilder $ byteString "ot2 end span " <> word64Dec u64
 
--- setTag :: MonadIO m => SpanInFlight -> BS.ByteString -> BS.ByteString -> m ()
--- setTag (SpanInFlight u64) k v =
---     liftIO $ joinBsLongBsBs "ot2 set tag" u64 k v >>= unsafeTraceEventIO
+setTag :: MonadIO m => SpanInFlight -> LBS.ByteString -> LBS.ByteString -> m ()
+setTag (SpanInFlight u64) k v =
+    traceBuilder $ byteString "ot2 set tag "
+                     <> word64Dec u64
+                            <> char8 ' '
+                                   <> lazyByteString k
+                                      <> char8 ' '
+                                          <>  lazyByteString v
 
--- addEvent :: MonadIO m => SpanInFlight -> BS.ByteString -> BS.ByteString -> m ()
--- addEvent (SpanInFlight u64) k v =
---     liftIO $ joinBsLongBsBs "ot2 add event" u64 k v >>= unsafeTraceEventIO
+addEvent :: MonadIO m => SpanInFlight -> LBS.ByteString -> LBS.ByteString -> m ()
+addEvent (SpanInFlight u64) k v =
+    traceBuilder $ byteString "ot2 add event "
+                     <> word64Dec u64
+                        <> char8 ' '
+                           <> lazyByteString k
+                              <> lazyByteString v
 
--- setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
--- setParentSpanContext (SpanInFlight u64) (SpanContext (SId sid) (TId tid)) =
---   liftIO $ joinBsLongLongLong "ot2 set parent" u64 tid sid >>= unsafeTraceEventIO
+setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
+setParentSpanContext (SpanInFlight u64) (SpanContext (SId sid) (TId tid)) =
+    traceBuilder $ byteString  "ot2 set parent "
+                     <> word64Dec u64
+                        <> byteString " 0x"
+                           <> word64HexFixed tid
+                              <> byteString " 0x"
+                                 <> word64HexFixed sid
 
--- setTraceId :: MonadIO m => SpanInFlight -> TraceId -> m ()
--- setTraceId (SpanInFlight u64) (TId tid) =
---   liftIO $ joinBsLongLong "ot2 set traceid" u64 tid >>= unsafeTraceEventIO
+setTraceId :: MonadIO m => SpanInFlight -> TraceId -> m ()
+setTraceId (SpanInFlight u64) (TId tid) =
+  traceBuilder $ byteString "ot2 set traceid "
+               <> word64Dec u64
+                  <> byteString " 0x"
+                     <> word64HexFixed tid
 
--- setSpanId :: MonadIO m => SpanInFlight -> SpanId -> m ()
--- setSpanId (SpanInFlight u64) (SId sid) =
---   liftIO $ joinBsLongLong "ot2 set spanid" u64 sid >>= unsafeTraceEventIO
+setSpanId :: MonadIO m => SpanInFlight -> SpanId -> m ()
+setSpanId (SpanInFlight u64) (SId sid) =
+  traceBuilder $ byteString "ot2 set spanid "
+                   <> word64Dec u64
+                      <> byteString " 0x"
+                         <> word64HexFixed sid
 
--- withSpan :: forall m a. (MonadIO m, MonadMask m) => BS.ByteString -> (SpanInFlight -> m a) -> m a
--- withSpan operation action =
---   fst
---     <$> generalBracket
---       (liftIO $ beginSpan operation)
---       ( \span exitcase -> liftIO $ do
---           case exitcase of
---             ExitCaseSuccess _ -> pure ()
---             ExitCaseException e -> do
---               setTag span "error" "true"
---               setTag span "error.message" (BS8.pack $ show e)
---             ExitCaseAbort -> do
---               setTag span "error" "true"
---               setTag span "error.message" "abort"
---           liftIO $ endSpan span
---       )
---       action
+withSpan :: forall m a. (MonadIO m, MonadMask m) => LBS.ByteString -> (SpanInFlight -> m a) -> m a
+withSpan operation action =
+  fst
+    <$> generalBracket
+      (liftIO $ beginSpan operation)
+      ( \span exitcase -> liftIO $ do
+          case exitcase of
+            ExitCaseSuccess _ -> pure ()
+            ExitCaseException e -> do
+              setTag span "error" "true"
+              setTag span "error.message" (LBS8.pack $ show e)
+            ExitCaseAbort -> do
+              setTag span "error" "true"
+              setTag span "error.message" "abort"
+          liftIO $ endSpan span
+      )
+      action
 
--- withSpan_ :: (MonadIO m, MonadMask m) => BS.ByteString -> m a -> m a
--- withSpan_ operation action = withSpan operation (const action)
+withSpan_ :: (MonadIO m, MonadMask m) => LBS.ByteString -> m a -> m a
+withSpan_ operation action = withSpan operation (const action)
