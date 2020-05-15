@@ -21,7 +21,7 @@ type ProcessLocalSpanSerialNumber = Word64
 newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber
 
 traceBuilder :: MonadIO m => Builder -> m ()
-traceBuilder = liftIO . unsafeTraceEventIO . LBS.toStrict . toLazyByteString
+traceBuilder b  = liftIO . unsafeTraceEventIO . LBS.toStrict . toLazyByteString $ (b <> word8 0)
 
 beginSpan :: MonadIO m => LBS.ByteString -> m SpanInFlight
 beginSpan operation = do
