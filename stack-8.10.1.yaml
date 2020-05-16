@@ -50,6 +50,7 @@ extra-deps:
 - ghc-events-0.13.0
 - ghc-trace-events-0.1.0.1
 - hashable-1.3.0.0
+- HCodecs-0.5.2@sha256:3d49e1c9e93e95d391955c76922c7e9634c7c3b5f53eb31fe6733b7301bf1bc0,1740
 - hourglass-0.2.12@sha256:e083f5e030dfebe432e30a9c0fa07a99a54eac992f622442646be561fd7a44e8,3085
 - http-api-data-0.4.1.1@sha256:998b3a5e4d2707dff19e2a877c2f9859ac5fdf491a94d31024d20212c2c250b7,3704
 - http-client-0.6.4.1@sha256:ea569e3ebc00e7bb68162fbdf85aa63e653b974eaff63df7b972e4296687e25c,5322
