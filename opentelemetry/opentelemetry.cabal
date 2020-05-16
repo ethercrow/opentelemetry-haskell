@@ -51,6 +51,7 @@ library
     base >= 4.11 && < 5,
     bytestring,
     ghc-trace-events >= 0.1.0.1,
+    hashable,
     exceptions
   hs-source-dirs: src
   exposed-modules:

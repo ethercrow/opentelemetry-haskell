@@ -4,7 +4,6 @@ module OpenTelemetry.Binary.Eventlog where
 
 import Prelude hiding (span)
 
-import Control.Exception
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Data.Bits
@@ -66,54 +65,78 @@ header (MsgType msgType) = b4 $ fromIntegral h
 headerSize :: Int
 headerSize = fromIntegral $ LBS.length $ toLazyByteString (header tagMsg <> b8 0)
 
-checkSize :: MonadIO m => Int -> m () -> m ()
+checkSize :: Int -> m -> m
 checkSize s next = do
-    let !exceed = s + headerSize - maxMsgLen
+    let exceed = s + headerSize - maxMsgLen
     if exceed > 0 then
-        liftIO $ throwIO $ AssertionFailed
-                   $ "eventlog message size exceed 64k by " ++ show exceed
+        error $ "eventlog message size exceed 64k by " ++ show exceed
     else
         next
 
+nextLocalSpan :: MonadIO m => m SpanInFlight
+nextLocalSpan = liftIO $ (SpanInFlight . fromIntegral . hashUnique) <$> newUnique
+
+beginSpan' :: SpanInFlight
+           -> LBS.ByteString
+           -> Builder
+beginSpan' (SpanInFlight u) operation = do
+  checkSize (fromIntegral $ LBS.length operation)
+                $ header beginSpanMsg <> b8 u <> lazyByteString operation
 
 beginSpan :: MonadIO m => LBS.ByteString -> m SpanInFlight
 beginSpan operation = do
-  u <- liftIO $ fromIntegral . hashUnique <$> newUnique
-  checkSize (fromIntegral $ LBS.length operation) $ traceBuilder
-                $ header beginSpanMsg <> b8 u <> lazyByteString operation
-  pure $ SpanInFlight u
+  u <- nextLocalSpan
+  traceBuilder $ beginSpan' u operation
+  pure u
 
+endSpan' :: SpanInFlight -> Builder
+endSpan' (SpanInFlight u) = header endSpanMsg <> b8 u
 
 endSpan :: MonadIO m => SpanInFlight -> m ()
-endSpan (SpanInFlight u) =
-    traceBuilder $ header endSpanMsg <> b8 u
+endSpan = traceBuilder . endSpan'
 
-uBsBs :: MonadIO m => MsgType -> SpanInFlight -> LBS.ByteString -> LBS.ByteString -> m ()
+uBsBs :: MsgType
+      -> SpanInFlight
+      -> LBS.ByteString
+      -> LBS.ByteString
+      -> Builder
 uBsBs msg (SpanInFlight u) k v = do
     let l = fromIntegral $ LBS.length k + 1 + LBS.length v
-    checkSize l $ traceBuilder $ header msg <> b8 u
-                  <> lazyByteString k <> b1 0
-                         <> lazyByteString v
+    checkSize l $ header msg <> b8 u <> lazyByteString k <> b1 0 <> lazyByteString v
+
+setTag' :: SpanInFlight -> LBS.ByteString -> LBS.ByteString -> Builder
+setTag' = uBsBs tagMsg
 
 setTag :: MonadIO m => SpanInFlight -> LBS.ByteString -> LBS.ByteString -> m ()
-setTag = uBsBs tagMsg
+setTag = (.) ((.) traceBuilder) . setTag'
+
+addEvent' :: SpanInFlight -> LBS.ByteString -> LBS.ByteString -> Builder
+addEvent' = uBsBs eventMsg
 
 addEvent :: MonadIO m => SpanInFlight -> LBS.ByteString -> LBS.ByteString -> m ()
-addEvent =  uBsBs eventMsg
+addEvent = (.) ((.) traceBuilder) . addEvent'
+
+setParentSpanContext' :: SpanInFlight -> SpanContext -> Builder
+setParentSpanContext' (SpanInFlight u) (SpanContext (SId sid) (TId tid)) =
+    header setParentMsg <> b8 u <> b8 tid <> b8 sid
 
 setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
-setParentSpanContext (SpanInFlight u) (SpanContext (SId sid) (TId tid)) =
-    traceBuilder $ header setParentMsg <> b8 u <> b8 tid <> b8 sid
+setParentSpanContext = (.) traceBuilder . setParentSpanContext'
+
+setTraceId' :: SpanInFlight -> TraceId -> Builder
+setTraceId' (SpanInFlight u) (TId tid) = header setTraceMsg <> b8 u <> b8 tid
 
 setTraceId :: MonadIO m => SpanInFlight -> TraceId -> m ()
-setTraceId (SpanInFlight u) (TId tid) =
-  traceBuilder $ header setTraceMsg <> b8 u <> b8 tid
+setTraceId = (.) traceBuilder . setTraceId'
+
+setSpanId' :: SpanInFlight -> SpanId -> Builder
+setSpanId' (SpanInFlight u) (SId sid) = header setSpanMsg <> b8 u <> b8 sid
 
 setSpanId :: MonadIO m => SpanInFlight -> SpanId -> m ()
-setSpanId (SpanInFlight u) (SId sid) =
-  traceBuilder $ header setSpanMsg <> b8 u <> b8 sid
+setSpanId = (.) traceBuilder . setSpanId'
 
-withSpan :: forall m a. (MonadIO m, MonadMask m) => LBS.ByteString -> (SpanInFlight -> m a) -> m a
+withSpan :: forall m a. (MonadIO m, MonadMask m)
+            => LBS.ByteString -> (SpanInFlight -> m a) -> m a
 withSpan operation action =
   fst
     <$> generalBracket

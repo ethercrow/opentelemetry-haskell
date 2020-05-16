@@ -63,6 +63,7 @@ library
     http-client-tls,
     http-types,
     opentelemetry >= 0.4.0,
+    HCodecs,
     random >= 1.1,
     scientific,
     text-show,
@@ -75,6 +76,9 @@ library
   exposed-modules:
     OpenTelemetry.Common
     OpenTelemetry.Debug
+    OpenTelemetry.Handler
+    OpenTelemetry.Parser
+    OpenTelemetry.Text.Parser
     OpenTelemetry.ChromeExporter
     OpenTelemetry.EventlogStreaming_Internal
     OpenTelemetry.ZipkinExporter

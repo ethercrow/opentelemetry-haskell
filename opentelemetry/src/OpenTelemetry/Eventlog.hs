@@ -6,19 +6,13 @@ import Control.Monad.Catch
 import Control.Monad.IO.Class
 import qualified Data.ByteString.Char8 as BS8
 import Data.Unique
-import Data.Word
 import Debug.Trace
 import OpenTelemetry.SpanContext
+import OpenTelemetry.Binary.Eventlog (SpanInFlight (..))
 import Text.Printf
 import Prelude hiding (span)
 
 -- TODO(divanov): replace traceEventIO with the bytestring based equivalent
-
--- This is not a Span Id in terms of OpenTelemetry.
--- It's unique only in scope of one process, not globally.
-type ProcessLocalSpanSerialNumber = Word64
-
-newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber
 
 beginSpan :: MonadIO m => String -> m SpanInFlight
 beginSpan operation = do
