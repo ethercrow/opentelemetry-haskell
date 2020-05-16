@@ -17,7 +17,9 @@ import OpenTelemetry.Exporter
 import OpenTelemetry.Handler
 import OpenTelemetry.Parser
 import OpenTelemetry.SpanContext
+import qualified OpenTelemetry.Binary.Parser as BP
 import OpenTelemetry.Text.Parser
+
 import System.IO
 import qualified System.Random.SplitMix as R
 
@@ -114,6 +116,12 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
         --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
         (UserMessage {msg}, _, fromMaybe 1 -> tid) ->
             parseText (T.words msg) st (tid, now, m_trace_id)  handle
+        (UserBinaryMessage {payload}, _, fromMaybe 1 -> tid) ->
+            case BP.parse payload of
+              Left e -> error $ "Open Telemetry Binary Parser: " ++ e
+              Right mayEv -> case mayEv of
+                               Nothing -> (st, [])
+                               Just ev' -> handle ev' st (tid, now, m_trace_id)
         _ -> (st, [])
 
 -- beginSpan :: TraceId -> SpanId -> T.Text -> OTel.Timestamp -> State -> (State, [Span])

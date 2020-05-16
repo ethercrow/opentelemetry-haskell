@@ -59,15 +59,21 @@ b8 = word64LE
 maxMsgLen :: Int
 maxMsgLen = shift 2 16
 
-header :: MsgType -> Builder
-header (MsgType msgType) = b4 $ fromIntegral h
+bytes :: Int -> Int
+bytes = flip shift 3
+
+magic :: Int
+magic = v .|. t .|. o
     where
-      !h = m .|. v .|. t .|. o
-      m = shift ((fromIntegral msgType) :: Int) $ bytes 3
       v = shift 3 $ bytes 2
       t = shift (ord 'T') $ bytes 1
       o = ord 'O'
-      bytes = flip shift 3
+
+header :: MsgType -> Builder
+header (MsgType msgType) = b4 $ fromIntegral h
+    where
+      !h = m .|. magic
+      m = shift ((fromIntegral msgType) :: Int) $ bytes 3
 
 headerSize :: Int
 headerSize = fromIntegral $ LBS.length $ toLazyByteString (header tagMsg <> b8 0)
@@ -125,7 +131,7 @@ addEvent = (.) ((.) traceBuilder) . addEvent'
 
 setParentSpanContext' :: SpanInFlight -> SpanContext -> Builder
 setParentSpanContext' (SpanInFlight u) (SpanContext (SId sid) (TId tid)) =
-    header setParentMsg <> b8 u <> b8 tid <> b8 sid
+    header setParentMsg <> b8 u <> b8 sid <> b8 tid
 
 setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
 setParentSpanContext = (.) traceBuilder . setParentSpanContext'

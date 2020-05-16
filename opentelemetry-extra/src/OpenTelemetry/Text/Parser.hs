@@ -1,11 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module OpenTelemetry.Text.Parser where
 
-import qualified Data.HashMap.Strict as HM
-import Data.Maybe
 import Data.Text as T
 import Data.Word
-import GHC.Stack
 import OpenTelemetry.Binary.Eventlog
 import OpenTelemetry.Common
 import OpenTelemetry.Handler

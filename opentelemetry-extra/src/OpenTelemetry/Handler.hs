@@ -12,7 +12,7 @@ import OpenTelemetry.Binary.Eventlog (SpanInFlight (..))
 import OpenTelemetry.Common
 import qualified OpenTelemetry.Parser as P
 import OpenTelemetry.SpanContext
-import Text.Printf
+
 
 data LogEvent where
     BeginSpanEv :: SpanInFlight
