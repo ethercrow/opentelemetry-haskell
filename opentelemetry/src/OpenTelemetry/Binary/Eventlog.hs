@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 
 module OpenTelemetry.Binary.Eventlog where
 
@@ -12,7 +13,9 @@ import Data.Char
 import qualified Data.ByteString.Lazy.Char8 as LBS8
 import qualified Data.ByteString.Lazy as LBS
 import Data.Unique
+#if __GLASGOW_HASKELL__ >= 808
 import Debug.Trace.Binary
+#endif
 import Data.Word (Word8, Word32, Word64)
 import OpenTelemetry.SpanContext
 
@@ -23,7 +26,11 @@ type ProcessLocalSpanSerialNumber = Word64
 newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber
 
 traceBuilder :: MonadIO m => Builder -> m ()
+#if __GLASGOW_HASKELL__ >= 808
 traceBuilder = liftIO . traceBinaryEventIO . LBS.toStrict . toLazyByteString
+#else
+traceBuilder _ = return ()
+#endif
 
 newtype MsgType = MsgType Word8 deriving (Show)
 
