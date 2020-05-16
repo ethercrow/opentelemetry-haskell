@@ -14,6 +14,7 @@ import GHC.RTS.Events.Incremental
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import OpenTelemetry.Debug
 import OpenTelemetry.Exporter
+import OpenTelemetry.Handler
 import OpenTelemetry.Parser
 import OpenTelemetry.SpanContext
 import OpenTelemetry.Text.Parser
@@ -111,7 +112,8 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
         --   popSpansAcrossAllThreads now st
         -- (HeapAllocated {allocBytes}, _, Just tid) ->
         --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
-        (UserMessage {msg}, _, fromMaybe 1 -> tid) -> parseText (T.words msg) st tid now m_trace_id
+        (UserMessage {msg}, _, fromMaybe 1 -> tid) ->
+            parseText (T.words msg) st (tid, now, m_trace_id)  handle
         _ -> (st, [])
 
 -- beginSpan :: TraceId -> SpanId -> T.Text -> OTel.Timestamp -> State -> (State, [Span])
