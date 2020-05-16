@@ -60,4 +60,3 @@ library
     OpenTelemetry.Propagation
     OpenTelemetry.Eventlog
     OpenTelemetry.Binary.Eventlog
-    OpenTelemetry.ByteString.Eventlog

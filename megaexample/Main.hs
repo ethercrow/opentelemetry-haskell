@@ -5,7 +5,7 @@
 
 import Control.Concurrent
 import Control.Concurrent.Async
-#ifdef OPEN_TELEMETRY_USE_BYTESTRING
+#ifdef OPEN_TELEMETRY_USE_BINARY
 import qualified Data.ByteString.Lazy.Char8 as BS
 #else
 import qualified Data.ByteString.Char8 as BS
@@ -20,9 +20,9 @@ import Network.HTTP.Client.TLS
 import Network.HTTP.Types (status200, statusCode)
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
--- use to turn on: stack build --flag megaexample:bytestring
-#ifdef OPEN_TELEMETRY_USE_BYTESTRING
-import OpenTelemetry.ByteString.Eventlog
+-- use to turn on: stack build --flag megaexample:binary
+#ifdef OPEN_TELEMETRY_USE_BINARY
+import OpenTelemetry.Binary.Eventlog
 #else
 import OpenTelemetry.Eventlog
 #endif

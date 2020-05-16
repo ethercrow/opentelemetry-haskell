@@ -6,13 +6,13 @@ case "$1" in
         cat<<EOF
 Builds, runs mega example and shows charts.
 
-  -b --byte-string
+  -b --binary
   use lazy ByteString instead String
 
 EOF
         exit 1;;
-    -b|--byte-string)
-        BUILD_OPTIONS="--flag megaexample:bytestring"
+    -b|--binary)
+        BUILD_OPTIONS="--flag megaexample:binary"
         ;;
     "") ;;
     *)

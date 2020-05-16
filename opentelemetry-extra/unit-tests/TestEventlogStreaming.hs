@@ -13,6 +13,7 @@ import GHC.RTS.Events
 import OpenTelemetry.Common hiding (Event)
 import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.SpanContext
+import OpenTelemetry.Parser
 import Test.QuickCheck
 import Text.Printf
 import TextShow
