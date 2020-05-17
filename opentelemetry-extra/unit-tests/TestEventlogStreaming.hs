@@ -2,6 +2,7 @@
 
 module TestEventlogStreaming where
 
+import Arbitrary ()
 import Data.Function
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as HS
@@ -18,8 +19,6 @@ import Test.QuickCheck
 import Text.Printf
 import TextShow
 
-instance Arbitrary SpanId where
-  arbitrary = SId <$> arbitrary
 
 processEvents :: [Event] -> State -> (State, [Span])
 processEvents events st0 = foldl' go (st0, []) events
@@ -71,9 +70,11 @@ prop_user_specified_things_are_used spans =
                     and
                       [ spanId sp == SId sid,
                         spanTraceId sp == TId sid,
-                        HM.lookup "color" (spanTags sp) == Just (StringTagValue (showt sid)),
+                        HM.lookup (TagName "color") (spanTags sp)
+                              == Just (StringTagValue $ TagVal (showt sid)),
                         any
-                          (\SpanEvent {..} -> spanEventKey == "message" && spanEventValue == showt sid)
+                          (\SpanEvent {..} -> (spanEventKey == EventName "message")
+                                              && (spanEventValue == (EventVal (showt sid))))
                           (spanEvents sp)
                       ]
                 )

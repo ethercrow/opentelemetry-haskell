@@ -29,7 +29,7 @@ data ZipkinSpan = ZipkinSpan
 
 tagValue2text :: TagValue -> T.Text
 tagValue2text tv = case tv of
-  (StringTagValue s) -> s
+  (StringTagValue (TagVal s)) -> s
   (BoolTagValue b) -> if b then "true" else "false"
   (IntTagValue i) -> T.pack $ show i
   (DoubleTagValue d) -> T.pack $ show (fromFloatDigits d)
@@ -51,7 +51,7 @@ instance ToJSON ZipkinSpan where
             "tags"
               .= object
                 ( [k .= v | (k, v) <- zGlobalTags]
-                    <> [k .= tagValue2text v | (k, v) <- HM.toList spanTags]
+                    <> [k .= tagValue2text v | ((TagName k), v) <- HM.toList spanTags]
                 ),
             "annotations"
               .= [ object ["timestamp" .= (t `div` 1000), "value" .= v]
@@ -75,7 +75,7 @@ instance ToJSON ZipkinSpan where
               <> "tags"
                 .= object
                   ( [k .= v | (k, v) <- zGlobalTags]
-                      <> [k .= tagValue2text v | (k, v) <- HM.toList spanTags]
+                      <> [k .= tagValue2text v | ((TagName k), v) <- HM.toList spanTags]
                   )
               <> ( maybe
                      mempty

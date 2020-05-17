@@ -3,6 +3,7 @@ module OpenTelemetry.Text.Parser where
 
 import Data.Text as T
 import OpenTelemetry.Binary.Eventlog
+import OpenTelemetry.Common
 import OpenTelemetry.Handler
 import OpenTelemetry.SpanContext
 import Text.Printf
@@ -14,13 +15,13 @@ parseText =
       ("ot2" : "begin" : "span" : serial_text : name) ->
         let serial = read (T.unpack serial_text)
             operation = T.intercalate " " name
-         in Just $ BeginSpanEv (SpanInFlight serial) operation
+         in Just $ BeginSpanEv (SpanInFlight serial) (SpanName operation)
       ["ot2", "end", "span", serial_text] ->
         let serial = read (T.unpack serial_text)
          in Just $ EndSpanEv (SpanInFlight serial)
       ("ot2" : "set" : "tag" : serial_text : k : v) ->
         let serial = read (T.unpack serial_text)
-         in Just $ TagEv (SpanInFlight serial) k $ T.unwords v
+         in Just $ TagEv (SpanInFlight serial) (TagName k) (TagVal $ T.unwords v)
       ["ot2", "set", "traceid", serial_text, trace_id_text] ->
         let serial = read (T.unpack serial_text)
             trace_id = TId (read ("0x" <> T.unpack trace_id_text))
@@ -37,6 +38,6 @@ parseText =
                 (SpanContext psid trace_id)
       ("ot2" : "add" : "event" : serial_text : k : v) ->
         let serial = read (T.unpack serial_text)
-         in Just . EventEv (SpanInFlight serial) k $ T.unwords v
+         in Just . EventEv (SpanInFlight serial) (EventName k) $ EventVal $ T.unwords v
       ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
       _ -> Nothing

@@ -15,7 +15,7 @@ newtype ChromeEndSpan = ChromeEnd Span
 newtype ChromeTagValue = ChromeTagValue TagValue
 
 instance ToJSON ChromeTagValue where
-  toJSON (ChromeTagValue (StringTagValue i)) = Data.Aeson.String i
+  toJSON (ChromeTagValue (StringTagValue (TagVal i))) = Data.Aeson.String i
   toJSON (ChromeTagValue (IntTagValue i)) = Data.Aeson.Number $ fromIntegral i
   toJSON (ChromeTagValue (BoolTagValue b)) = Data.Aeson.Bool b
   toJSON (ChromeTagValue (DoubleTagValue d)) = Data.Aeson.Number $ realToFrac d

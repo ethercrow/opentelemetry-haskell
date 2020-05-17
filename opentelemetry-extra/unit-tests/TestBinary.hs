@@ -2,9 +2,15 @@
 
 module TestBinary where
 
+import Arbitrary ()
+import qualified Data.ByteString as BS
 import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy as LBS
+import LogEventSerializer
 import OpenTelemetry.Binary.Eventlog
+import OpenTelemetry.Binary.Parser as BP
+import OpenTelemetry.Handler
+
 import Test.QuickCheck
 
 newtype MsgTypeAr = MsgTypeAr MsgType deriving (Show)
@@ -19,3 +25,13 @@ prop_header_layout_prefix_ot3 (MsgTypeAr msgType) =
 prop_header_layout_suffix_msg :: MsgTypeAr -> Bool
 prop_header_layout_suffix_msg (MsgTypeAr msgType@(MsgType msgTypeId)) =
   LBS.last (toLazyByteString (header msgType)) == msgTypeId
+
+parseRight :: BS.ByteString -> LogEvent
+parseRight bs = case BP.parse bs of
+                 Left e -> error e
+                 Right me -> case me of
+                               Nothing -> error "No event"
+                               Just ev -> ev
+
+prop_binary_marshaling :: LogEvent -> Bool
+prop_binary_marshaling a = a == parseRight (logEventToBs a)

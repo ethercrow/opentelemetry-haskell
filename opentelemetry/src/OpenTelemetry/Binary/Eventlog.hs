@@ -23,7 +23,7 @@ import OpenTelemetry.SpanContext
 -- It's unique only in scope of one process, not globally.
 type ProcessLocalSpanSerialNumber = Word64
 
-newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber
+newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber deriving (Show, Eq)
 
 traceBuilder :: MonadIO m => Builder -> m ()
 #if __GLASGOW_HASKELL__ >= 808

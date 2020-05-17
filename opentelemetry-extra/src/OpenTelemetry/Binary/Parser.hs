@@ -10,6 +10,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Word
 import OpenTelemetry.Binary.Eventlog (SpanInFlight (..), MsgType (..), magic)
+import OpenTelemetry.Common
 import OpenTelemetry.Handler
 import OpenTelemetry.SpanContext
 
@@ -40,12 +41,12 @@ logEventBodyP :: MsgType -> CSP.Parser LogEvent
 logEventBodyP msgType =
   case msgType of
     MsgType 1 -> BeginSpanEv <$> (SpanInFlight <$> b8P)
-                 <*> lastStringP
+                 <*> (SpanName <$> lastStringP)
     MsgType 2 -> EndSpanEv <$> (SpanInFlight <$> b8P)
     MsgType 3 -> TagEv <$> (SpanInFlight <$> b8P)
-                 <*> cStringP <*> lastStringP
+                 <*> (TagName <$> cStringP) <*> (TagVal <$> lastStringP)
     MsgType 4 -> EventEv <$> (SpanInFlight <$> b8P)
-                 <*> cStringP <*> lastStringP
+                 <*> (EventName <$> cStringP) <*> (EventVal <$> lastStringP)
     MsgType 5 -> SetParentEv <$> (SpanInFlight <$> b8P)
                  <*> (SpanContext <$> (SId <$> b8P) <*> (TId <$> b8P))
     MsgType 6 -> SetTraceEv <$> (SpanInFlight <$> b8P)

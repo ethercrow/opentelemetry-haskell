@@ -1,12 +1,13 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module OpenTelemetry.Handler where
 
 import qualified Data.HashMap.Strict as HM
 import Data.Maybe
-import Data.Text as T
 import Data.Word
+import GHC.Generics
 import GHC.Stack
 import OpenTelemetry.Binary.Eventlog (SpanInFlight (..))
 import OpenTelemetry.Common
@@ -16,17 +17,17 @@ import OpenTelemetry.SpanContext
 
 data LogEvent where
     BeginSpanEv :: SpanInFlight
-                -> T.Text
+                -> SpanName
                 -> LogEvent
     EndSpanEv   :: SpanInFlight
                 -> LogEvent
     TagEv       :: SpanInFlight
-                -> T.Text
-                -> T.Text
+                -> TagName
+                -> TagVal
                 -> LogEvent
     EventEv     :: SpanInFlight
-                -> T.Text
-                -> T.Text
+                -> EventName
+                -> EventVal
                 -> LogEvent
     SetParentEv :: SpanInFlight
                 -> SpanContext
@@ -37,6 +38,7 @@ data LogEvent where
     SetSpanEv   :: SpanInFlight
                 -> SpanId
                 -> LogEvent
+    deriving (Show, Eq, Generic)
 
 handle :: LogEvent
        -> P.State
@@ -100,7 +102,7 @@ handle m st (tid, now, m_trace_id) =
               Just span_id ->
                 let (st', sp) = emitSpan serial span_id st
                  in (st', [sp {spanFinishedAt = now}])
-      BeginSpanEv (SpanInFlight serial) operation ->
+      BeginSpanEv (SpanInFlight serial) (SpanName operation) ->
          case HM.lookup serial (P.serial2sid st) of
               Nothing ->
                 let (st', span_id) = inventSpanId serial st
@@ -154,7 +156,7 @@ setParent ptid psid sp =
       spanContext = SpanContext (spanId sp) ptid
     }
 
-addEvent :: Timestamp -> T.Text -> T.Text -> Span -> Span
+addEvent :: Timestamp -> EventName -> EventVal -> Span -> Span
 addEvent ts k v sp = sp {spanEvents = new_events}
   where
     new_events = ev : spanEvents sp
@@ -166,7 +168,7 @@ setTraceId tid sp =
     { spanContext = SpanContext (spanId sp) tid
     }
 
-setTag :: ToTagValue v => T.Text -> v -> Span -> Span
+setTag :: ToTagValue v => TagName -> v -> Span -> Span
 setTag k v sp =
   sp
     { spanTags = HM.insert k (toTagValue v) (spanTags sp)
