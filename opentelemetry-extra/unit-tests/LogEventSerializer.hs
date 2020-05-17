@@ -14,7 +14,7 @@ txt2Bs :: T.Text -> LBS.ByteString
 txt2Bs = LBS.fromStrict . TE.encodeUtf8
 
 logEventToBs :: LogEvent -> BS.ByteString
-logEventToBs =  LBS.toStrict . toLazyByteString . logEventToBuilder
+logEventToBs = LBS.toStrict . toLazyByteString . logEventToBuilder
 
 logEventToBuilder :: LogEvent -> Builder
 logEventToBuilder (BeginSpanEv localId (SpanName name)) =
@@ -30,3 +30,22 @@ logEventToBuilder (EventEv localId (EventName k) (EventVal v)) =
 logEventToBuilder (SetParentEv locId spnCtx) = BE.setParentSpanContext' locId spnCtx
 logEventToBuilder (SetTraceEv localId traceId) = BE.setTraceId' localId traceId
 logEventToBuilder (SetSpanEv localId spanId) = BE.setSpanId' localId spanId
+
+
+logEventToTxt :: LogEvent -> T.Text
+logEventToTxt = T.pack . logEventToStr
+
+logEventToStr :: LogEvent -> String
+logEventToStr (BeginSpanEv localId (SpanName name)) =
+    E.beginSpan' localId . T.unpack $ name
+logEventToStr (EndSpanEv localId) = E.endSpan' localId
+logEventToStr (TagEv localId (TagName k) (TagVal v)) =
+    let (k', v') = (T.unpack k, TE.encodeUtf8 v)
+     in E.setTag' localId k' v'
+logEventToStr (EventEv localId (EventName k) (EventVal v)) =
+    let (k', v') = (T.unpack k, TE.encodeUtf8 v)
+     in E.addEvent' localId k' v'
+
+logEventToStr (SetParentEv locId spnCtx) = E.setParentSpanContext' locId spnCtx
+logEventToStr (SetTraceEv localId traceId) = E.setTraceId' localId traceId
+logEventToStr (SetSpanEv localId spanId) = E.setSpanId' localId spanId
