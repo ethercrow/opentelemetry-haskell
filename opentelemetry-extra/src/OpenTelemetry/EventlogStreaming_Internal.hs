@@ -115,7 +115,9 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
         -- (HeapAllocated {allocBytes}, _, Just tid) ->
         --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
         (UserMessage {msg}, _, fromMaybe 1 -> tid) ->
-            parseText (T.words msg) st (tid, now, m_trace_id)  handle
+            fromMaybe (st, [])
+                      $ fmap (\ev' -> handle ev' st (tid, now, m_trace_id))
+                            (parseText (T.words msg))
         (UserBinaryMessage {payload}, _, fromMaybe 1 -> tid) ->
             case BP.parse payload of
               Left e -> error $ "Open Telemetry Binary Parser: " ++ e
