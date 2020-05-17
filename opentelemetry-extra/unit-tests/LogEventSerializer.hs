@@ -23,14 +23,12 @@ logEventToBuilder (BeginSpanEv localId (SpanName name)) =
 
 logEventToBuilder (EndSpanEv localId) = BE.endSpan' localId
 logEventToBuilder (TagEv localId (TagName k) (TagVal v)) =
-    let [k', v'] = map txt2Bs [k, v]
-     in BE.setTag' localId k' v'
+    BE.setTag' localId (txt2Bs k) $ txt2Bs v
 logEventToBuilder (EventEv localId (EventName k) (EventVal v)) =
-    let [k', v'] = map txt2Bs [k, v]
-     in BE.addEvent' localId k' v'
+    BE.addEvent' localId (txt2Bs k) $ txt2Bs v
 logEventToBuilder (SetParentEv locId spnCtx) = BE.setParentSpanContext' locId spnCtx
 logEventToBuilder (SetTraceEv localId traceId) = BE.setTraceId' localId traceId
-logEventToBuilder (SetSpanEv localId spanId) = BE.setSpanId' localId spanId
+logEventToBuilder (SetSpanEv localId spanId') = BE.setSpanId' localId spanId'
 
 
 logEventToTxt :: LogEvent -> T.Text
@@ -49,7 +47,7 @@ logEventToStr (EventEv localId (EventName k) (EventVal v)) =
 
 logEventToStr (SetParentEv locId spnCtx) = E.setParentSpanContext' locId spnCtx
 logEventToStr (SetTraceEv localId traceId) = E.setTraceId' localId traceId
-logEventToStr (SetSpanEv localId spanId) = E.setSpanId' localId spanId
+logEventToStr (SetSpanEv localId spanId') = E.setSpanId' localId spanId'
 
 logEventToUserMessage :: LogEvent -> EventInfo
 logEventToUserMessage = UserMessage . logEventToTxt

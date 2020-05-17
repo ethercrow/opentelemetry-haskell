@@ -12,6 +12,7 @@ import OpenTelemetry.Handler
 import OpenTelemetry.SpanContext
 import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
+import TextShow
 
 newtype TextWithout0 = TextWithout0 T.Text
 
@@ -38,3 +39,5 @@ instance Arbitrary SpanContext where
 instance Arbitrary LogEvent where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+deriving instance TextShow SpanInFlight

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE CPP #-}
 
 module OpenTelemetry.Binary.Eventlog where
@@ -12,6 +13,7 @@ import Data.ByteString.Builder
 import Data.Char
 import qualified Data.ByteString.Lazy.Char8 as LBS8
 import qualified Data.ByteString.Lazy as LBS
+import Data.Hashable
 import Data.Unique
 #if __GLASGOW_HASKELL__ >= 808
 import Debug.Trace.Binary
@@ -23,7 +25,7 @@ import OpenTelemetry.SpanContext
 -- It's unique only in scope of one process, not globally.
 type ProcessLocalSpanSerialNumber = Word64
 
-newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber deriving (Show, Eq)
+newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber deriving (Show, Eq, Hashable)
 
 traceBuilder :: MonadIO m => Builder -> m ()
 #if __GLASGOW_HASKELL__ >= 808
