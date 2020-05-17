@@ -6,14 +6,11 @@ import qualified Codec.ByteString.Parser as CSP
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import Data.Bits
-import Data.Char as C
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Word
 import OpenTelemetry.Binary.Eventlog (SpanInFlight (..), MsgType (..), magic)
-import OpenTelemetry.Common
 import OpenTelemetry.Handler
-import qualified OpenTelemetry.Parser as P
 import OpenTelemetry.SpanContext
 
 headerP :: CSP.Parser (Maybe MsgType)

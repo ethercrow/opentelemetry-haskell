@@ -3,7 +3,6 @@
 module Main where
 
 import Control.Concurrent.Async
-import Control.Monad
 import Data.Function ((&))
 import qualified Data.Text as T
 import OpenTelemetry.EventlogStreaming_Internal
@@ -32,12 +31,12 @@ main = do
       printf "Streaming eventlog of %s to Zipkin...\n" program
       exporter <- createZipkinSpanExporter $ localhostZipkinConfig (T.pack program)
       let pipe = program <> "-opentelemetry.pipe"
-      runProcess $ proc "mkfifo" [pipe]
+      _ <- runProcess $ proc "mkfifo" [pipe]
       env <- (("GHCRTS", "-l -ol" <> pipe) :) <$> getEnvironment -- TODO(divanov): please append to existing GHCRTS instead of overwriting
       p <- startProcess (proc program args' & setEnv env)
       origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime
       restreamer <- async $ withFile pipe ReadMode (work SleepAndRetryOnEOF origin_timestamp exporter)
-      waitExitCode p
+      _ <- waitExitCode p
       wait restreamer
       shutdown exporter
       putStrLn "\nAll done."
