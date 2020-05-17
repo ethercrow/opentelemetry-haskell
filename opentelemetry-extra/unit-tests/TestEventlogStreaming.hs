@@ -11,8 +11,11 @@ import Data.List (foldl', sort)
 import qualified Data.Text as T
 import Data.Word
 import GHC.RTS.Events
+import LogEventSerializer
 import OpenTelemetry.Common hiding (Event)
+import OpenTelemetry.Binary.Eventlog
 import OpenTelemetry.EventlogStreaming_Internal
+import OpenTelemetry.Handler
 import OpenTelemetry.SpanContext
 import OpenTelemetry.Parser
 import Test.QuickCheck
@@ -27,12 +30,33 @@ processEvents events st0 = foldl' go (st0, []) events
       let (st', sps') = processEvent e st
        in (st', sps' <> sps)
 
-prop_number_of_spans_in_eventlog_is_number_of_spans_exported :: [(Word64, Int)] -> Bool
-prop_number_of_spans_in_eventlog_is_number_of_spans_exported spans =
+data LogEventSerializerAr
+    = TextLogEventSerializer (LogEvent -> EventInfo)
+    | BinaryLogEventSerializer (LogEvent -> EventInfo)
+
+instance Show LogEventSerializerAr where
+    show (TextLogEventSerializer _) = "TextLogEventSerializer"
+    show (BinaryLogEventSerializer _) = "BinaryLogEventSerializer"
+
+instance Arbitrary LogEventSerializerAr where
+    arbitrary = (serializers !!) <$> choose (0, 1)
+        where
+          serializers = [TextLogEventSerializer logEventToUserMessage,
+                         BinaryLogEventSerializer logEventToUserBinaryMessage]
+
+getSerializer :: LogEventSerializerAr -> (LogEvent -> EventInfo)
+getSerializer (TextLogEventSerializer f) = f
+getSerializer (BinaryLogEventSerializer f) = f
+
+prop_number_of_spans_in_eventlog_is_number_of_spans_exported :: LogEventSerializerAr
+                                                             -> [(SpanInFlight, SpanName)]
+                                                             -> Bool
+prop_number_of_spans_in_eventlog_is_number_of_spans_exported serializer spans =
   let input_events = concatMap convert spans
-      convert (span_serial_number, thread_id) =
-        [ Event 0 (UserMessage {msg = T.pack $ printf "ot2 begin span %d %d" span_serial_number thread_id}) (Just 0),
-          Event 42 (UserMessage {msg = T.pack $ printf "ot2 end span %d" span_serial_number}) (Just 0)
+      serializer' = getSerializer serializer
+      convert (span_serial_number, spanName) =
+        [ Event 0 (serializer' $ BeginSpanEv span_serial_number spanName) (Just 0),
+          Event 42 (serializer' $ EndSpanEv span_serial_number) (Just 0)
         ]
       (_end_state, emitted_spans) = processEvents input_events (initialState 0 (error "randomGen seed"))
    in length emitted_spans == length spans

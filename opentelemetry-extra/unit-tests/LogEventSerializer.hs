@@ -5,6 +5,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
+import GHC.RTS.Events
 import qualified OpenTelemetry.Binary.Eventlog as BE
 import OpenTelemetry.Common
 import qualified OpenTelemetry.Eventlog as E
@@ -49,3 +50,9 @@ logEventToStr (EventEv localId (EventName k) (EventVal v)) =
 logEventToStr (SetParentEv locId spnCtx) = E.setParentSpanContext' locId spnCtx
 logEventToStr (SetTraceEv localId traceId) = E.setTraceId' localId traceId
 logEventToStr (SetSpanEv localId spanId) = E.setSpanId' localId spanId
+
+logEventToUserMessage :: LogEvent -> EventInfo
+logEventToUserMessage = UserMessage . logEventToTxt
+
+logEventToUserBinaryMessage :: LogEvent -> EventInfo
+logEventToUserBinaryMessage = UserBinaryMessage . logEventToBs
