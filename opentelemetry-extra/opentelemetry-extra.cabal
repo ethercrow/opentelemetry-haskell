@@ -129,6 +129,20 @@ executable eventlog-to-zipkin
     text,
     typed-process
 
+executable ot-write-benchmark
+  import: options
+  main-is:    Main.hs
+  hs-source-dirs: exe/ot-write-benchmark
+  ghc-options:
+    -threaded
+    -rtsopts
+    "-with-rtsopts -T"
+    -eventlog
+  build-depends:
+    base,
+    criterion >= 1.5.6.2,
+    opentelemetry >= 0.4.0,
+
 executable eventlog-to-chrome
   import: options
   main-is:    Main.hs
