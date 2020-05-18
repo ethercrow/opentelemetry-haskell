@@ -129,9 +129,10 @@ executable eventlog-to-zipkin
     text,
     typed-process
 
-executable ot-write-benchmark
+benchmark ot-write-benchmark
   import: options
   main-is:    Main.hs
+  type: exitcode-stdio-1.0
   hs-source-dirs: exe/ot-write-benchmark
   ghc-options:
     -threaded
