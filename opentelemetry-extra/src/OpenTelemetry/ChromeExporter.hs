@@ -2,8 +2,11 @@
 
 module OpenTelemetry.ChromeExporter where
 
+import Control.Monad
 import Data.Aeson
-import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString.Lazy   as LBS
+import Data.List
+import Data.Word
 import OpenTelemetry.Common
 import OpenTelemetry.Exporter
 import System.IO
@@ -14,11 +17,23 @@ newtype ChromeEndSpan = ChromeEnd Span
 
 newtype ChromeTagValue = ChromeTagValue TagValue
 
+data ChromeEvent = ChromeEvent Word32 SpanEvent
+
 instance ToJSON ChromeTagValue where
   toJSON (ChromeTagValue (StringTagValue i)) = Data.Aeson.String i
   toJSON (ChromeTagValue (IntTagValue i)) = Data.Aeson.Number $ fromIntegral i
   toJSON (ChromeTagValue (BoolTagValue b)) = Data.Aeson.Bool b
   toJSON (ChromeTagValue (DoubleTagValue d)) = Data.Aeson.Number $ realToFrac d
+
+instance ToJSON ChromeEvent where
+  toJSON (ChromeEvent threadId SpanEvent {..}) =
+    object
+      [ "ph" .= ("i" :: String)
+      , "name" .= spanEventValue
+      , "pid" .= (1 :: Int)
+      , "tid" .= threadId
+      , "ts" .= (div spanEventTimestamp 1000)
+      ]
 
 instance ToJSON ChromeBeginSpan where
   toJSON (ChromeBegin Span {..}) =
@@ -49,9 +64,12 @@ createChromeSpanExporter path = do
     $! Exporter
       ( \sps -> do
           mapM_
-            ( \sp -> do
+            ( \sp@Span{..} -> do
                 LBS.hPutStr f $ encode $ ChromeBegin sp
                 LBS.hPutStr f ",\n"
+                forM_ (sortOn spanEventTimestamp spanEvents) $ \ev -> do
+                  LBS.hPutStr f $ encode $ ChromeEvent spanThreadId ev
+                  LBS.hPutStr f ",\n"
                 LBS.hPutStr f $ encode $ ChromeEnd sp
                 LBS.hPutStr f ",\n"
             )
