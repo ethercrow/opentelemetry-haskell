@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -15,29 +14,14 @@ import qualified OpenTelemetry.Parser as P
 import OpenTelemetry.SpanContext
 
 
-data LogEvent where
-    BeginSpanEv :: SpanInFlight
-                -> SpanName
-                -> LogEvent
-    EndSpanEv   :: SpanInFlight
-                -> LogEvent
-    TagEv       :: SpanInFlight
-                -> TagName
-                -> TagVal
-                -> LogEvent
-    EventEv     :: SpanInFlight
-                -> EventName
-                -> EventVal
-                -> LogEvent
-    SetParentEv :: SpanInFlight
-                -> SpanContext
-                -> LogEvent
-    SetTraceEv  :: SpanInFlight
-                -> TraceId
-                -> LogEvent
-    SetSpanEv   :: SpanInFlight
-                -> SpanId
-                -> LogEvent
+data LogEvent
+    = BeginSpanEv SpanInFlight SpanName
+    | EndSpanEv   SpanInFlight
+    | TagEv       SpanInFlight TagName TagVal
+    | EventEv     SpanInFlight EventName EventVal
+    | SetParentEv SpanInFlight SpanContext
+    | SetTraceEv  SpanInFlight TraceId
+    | SetSpanEv   SpanInFlight SpanId
     deriving (Show, Eq, Generic)
 
 handle :: LogEvent
