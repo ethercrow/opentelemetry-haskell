@@ -1,5 +1,9 @@
 # Revision history for opentelemetry
 
+## 0.4.2 -- 2020-05-22
+
+* Chrome exporter now exports events (the OpenTelemetry events, not eventlog events).
+
 ## 0.4.1 -- 2020-05-22
 
 * `eventlog-to-* read` now works with eventlogs written by multiple capabilities.
