@@ -23,7 +23,7 @@ main = do
       printf "Converting %s to %s...\n" path target_path
       exporter <- createChromeSpanExporter target_path
       origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime
-      withFile path ReadMode (work StopOnEOF origin_timestamp exporter)
+      work origin_timestamp exporter $ EventLogFilename path
       shutdown exporter
       putStrLn "\nAll done."
 
