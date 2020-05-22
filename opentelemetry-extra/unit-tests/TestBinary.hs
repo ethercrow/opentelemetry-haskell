@@ -28,10 +28,8 @@ prop_header_layout_suffix_msg (MsgTypeAr msgType@(MsgType msgTypeId)) =
 
 parseRight :: BS.ByteString -> LogEvent
 parseRight bs = case BP.parse bs of
-                 Left e -> error e
-                 Right me -> case me of
-                               Nothing -> error "No event"
-                               Just ev -> ev
+                  Nothing -> error "No event"
+                  Just ev -> ev
 
 prop_binary_marshaling :: LogEvent -> Bool
 prop_binary_marshaling a = a == parseRight (logEventToBs a)

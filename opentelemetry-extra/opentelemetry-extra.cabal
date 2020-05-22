@@ -49,6 +49,7 @@ library
   import: options
   build-depends:
     base >= 4.12 && < 5,
+    binary >= 0.8.7.0,
     aeson,
     async,
     bytestring,
@@ -63,7 +64,6 @@ library
     http-client-tls,
     http-types,
     opentelemetry >= 0.4.0,
-    HCodecs,
     random >= 1.1,
     scientific,
     text-show,

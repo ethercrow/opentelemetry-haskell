@@ -120,10 +120,8 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                             (parseText (T.words msg))
         (UserBinaryMessage {payload}, _, fromMaybe 1 -> tid) ->
             case BP.parse payload of
-              Left e -> error $ "Open Telemetry Binary Parser: " ++ e
-              Right mayEv -> case mayEv of
-                               Nothing -> (st, [])
-                               Just ev' -> handle ev' st (tid, now, m_trace_id)
+              Nothing -> (st, [])
+              Just ev' -> handle ev' st (tid, now, m_trace_id)
         _ -> (st, [])
 
 -- beginSpan :: TraceId -> SpanId -> T.Text -> OTel.Timestamp -> State -> (State, [Span])

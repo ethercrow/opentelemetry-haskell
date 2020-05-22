@@ -2,7 +2,7 @@
 
 module OpenTelemetry.Binary.Parser where
 
-import qualified Codec.ByteString.Parser as CSP
+import qualified Data.Binary.Get as DBG
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import Data.Bits
@@ -14,9 +14,9 @@ import OpenTelemetry.Common
 import OpenTelemetry.Handler
 import OpenTelemetry.SpanContext
 
-headerP :: CSP.Parser (Maybe MsgType)
+headerP :: DBG.Get (Maybe MsgType)
 headerP = do
-  h <- CSP.getWord32le
+  h <- DBG.getWord32le
   let !msgTypeId = shiftR h 24
   if magic == fromIntegral h .&.  magic then
       if msgTypeId > 7 && msgTypeId < 1
@@ -25,19 +25,19 @@ headerP = do
   else
       return Nothing
 
-b8P :: CSP.Parser Word64
-b8P = CSP.getWord64le
+b8P :: DBG.Get Word64
+b8P = DBG.getWord64le
 
 lazyBs2Txt :: LBS.ByteString -> T.Text
 lazyBs2Txt = TE.decodeUtf8 . LBS.toStrict
 
-lastStringP :: CSP.Parser T.Text
-lastStringP = lazyBs2Txt <$> CSP.getRemainingLazyByteString
+lastStringP :: DBG.Get T.Text
+lastStringP = lazyBs2Txt <$> DBG.getRemainingLazyByteString
 
-cStringP :: CSP.Parser T.Text
-cStringP = lazyBs2Txt <$> CSP.getLazyByteStringNul
+cStringP :: DBG.Get T.Text
+cStringP = lazyBs2Txt <$> DBG.getLazyByteStringNul
 
-logEventBodyP :: MsgType -> CSP.Parser LogEvent
+logEventBodyP :: MsgType -> DBG.Get LogEvent
 logEventBodyP msgType =
   case msgType of
     MsgType 1 -> BeginSpanEv <$> (SpanInFlight <$> b8P)
@@ -56,12 +56,12 @@ logEventBodyP msgType =
     MsgType mti ->
         fail $ "Log event of type " ++ show mti ++ " is not supported"
 
-logEventP :: CSP.Parser (Maybe LogEvent)
+logEventP :: DBG.Get (Maybe LogEvent)
 logEventP =
-  CSP.lookAheadM headerP >>= \case
+  DBG.lookAheadM headerP >>= \case
      Nothing -> return Nothing
      Just msgType -> logEventBodyP msgType >>= return . Just
 
 parse :: BS.ByteString
-      -> Either String (Maybe LogEvent)
-parse = CSP.runParser logEventP . LBS.fromStrict
+      -> Maybe LogEvent
+parse = DBG.runGet logEventP . LBS.fromStrict
