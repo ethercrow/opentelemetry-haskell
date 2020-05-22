@@ -26,57 +26,77 @@ import qualified System.Random.SplitMix as R
 data WatDoOnEOF = StopOnEOF | SleepAndRetryOnEOF
 
 
-work :: WatDoOnEOF -> Timestamp -> Exporter Span -> Handle -> IO ()
-work wat_do_on_eof origin_timestamp exporter input = do
+data EventSource
+  = EventLogHandle Handle WatDoOnEOF
+  | EventLogFilename FilePath
+
+work :: Timestamp -> Exporter Span -> EventSource -> IO ()
+work origin_timestamp exporter source = do
   d_ "Starting the eventlog reader"
   smgen <- R.initSMGen -- TODO(divanov): seed the random generator with something more random than current time
-  go (initialState origin_timestamp smgen) decodeEventLog
+  let state0 = initialState origin_timestamp smgen
+  case source of
+   EventLogFilename path  -> do
+     readEventLogFromFile path >>= \case
+       Right (dat -> Data {events}) -> do
+         let go s [] = pure ()
+             go s (e : es) = do
+               dd_ "event" (evTime e, evCap e, evSpec e)
+               case processEvent e s of
+                 (s', sps) -> do
+                   mapM_ (d_ . ("emit " <>) . show) sps
+                   _ <- export exporter sps
+                   go s' es
+         go state0 $ sortEvents events
+       Left err -> do
+         putStrLn err
+   EventLogHandle input wat_do_on_eof -> do
+    let go s (Produce event next) = do
+          case evSpec event of
+            Shutdown {} -> do
+              d_ "Shutdown-like event detected"
+            CapDelete {} -> do
+              d_ "Shutdown-like event detected"
+            CapsetDelete {} -> do
+              d_ "Shutdown-like event detected"
+            _ -> do
+              -- d_ "go Produce"
+              dd_ "event" (evTime event, evCap event, evSpec event)
+              let (s', sps) = processEvent event s
+              _ <- export exporter sps
+              -- print s'
+              mapM_ (d_ . ("emit " <>) . show) sps
+              go s' next
+        go s d@(Consume consume) = do
+          -- d_ "go Consume"
+          eof <- hIsEOF input
+          case eof of
+            False -> do
+              chunk <- B.hGetSome input 4096
+              -- printf "chunk = %d bytes\n" (B.length chunk)
+              if B.null chunk
+                then do
+                  -- d_ "chunk is null"
+                  threadDelay 1000 -- TODO(divanov): remove the sleep by replacing the hGetSome with something that blocks until data is available
+                  go s d
+                else do
+                  -- d_ "chunk is not null"
+                  go s $ consume chunk
+            True -> do
+              d_ "EOF"
+              case wat_do_on_eof of
+                StopOnEOF -> pure ()
+                SleepAndRetryOnEOF -> do
+                  threadDelay 1000
+                  go s d
+        go _ (Done _) = do
+          d_ "go Done"
+          pure ()
+        go _ (Error _leftover err) = do
+          d_ "go Error"
+          d_ err
+    go state0 decodeEventLog
   d_ "no more work"
-  where
-    go s (Produce event next) = do
-      case evSpec event of
-        Shutdown {} -> do
-          d_ "Shutdown-like event detected"
-        CapDelete {} -> do
-          d_ "Shutdown-like event detected"
-        CapsetDelete {} -> do
-          d_ "Shutdown-like event detected"
-        _ -> do
-          -- d_ "go Produce"
-          dd_ "event" (evTime event, evCap event, evSpec event)
-          let (s', sps) = processEvent event s
-          _ <- export exporter sps
-          -- print s'
-          mapM_ (d_ . ("emit " <>) . show) sps
-          go s' next
-    go s d@(Consume consume) = do
-      -- d_ "go Consume"
-      eof <- hIsEOF input
-      case eof of
-        False -> do
-          chunk <- B.hGetSome input 4096
-          -- printf "chunk = %d bytes\n" (B.length chunk)
-          if B.null chunk
-            then do
-              -- d_ "chunk is null"
-              threadDelay 1000 -- TODO(divanov): remove the sleep by replacing the hGetSome with something that blocks until data is available
-              go s d
-            else do
-              -- d_ "chunk is not null"
-              go s $ consume chunk
-        True -> do
-          d_ "EOF"
-          case wat_do_on_eof of
-            StopOnEOF -> pure ()
-            SleepAndRetryOnEOF -> do
-              threadDelay 1000
-              go s d
-    go _ (Done _) = do
-      d_ "go Done"
-      pure ()
-    go _ (Error _leftover err) = do
-      d_ "go Error"
-      d_ err
 
 
 initialState :: Word64 -> R.SMGen -> State
@@ -114,6 +134,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
         --   popSpansAcrossAllThreads now st
         -- (HeapAllocated {allocBytes}, _, Just tid) ->
         --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
+
         (UserMessage {msg}, _, fromMaybe 1 -> tid) ->
             fromMaybe (st, [])
                       $ fmap (\ev' -> handle ev' st (tid, now, m_trace_id))

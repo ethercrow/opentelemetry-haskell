@@ -2,7 +2,7 @@ cabal-version:       2.4
 name:                opentelemetry-extra
 description:         The OpenTelemetry Haskell Client https://opentelemetry.io
 category:            OpenTelemetry
-version: 0.4.0
+version: 0.4.2
 license-file:        LICENSE
 license:             Apache-2.0
 author:              Dmitry Ivanov
@@ -154,6 +154,7 @@ executable eventlog-to-chrome
     clock,
     opentelemetry >= 0.4.0,
     opentelemetry-extra,
+    optparse-applicative,
 
 executable eventlog-to-tracy
   import: options
