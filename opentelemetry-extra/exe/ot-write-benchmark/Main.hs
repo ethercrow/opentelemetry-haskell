@@ -2,7 +2,7 @@
 
 module Main where
 
-import Criterion.Main
+import Gauge.Main
 import Data.Word
 import qualified OpenTelemetry.Binary.Eventlog as BE
 import qualified OpenTelemetry.Eventlog as E
