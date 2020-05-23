@@ -1,5 +1,10 @@
 # Revision history for opentelemetry
 
+## Next
+
+* Introduce binary eventlog messages.
+* Abandon GHC 8.6 in order to be able to send binary eventlog messages.
+
 ## 0.4.2 -- 2020-05-22
 
 * Chrome exporter now exports events (the OpenTelemetry events, not eventlog events).

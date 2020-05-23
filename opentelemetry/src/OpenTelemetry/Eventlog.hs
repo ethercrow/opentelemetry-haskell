@@ -12,8 +12,6 @@ import OpenTelemetry.Binary.Eventlog (SpanInFlight (..))
 import Text.Printf
 import Prelude hiding (span)
 
--- TODO(divanov): replace traceEventIO with the bytestring based equivalent
-
 beginSpan' :: SpanInFlight -> String -> String
 beginSpan' (SpanInFlight u64) operation =
     printf "ot2 begin span %d %s" u64 operation
@@ -34,44 +32,36 @@ setTag' :: SpanInFlight -> String -> BS8.ByteString -> String
 setTag' (SpanInFlight u64) k v =
     printf "ot2 set tag %d %s %s" u64 k (BS8.unpack v)
 
-(...) :: (a -> b) -> (x -> y -> z -> a) -> x -> y -> z -> b
-(...) f g = (.) ((.) f) . g
-infixr 8 ...
-
 setTag :: MonadIO m => SpanInFlight -> String -> BS8.ByteString -> m ()
-setTag = liftIO . traceEventIO ... setTag'
+setTag sp k v = liftIO . traceEventIO $ setTag' sp k v
 
 addEvent' :: SpanInFlight -> String -> BS8.ByteString -> String
 addEvent' (SpanInFlight u64) k v =
     printf "ot2 add event %d %s %s" u64 k (BS8.unpack v)
 
 addEvent :: MonadIO m => SpanInFlight -> String -> BS8.ByteString -> m ()
-addEvent = liftIO . traceEventIO ... addEvent'
+addEvent sp k v = liftIO . traceEventIO $ addEvent' sp k v
 
 setParentSpanContext' :: SpanInFlight -> SpanContext -> String
 setParentSpanContext' (SpanInFlight u64) (SpanContext (SId sid) (TId tid)) =
     (printf "ot2 set parent %d %016x %016x" u64 tid sid)
 
-(.:.) :: (a -> b) -> (x -> y -> a) -> x -> y -> b
-(.:.) f g = (.) f . g
-infixr 8 .:.
-
 setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
-setParentSpanContext = liftIO . traceEventIO .:. setParentSpanContext'
+setParentSpanContext sp ctx = liftIO . traceEventIO $ setParentSpanContext' sp ctx
 
 setTraceId' :: SpanInFlight -> TraceId -> String
 setTraceId' (SpanInFlight u64) (TId tid) =
     printf "ot2 set traceid %d %016x" u64 tid
 
 setTraceId :: MonadIO m => SpanInFlight -> TraceId -> m ()
-setTraceId = liftIO . traceEventIO .:. setTraceId'
+setTraceId sp tid = liftIO . traceEventIO $ setTraceId' sp tid
 
 setSpanId' :: SpanInFlight -> SpanId -> String
 setSpanId' (SpanInFlight u64) (SId sid) =
     printf "ot2 set spanid %d %016x" u64 sid
 
 setSpanId :: MonadIO m => SpanInFlight -> SpanId -> m ()
-setSpanId  = liftIO . traceEventIO .:. setSpanId'
+setSpanId sp sid = liftIO . traceEventIO $ setSpanId' sp sid
 
 withSpan :: forall m a. (MonadIO m, MonadMask m) => String -> (SpanInFlight -> m a) -> m a
 withSpan operation action =

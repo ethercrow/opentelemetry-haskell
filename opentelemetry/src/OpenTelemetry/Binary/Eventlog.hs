@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE CPP #-}
 
 module OpenTelemetry.Binary.Eventlog where
 
@@ -15,9 +14,7 @@ import qualified Data.ByteString.Lazy.Char8 as LBS8
 import qualified Data.ByteString.Lazy as LBS
 import Data.Hashable
 import Data.Unique
-#if __GLASGOW_HASKELL__ >= 808
 import Debug.Trace.Binary
-#endif
 import Data.Word (Word8, Word32, Word64)
 import OpenTelemetry.SpanContext
 
@@ -28,32 +25,34 @@ type ProcessLocalSpanSerialNumber = Word64
 newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber deriving (Show, Eq, Hashable)
 
 traceBuilder :: MonadIO m => Builder -> m ()
-#if __GLASGOW_HASKELL__ >= 808
 traceBuilder = liftIO . traceBinaryEventIO . LBS.toStrict . toLazyByteString
-#else
-traceBuilder _ = return ()
-#endif
 
 newtype MsgType = MsgType Word8 deriving (Show)
 
 {-# INLINE beginSpanMsg #-}
 beginSpanMsg :: MsgType
 beginSpanMsg = MsgType 1
+
 {-# INLINE endSpanMsg #-}
 endSpanMsg :: MsgType
 endSpanMsg = MsgType 2
+
 {-# INLINE tagMsg #-}
 tagMsg :: MsgType
 tagMsg = MsgType 3
+
 {-# INLINE eventMsg #-}
 eventMsg :: MsgType
 eventMsg = MsgType 4
+
 {-# INLINE setParentMsg #-}
 setParentMsg :: MsgType
 setParentMsg = MsgType 5
+
 {-# INLINE setTraceMsg #-}
 setTraceMsg :: MsgType
 setTraceMsg = MsgType 6
+
 {-# INLINE setSpanMsg #-}
 setSpanMsg :: MsgType
 setSpanMsg = MsgType 7
@@ -61,9 +60,11 @@ setSpanMsg = MsgType 7
 {-# INLINE b1 #-}
 b1 :: Word8 -> Builder
 b1 = word8
+
 {-# INLINE b4 #-}
 b4 :: Word32 -> Builder
 b4 = word32LE
+
 {-# INLINE b8 #-}
 b8 :: Word64 -> Builder
 b8 = word64LE
@@ -148,7 +149,7 @@ setTag' = uBsBs tagMsg
 
 {-# INLINE setTag #-}
 setTag :: MonadIO m => SpanInFlight -> LBS.ByteString -> LBS.ByteString -> m ()
-setTag = (.) ((.) traceBuilder) . setTag'
+setTag sp k v = traceBuilder $ setTag' sp k v
 
 {-# INLINE addEvent' #-}
 addEvent' :: SpanInFlight -> LBS.ByteString -> LBS.ByteString -> Builder
@@ -156,14 +157,14 @@ addEvent' = uBsBs eventMsg
 
 {-# INLINE addEvent #-}
 addEvent :: MonadIO m => SpanInFlight -> LBS.ByteString -> LBS.ByteString -> m ()
-addEvent = (.) ((.) traceBuilder) . addEvent'
+addEvent sp k v = traceBuilder $ addEvent' sp k v
 
 setParentSpanContext' :: SpanInFlight -> SpanContext -> Builder
 setParentSpanContext' (SpanInFlight u) (SpanContext (SId sid) (TId tid)) =
     header setParentMsg <> b8 u <> b8 sid <> b8 tid
 
 setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
-setParentSpanContext = (.) traceBuilder . setParentSpanContext'
+setParentSpanContext sp ctx = traceBuilder $ setParentSpanContext' sp ctx
 
 {-# INLINE setTraceId' #-}
 setTraceId' :: SpanInFlight -> TraceId -> Builder
@@ -171,7 +172,7 @@ setTraceId' (SpanInFlight u) (TId tid) = header setTraceMsg <> b8 u <> b8 tid
 
 {-# INLINE setTraceId #-}
 setTraceId :: MonadIO m => SpanInFlight -> TraceId -> m ()
-setTraceId = (.) traceBuilder . setTraceId'
+setTraceId sp tid = traceBuilder $ setTraceId' sp tid
 
 {-# INLINE setSpanId' #-}
 setSpanId' :: SpanInFlight -> SpanId -> Builder
@@ -179,7 +180,7 @@ setSpanId' (SpanInFlight u) (SId sid) = header setSpanMsg <> b8 u <> b8 sid
 
 {-# INLINE setSpanId #-}
 setSpanId :: MonadIO m => SpanInFlight -> SpanId -> m ()
-setSpanId = (.) traceBuilder . setSpanId'
+setSpanId sp sid = traceBuilder $ setSpanId' sp sid
 
 {-# INLINE withSpan #-}
 withSpan :: forall m a. (MonadIO m, MonadMask m)
