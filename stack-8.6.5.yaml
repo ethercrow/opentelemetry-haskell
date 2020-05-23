@@ -9,3 +9,5 @@ packages:
 
 extra-deps:
 - ghc-events-0.13.0
+- ghc-trace-events-0.1.0.1
+- HCodecs-0.5.2@sha256:3d49e1c9e93e95d391955c76922c7e9634c7c3b5f53eb31fe6733b7301bf1bc0,1740

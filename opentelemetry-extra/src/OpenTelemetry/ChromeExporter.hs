@@ -4,7 +4,7 @@ module OpenTelemetry.ChromeExporter where
 
 import Control.Monad
 import Data.Aeson
-import qualified Data.ByteString.Lazy   as LBS
+import qualified Data.ByteString.Lazy as LBS
 import Data.List
 import Data.Word
 import OpenTelemetry.Common
@@ -20,7 +20,7 @@ newtype ChromeTagValue = ChromeTagValue TagValue
 data ChromeEvent = ChromeEvent Word32 SpanEvent
 
 instance ToJSON ChromeTagValue where
-  toJSON (ChromeTagValue (StringTagValue i)) = Data.Aeson.String i
+  toJSON (ChromeTagValue (StringTagValue (TagVal i))) = Data.Aeson.String i
   toJSON (ChromeTagValue (IntTagValue i)) = Data.Aeson.Number $ fromIntegral i
   toJSON (ChromeTagValue (BoolTagValue b)) = Data.Aeson.Bool b
   toJSON (ChromeTagValue (DoubleTagValue d)) = Data.Aeson.Number $ realToFrac d

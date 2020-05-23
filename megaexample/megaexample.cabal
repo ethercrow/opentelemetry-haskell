@@ -9,6 +9,10 @@ author:              Dmitry Ivanov
 maintainer:          ethercrow@gmail.com
 build-type:          Simple
 
+Flag binary
+  Description: Use lazy bytestring instead String
+  Default: False
+
 source-repository head
   type: git
   location: https://github.com/ethercrow/opentelemetry-haskell
@@ -43,6 +47,8 @@ common options
 
 executable opentelemetry-megaexample
   import: options
+  if flag(binary)
+    cpp-options: -DOPEN_TELEMETRY_USE_BINARY
   ghc-options:
     -threaded
     -rtsopts

@@ -49,6 +49,7 @@ library
   import: options
   build-depends:
     base >= 4.12 && < 5,
+    binary >= 0.8.6.0,
     aeson,
     async,
     bytestring,
@@ -75,6 +76,10 @@ library
   exposed-modules:
     OpenTelemetry.Common
     OpenTelemetry.Debug
+    OpenTelemetry.Handler
+    OpenTelemetry.Parser
+    OpenTelemetry.Text.Parser
+    OpenTelemetry.Binary.Parser
     OpenTelemetry.ChromeExporter
     OpenTelemetry.EventlogStreaming_Internal
     OpenTelemetry.ZipkinExporter
@@ -84,7 +89,10 @@ test-suite unit-tests
   type:       exitcode-stdio-1.0
   main-is:    Main.hs
   other-modules:
+    Arbitrary
+    TestBinary
     TestPropagation
+    LogEventSerializer
     TestEventlogStreaming
   hs-source-dirs: unit-tests
   build-depends:
@@ -99,6 +107,7 @@ test-suite unit-tests
     tasty-discover,
     tasty-hunit,
     tasty-quickcheck,
+    generic-arbitrary,
     text,
     text-show,
     unordered-containers
@@ -119,6 +128,21 @@ executable eventlog-to-zipkin
     opentelemetry-extra,
     text,
     typed-process
+
+benchmark ot-write-benchmark
+  import: options
+  main-is:    Main.hs
+  type: exitcode-stdio-1.0
+  hs-source-dirs: exe/ot-write-benchmark
+  ghc-options:
+    -threaded
+    -rtsopts
+    "-with-rtsopts -T"
+    -eventlog
+  build-depends:
+    base,
+    gauge >= 0.2.4,
+    opentelemetry >= 0.4.0,
 
 executable eventlog-to-chrome
   import: options

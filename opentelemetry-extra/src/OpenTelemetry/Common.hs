@@ -1,18 +1,29 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module OpenTelemetry.Common where
 
+import Data.Aeson
+import Data.Hashable
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import Data.Word
+import GHC.Generics
 import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import System.Clock
 
 type Timestamp = Word64
 
+newtype SpanName = SpanName T.Text deriving (Show, Eq, Generic)
+newtype TagName = TagName T.Text deriving (Show, Eq, Generic, ToJSONKey, Hashable)
+newtype TagVal = TagVal T.Text deriving (Show, Eq, Generic, ToJSON)
+newtype EventName = EventName T.Text deriving (Show, Eq, Generic)
+newtype EventVal = EventVal T.Text deriving (Show, Eq, Generic, ToJSON)
+
+
 data TagValue
-  = StringTagValue !T.Text
+  = StringTagValue !TagVal
   | BoolTagValue !Bool
   | IntTagValue !Int
   | DoubleTagValue !Double
@@ -22,10 +33,13 @@ class ToTagValue a where
   toTagValue :: a -> TagValue
 
 instance ToTagValue String where
-  toTagValue = StringTagValue . T.pack
+  toTagValue = StringTagValue . TagVal . T.pack
+
+instance ToTagValue TagVal where
+  toTagValue = StringTagValue
 
 instance ToTagValue T.Text where
-  toTagValue = StringTagValue
+  toTagValue = StringTagValue . TagVal
 
 instance ToTagValue Bool where
   toTagValue = BoolTagValue
@@ -39,7 +53,7 @@ data Span = Span
     spanThreadId :: Word32,
     spanStartedAt :: !Timestamp,
     spanFinishedAt :: !Timestamp,
-    spanTags :: !(HM.HashMap T.Text TagValue),
+    spanTags :: !(HM.HashMap TagName TagValue),
     spanEvents :: [SpanEvent],
     spanStatus :: !SpanStatus,
     spanParentId :: Maybe SpanId
@@ -54,8 +68,8 @@ spanId Span {spanContext = SpanContext sid _} = sid
 
 data SpanEvent = SpanEvent
   { spanEventTimestamp :: !Timestamp,
-    spanEventKey :: !T.Text,
-    spanEventValue :: !T.Text
+    spanEventKey :: !EventName,
+    spanEventValue :: !EventVal
   }
   deriving (Show, Eq)
 

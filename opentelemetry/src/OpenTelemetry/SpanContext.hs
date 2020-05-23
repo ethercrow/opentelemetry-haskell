@@ -2,6 +2,7 @@
 
 module OpenTelemetry.SpanContext where
 
+import Data.Hashable
 import Data.Word
 import GHC.Generics
 import Text.Printf
@@ -14,6 +15,9 @@ instance Show TraceId where
 
 newtype SpanId = SId Word64
   deriving (Eq, Ord, Generic)
+
+instance Hashable SpanId
+
 
 instance Show SpanId where
   show (SId sid) = printf "(SId 0x%x)" sid
