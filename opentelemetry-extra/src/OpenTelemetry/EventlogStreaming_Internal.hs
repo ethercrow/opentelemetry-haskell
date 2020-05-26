@@ -1,30 +1,52 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# language DeriveGeneric #-}
 
 module OpenTelemetry.EventlogStreaming_Internal where
 
+import qualified Data.Binary.Get as DBG
+import GHC.Generics
+import GHC.Stack
 import Control.Concurrent (threadDelay)
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap as IM
 import Data.Maybe
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 import Data.Word
 import GHC.RTS.Events
 import GHC.RTS.Events.Incremental
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import OpenTelemetry.Debug
 import OpenTelemetry.Exporter
-import OpenTelemetry.Handler
-import OpenTelemetry.Parser
 import OpenTelemetry.SpanContext
-import qualified OpenTelemetry.Binary.Parser as BP
-import OpenTelemetry.Text.Parser
+import OpenTelemetry.Binary.Eventlog (SpanInFlight (..), MsgType (..), magic)
+import Text.Printf
+import qualified Data.IntMap as IM
+import Data.Bits
+import qualified Data.HashMap.Strict as HM
+import Data.Word
+import GHC.RTS.Events (Timestamp)
+import OpenTelemetry.Common (Span (..))
+import OpenTelemetry.SpanContext
+import qualified System.Random.SplitMix as R
 
 import System.IO
 import qualified System.Random.SplitMix as R
 
 data WatDoOnEOF = StopOnEOF | SleepAndRetryOnEOF
 
+data State = S
+  { originTimestamp :: Timestamp,
+    threadMap :: IM.IntMap ThreadId,
+    spans :: HM.HashMap SpanId Span,
+    traceMap :: HM.HashMap ThreadId TraceId,
+    serial2sid :: HM.HashMap Word64 SpanId,
+    thread2sid :: HM.HashMap ThreadId SpanId,
+    randomGen :: R.SMGen
+  }
+  deriving (Show)
 
 data EventSource
   = EventLogHandle Handle WatDoOnEOF
@@ -140,7 +162,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                       $ fmap (\ev' -> handle ev' st (tid, now, m_trace_id))
                             (parseText (T.words msg))
         (UserBinaryMessage {payload}, _, fromMaybe 1 -> tid) ->
-            case BP.parse payload of
+            case parseByteString payload of
               Nothing -> (st, [])
               Just ev' -> handle ev' st (tid, now, m_trace_id)
         _ -> (st, [])
@@ -245,5 +267,242 @@ isTerminalThreadStatus StackOverflow = True
 isTerminalThreadStatus ThreadFinished = True
 isTerminalThreadStatus _ = False
 
-showT :: Show a => a -> T.Text
-showT = T.pack . show
+data LogEvent
+    = BeginSpanEv SpanInFlight SpanName
+    | EndSpanEv   SpanInFlight
+    | TagEv       SpanInFlight TagName TagVal
+    | EventEv     SpanInFlight EventName EventVal
+    | SetParentEv SpanInFlight SpanContext
+    | SetTraceEv  SpanInFlight TraceId
+    | SetSpanEv   SpanInFlight SpanId
+    deriving (Show, Eq, Generic)
+
+handle :: LogEvent
+       -> State
+       -> (Word32, Timestamp, Maybe TraceId)
+       -> (State, [Span])
+handle m st (tid, now, m_trace_id) =
+    case m of
+      EventEv (SpanInFlight serial) k v ->
+          case HM.lookup serial (serial2sid st) of
+              Just span_id -> (modifySpan span_id (addEvent now k v) st, [])
+              Nothing -> error $ "add event: span not found for serial " <> show serial
+      SetParentEv (SpanInFlight serial) (SpanContext psid trace_id) ->
+          case HM.lookup serial $ serial2sid st of
+              Just span_id ->
+                ( (modifySpan span_id (setParent trace_id psid) st)
+                   { traceMap = HM.insert tid trace_id (traceMap st)
+                   },
+                  []
+                )
+              Nothing -> error $ "set parent: span not found for serial " <> show serial
+      SetSpanEv (SpanInFlight serial) span_id ->
+          case HM.lookup serial $ serial2sid st of
+              Just old_span_id -> (modifySpan old_span_id (setSpanId span_id) st, [])
+              Nothing -> error $ "set spanid " <> show serial <> " " <> show span_id <> ": span id not found"
+      SetTraceEv (SpanInFlight serial) trace_id ->
+          case HM.lookup serial $ serial2sid st of
+              Nothing -> error $ "set traceid: span id not found for serial" <> show serial
+              Just span_id ->
+                ( (modifySpan span_id (setTraceId trace_id) st)
+                  { traceMap = HM.insert tid trace_id $ traceMap st
+                  },
+                  []
+                )
+      TagEv (SpanInFlight serial) k v ->
+          case HM.lookup serial $ serial2sid st of
+              Nothing -> error $ "set tag: span id not found for serial" <> show serial
+              Just span_id -> (modifySpan span_id (setTag k v) st, [])
+      EndSpanEv (SpanInFlight serial) ->
+          case HM.lookup serial $ serial2sid st of
+              Nothing ->
+                let (st', span_id) = inventSpanId serial st
+                    parent = HM.lookup tid (thread2sid st)
+                    sp =
+                      Span
+                        { spanContext = SpanContext span_id (fromMaybe (TId 42) m_trace_id),
+                          spanOperation = "",
+                          spanThreadId = tid,
+                          spanStartedAt = 0,
+                          spanFinishedAt = now,
+                          spanTags = mempty,
+                          spanEvents = mempty,
+                          spanStatus = OK,
+                          spanParentId = parent
+                        }
+                 in ( st'
+                        { spans = HM.insert span_id sp $ spans st,
+                          thread2sid = HM.insert tid span_id $ thread2sid st
+                        },
+                      []
+                    )
+              Just span_id ->
+                let (st', sp) = emitSpan serial span_id st
+                 in (st', [sp {spanFinishedAt = now}])
+      BeginSpanEv (SpanInFlight serial) (SpanName operation) ->
+         case HM.lookup serial (serial2sid st) of
+              Nothing ->
+                let (st', span_id) = inventSpanId serial st
+                    parent = HM.lookup tid (thread2sid st)
+                    sp =
+                      Span
+                        { spanContext = SpanContext span_id (fromMaybe (TId 42) m_trace_id),
+                          spanOperation = operation,
+                          spanThreadId = tid,
+                          spanStartedAt = now,
+                          spanFinishedAt = 0,
+                          spanTags = mempty,
+                          spanEvents = mempty,
+                          spanStatus = OK,
+                          spanParentId = parent
+                        }
+                 in ( st'
+                        { spans = HM.insert span_id sp (spans st),
+                          thread2sid = HM.insert tid span_id (thread2sid st)
+                        },
+                      []
+                    )
+              Just span_id ->
+                let (st', sp) = emitSpan serial span_id st
+                 in (st', [sp {spanOperation = operation, spanStartedAt = now, spanThreadId = tid}])
+
+
+emitSpan :: Word64 -> SpanId -> State -> (State, Span)
+emitSpan serial span_id st =
+  case (HM.lookup serial $ serial2sid st, HM.lookup span_id $ spans st) of
+    (Just span_id', Just sp)
+      | span_id == span_id' ->
+        ( st
+            { spans = HM.delete span_id $ spans st,
+              serial2sid = HM.delete serial $ serial2sid st,
+              thread2sid = HM.update (const $ spanParentId sp)
+                           (spanThreadId sp) (thread2sid st)
+            },
+          sp
+        )
+    _ -> error "emitSpan invariants violated"
+
+
+modifySpan :: HasCallStack => SpanId -> (Span -> Span) -> State -> State
+modifySpan sid f st = st {spans = HM.adjust f sid (spans st)}
+
+setParent :: TraceId -> SpanId -> Span -> Span
+setParent ptid psid sp =
+  sp
+    { spanParentId = Just psid,
+      spanContext = SpanContext (spanId sp) ptid
+    }
+
+addEvent :: Timestamp -> EventName -> EventVal -> Span -> Span
+addEvent ts k v sp = sp {spanEvents = new_events}
+  where
+    new_events = ev : spanEvents sp
+    ev = SpanEvent ts k v
+
+setTraceId :: TraceId -> Span -> Span
+setTraceId tid sp =
+  sp
+    { spanContext = SpanContext (spanId sp) tid
+    }
+
+setTag :: ToTagValue v => TagName -> v -> Span -> Span
+setTag k v sp =
+  sp
+    { spanTags = HM.insert k (toTagValue v) (spanTags sp)
+    }
+
+setSpanId :: SpanId -> Span -> Span
+setSpanId sid sp =
+  sp
+    { spanContext = SpanContext sid (spanTraceId sp)
+    }
+
+inventSpanId :: Word64 -> State -> (State, SpanId)
+inventSpanId serial st = (st {serial2sid = HM.insert serial sid (serial2sid st)}, sid)
+  where
+    sid = SId serial -- TODO: use random generator instead
+
+parseText :: [T.Text] -> Maybe LogEvent
+parseText =
+    \case
+      ("ot2" : "begin" : "span" : serial_text : name) ->
+        let serial = read (T.unpack serial_text)
+            operation = T.intercalate " " name
+         in Just $ BeginSpanEv (SpanInFlight serial) (SpanName operation)
+      ["ot2", "end", "span", serial_text] ->
+        let serial = read (T.unpack serial_text)
+         in Just $ EndSpanEv (SpanInFlight serial)
+      ("ot2" : "set" : "tag" : serial_text : k : v) ->
+        let serial = read (T.unpack serial_text)
+         in Just $ TagEv (SpanInFlight serial) (TagName k) (TagVal $ T.unwords v)
+      ["ot2", "set", "traceid", serial_text, trace_id_text] ->
+        let serial = read (T.unpack serial_text)
+            trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+         in Just $ SetTraceEv (SpanInFlight serial) trace_id
+      ["ot2", "set", "spanid", serial_text, new_span_id_text] ->
+        let serial = read (T.unpack serial_text)
+            span_id = (SId (read ("0x" <> T.unpack new_span_id_text)))
+         in Just $ SetSpanEv (SpanInFlight serial) span_id
+      ["ot2", "set", "parent", serial_text, trace_id_text, parent_span_id_text] ->
+        let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+            serial = read (T.unpack serial_text)
+            psid = SId (read ("0x" <> T.unpack parent_span_id_text))
+         in Just $ SetParentEv (SpanInFlight serial)
+                (SpanContext psid trace_id)
+      ("ot2" : "add" : "event" : serial_text : k : v) ->
+        let serial = read (T.unpack serial_text)
+         in Just . EventEv (SpanInFlight serial) (EventName k) $ EventVal $ T.unwords v
+      ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
+      _ -> Nothing
+
+headerP :: DBG.Get (Maybe MsgType)
+headerP = do
+  h <- DBG.getWord32le
+  let !msgTypeId = shiftR h 24
+  if magic == fromIntegral h .&. magic then
+      if msgTypeId > 7 && msgTypeId < 1
+      then fail $ "Bad Msg Type: " ++ show msgTypeId
+      else return . Just . MsgType . fromIntegral $ msgTypeId
+  else
+      return Nothing
+
+b8P :: DBG.Get Word64
+b8P = DBG.getWord64le
+
+lazyBs2Txt :: LBS.ByteString -> T.Text
+lazyBs2Txt = TE.decodeUtf8 . LBS.toStrict
+
+lastStringP :: DBG.Get T.Text
+lastStringP = lazyBs2Txt <$> DBG.getRemainingLazyByteString
+
+cStringP :: DBG.Get T.Text
+cStringP = lazyBs2Txt <$> DBG.getLazyByteStringNul
+
+logEventBodyP :: MsgType -> DBG.Get LogEvent
+logEventBodyP msgType =
+  case msgType of
+    MsgType 1 -> BeginSpanEv <$> (SpanInFlight <$> b8P)
+                 <*> (SpanName <$> lastStringP)
+    MsgType 2 -> EndSpanEv <$> (SpanInFlight <$> b8P)
+    MsgType 3 -> TagEv <$> (SpanInFlight <$> b8P)
+                 <*> (TagName <$> cStringP) <*> (TagVal <$> lastStringP)
+    MsgType 4 -> EventEv <$> (SpanInFlight <$> b8P)
+                 <*> (EventName <$> cStringP) <*> (EventVal <$> lastStringP)
+    MsgType 5 -> SetParentEv <$> (SpanInFlight <$> b8P)
+                 <*> (SpanContext <$> (SId <$> b8P) <*> (TId <$> b8P))
+    MsgType 6 -> SetTraceEv <$> (SpanInFlight <$> b8P)
+                 <*> (TId <$> b8P)
+    MsgType 7 -> SetSpanEv <$> (SpanInFlight <$> b8P)
+                 <*> (SId <$> b8P)
+    MsgType mti ->
+        fail $ "Log event of type " ++ show mti ++ " is not supported"
+
+logEventP :: DBG.Get (Maybe LogEvent)
+logEventP =
+  DBG.lookAheadM headerP >>= \case
+     Nothing -> return Nothing
+     Just msgType -> logEventBodyP msgType >>= return . Just
+
+parseByteString :: B.ByteString
+      -> Maybe LogEvent
+parseByteString = DBG.runGet logEventP . LBS.fromStrict

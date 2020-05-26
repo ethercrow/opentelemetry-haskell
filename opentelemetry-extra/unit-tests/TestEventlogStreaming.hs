@@ -13,12 +13,9 @@ import LogEventSerializer
 import OpenTelemetry.Common hiding (Event)
 import OpenTelemetry.Binary.Eventlog
 import OpenTelemetry.EventlogStreaming_Internal
-import OpenTelemetry.Handler
 import OpenTelemetry.SpanContext
-import OpenTelemetry.Parser
 import Test.QuickCheck
 import TextShow
-
 
 processEvents :: [Event] -> State -> (State, [Span])
 processEvents events st0 = foldl' go (st0, []) events

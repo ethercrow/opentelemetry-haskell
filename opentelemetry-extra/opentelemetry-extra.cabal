@@ -76,10 +76,6 @@ library
   exposed-modules:
     OpenTelemetry.Common
     OpenTelemetry.Debug
-    OpenTelemetry.Handler
-    OpenTelemetry.Parser
-    OpenTelemetry.Text.Parser
-    OpenTelemetry.Binary.Parser
     OpenTelemetry.ChromeExporter
     OpenTelemetry.EventlogStreaming_Internal
     OpenTelemetry.ZipkinExporter

@@ -8,8 +8,8 @@ import qualified Data.Text.Encoding as TE
 import GHC.RTS.Events
 import qualified OpenTelemetry.Binary.Eventlog as BE
 import OpenTelemetry.Common
+import OpenTelemetry.EventlogStreaming_Internal
 import qualified OpenTelemetry.Eventlog as E
-import OpenTelemetry.Handler
 
 txt2Bs :: T.Text -> LBS.ByteString
 txt2Bs = LBS.fromStrict . TE.encodeUtf8

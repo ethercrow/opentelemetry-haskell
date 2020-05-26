@@ -8,8 +8,7 @@ import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy as LBS
 import LogEventSerializer
 import OpenTelemetry.Binary.Eventlog
-import OpenTelemetry.Binary.Parser as BP
-import OpenTelemetry.Handler
+import OpenTelemetry.EventlogStreaming_Internal
 
 import Test.QuickCheck
 
@@ -27,7 +26,7 @@ prop_header_layout_suffix_msg (MsgTypeAr msgType@(MsgType msgTypeId)) =
   LBS.last (toLazyByteString (header msgType)) == msgTypeId
 
 parseRight :: BS.ByteString -> LogEvent
-parseRight bs = case BP.parse bs of
+parseRight bs = case parseByteString bs of
                   Nothing -> error "No event"
                   Just ev -> ev
 

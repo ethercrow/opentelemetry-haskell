@@ -4,11 +4,11 @@
 
 module Arbitrary where
 
+import OpenTelemetry.EventlogStreaming_Internal
 import Data.Text as T
 import Data.List as L
 import OpenTelemetry.Binary.Eventlog
 import OpenTelemetry.Common
-import OpenTelemetry.Handler
 import OpenTelemetry.SpanContext
 import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
