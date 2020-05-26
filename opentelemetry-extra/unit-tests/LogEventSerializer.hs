@@ -14,10 +14,10 @@ import qualified OpenTelemetry.Eventlog as E
 txt2Bs :: T.Text -> LBS.ByteString
 txt2Bs = LBS.fromStrict . TE.encodeUtf8
 
-logEventToBs :: LogEvent -> BS.ByteString
+logEventToBs :: OpenTelemetryEventlogEvent -> BS.ByteString
 logEventToBs = LBS.toStrict . toLazyByteString . logEventToBuilder
 
-logEventToBuilder :: LogEvent -> Builder
+logEventToBuilder :: OpenTelemetryEventlogEvent -> Builder
 logEventToBuilder (BeginSpanEv localId (SpanName name)) =
     BE.beginSpan' localId . txt2Bs $ name
 
@@ -31,10 +31,10 @@ logEventToBuilder (SetTraceEv localId traceId) = BE.setTraceId' localId traceId
 logEventToBuilder (SetSpanEv localId spanId') = BE.setSpanId' localId spanId'
 
 
-logEventToTxt :: LogEvent -> T.Text
+logEventToTxt :: OpenTelemetryEventlogEvent -> T.Text
 logEventToTxt = T.pack . logEventToStr
 
-logEventToStr :: LogEvent -> String
+logEventToStr :: OpenTelemetryEventlogEvent -> String
 logEventToStr (BeginSpanEv localId (SpanName name)) =
     E.beginSpan' localId . T.unpack $ name
 logEventToStr (EndSpanEv localId) = E.endSpan' localId
@@ -49,8 +49,8 @@ logEventToStr (SetParentEv locId spnCtx) = E.setParentSpanContext' locId spnCtx
 logEventToStr (SetTraceEv localId traceId) = E.setTraceId' localId traceId
 logEventToStr (SetSpanEv localId spanId') = E.setSpanId' localId spanId'
 
-logEventToUserMessage :: LogEvent -> EventInfo
+logEventToUserMessage :: OpenTelemetryEventlogEvent -> EventInfo
 logEventToUserMessage = UserMessage . logEventToTxt
 
-logEventToUserBinaryMessage :: LogEvent -> EventInfo
+logEventToUserBinaryMessage :: OpenTelemetryEventlogEvent -> EventInfo
 logEventToUserBinaryMessage = UserBinaryMessage . logEventToBs

@@ -25,10 +25,10 @@ prop_header_layout_suffix_msg :: MsgTypeAr -> Bool
 prop_header_layout_suffix_msg (MsgTypeAr msgType@(MsgType msgTypeId)) =
   LBS.last (toLazyByteString (header msgType)) == msgTypeId
 
-parseRight :: BS.ByteString -> LogEvent
+parseRight :: BS.ByteString -> OpenTelemetryEventlogEvent
 parseRight bs = case parseByteString bs of
                   Nothing -> error "No event"
                   Just ev -> ev
 
-prop_binary_marshaling :: LogEvent -> Bool
+prop_binary_marshaling :: OpenTelemetryEventlogEvent -> Bool
 prop_binary_marshaling a = a == parseRight (logEventToBs a)

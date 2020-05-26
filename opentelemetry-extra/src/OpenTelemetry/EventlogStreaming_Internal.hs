@@ -44,9 +44,15 @@ data State = S
     traceMap :: HM.HashMap ThreadId TraceId,
     serial2sid :: HM.HashMap Word64 SpanId,
     thread2sid :: HM.HashMap ThreadId SpanId,
+    counterEventsProcessed :: !Int,
+    counterOpenTelemetryEventsProcessed :: !Int,
+    counterSpansEmitted :: !Int,
     randomGen :: R.SMGen
   }
   deriving (Show)
+
+initialState :: Word64 -> R.SMGen -> State
+initialState timestamp = S timestamp mempty mempty mempty mempty mempty 0 0 0
 
 data EventSource
   = EventLogHandle Handle WatDoOnEOF
@@ -121,9 +127,9 @@ work origin_timestamp exporter source = do
   d_ "no more work"
 
 
-initialState :: Word64 -> R.SMGen -> State
-initialState timestamp = S timestamp mempty mempty mempty mempty mempty
-
+parseOpenTelemetry UserMessage {msg} = parseText (T.words msg)
+parseOpenTelemetry UserBinaryMessage {payload} = parseByteString payload
+parseOpenTelemetry _ = Nothing
 
 processEvent :: Event -> State -> (State, [Span])
 processEvent (Event ts ev m_cap) st@(S {..}) =
@@ -157,14 +163,8 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
         -- (HeapAllocated {allocBytes}, _, Just tid) ->
         --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
 
-        (UserMessage {msg}, _, fromMaybe 1 -> tid) ->
-            fromMaybe (st, [])
-                      $ fmap (\ev' -> handle ev' st (tid, now, m_trace_id))
-                            (parseText (T.words msg))
-        (UserBinaryMessage {payload}, _, fromMaybe 1 -> tid) ->
-            case parseByteString payload of
-              Nothing -> (st, [])
-              Just ev' -> handle ev' st (tid, now, m_trace_id)
+        (parseOpenTelemetry -> Just ev', _, fromMaybe 1 -> tid) ->
+          handleOpenTelemetryEventlogEvent ev' st (tid, now, m_trace_id)
         _ -> (st, [])
 
 -- beginSpan :: TraceId -> SpanId -> T.Text -> OTel.Timestamp -> State -> (State, [Span])
@@ -267,7 +267,7 @@ isTerminalThreadStatus StackOverflow = True
 isTerminalThreadStatus ThreadFinished = True
 isTerminalThreadStatus _ = False
 
-data LogEvent
+data OpenTelemetryEventlogEvent
     = BeginSpanEv SpanInFlight SpanName
     | EndSpanEv   SpanInFlight
     | TagEv       SpanInFlight TagName TagVal
@@ -277,11 +277,11 @@ data LogEvent
     | SetSpanEv   SpanInFlight SpanId
     deriving (Show, Eq, Generic)
 
-handle :: LogEvent
+handleOpenTelemetryEventlogEvent :: OpenTelemetryEventlogEvent
        -> State
        -> (Word32, Timestamp, Maybe TraceId)
        -> (State, [Span])
-handle m st (tid, now, m_trace_id) =
+handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
     case m of
       EventEv (SpanInFlight serial) k v ->
           case HM.lookup serial (serial2sid st) of
@@ -422,7 +422,7 @@ inventSpanId serial st = (st {serial2sid = HM.insert serial sid (serial2sid st)}
   where
     sid = SId serial -- TODO: use random generator instead
 
-parseText :: [T.Text] -> Maybe LogEvent
+parseText :: [T.Text] -> Maybe OpenTelemetryEventlogEvent
 parseText =
     \case
       ("ot2" : "begin" : "span" : serial_text : name) ->
@@ -478,7 +478,7 @@ lastStringP = lazyBs2Txt <$> DBG.getRemainingLazyByteString
 cStringP :: DBG.Get T.Text
 cStringP = lazyBs2Txt <$> DBG.getLazyByteStringNul
 
-logEventBodyP :: MsgType -> DBG.Get LogEvent
+logEventBodyP :: MsgType -> DBG.Get OpenTelemetryEventlogEvent
 logEventBodyP msgType =
   case msgType of
     MsgType 1 -> BeginSpanEv <$> (SpanInFlight <$> b8P)
@@ -497,12 +497,11 @@ logEventBodyP msgType =
     MsgType mti ->
         fail $ "Log event of type " ++ show mti ++ " is not supported"
 
-logEventP :: DBG.Get (Maybe LogEvent)
+logEventP :: DBG.Get (Maybe OpenTelemetryEventlogEvent)
 logEventP =
   DBG.lookAheadM headerP >>= \case
      Nothing -> return Nothing
      Just msgType -> logEventBodyP msgType >>= return . Just
 
-parseByteString :: B.ByteString
-      -> Maybe LogEvent
+parseByteString :: B.ByteString -> Maybe OpenTelemetryEventlogEvent
 parseByteString = DBG.runGet logEventP . LBS.fromStrict

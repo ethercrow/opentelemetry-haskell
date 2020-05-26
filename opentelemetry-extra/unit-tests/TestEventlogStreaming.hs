@@ -25,8 +25,8 @@ processEvents events st0 = foldl' go (st0, []) events
        in (st', sps' <> sps)
 
 data LogEventSerializerAr
-    = TextLogEventSerializer (LogEvent -> EventInfo)
-    | BinaryLogEventSerializer (LogEvent -> EventInfo)
+    = TextLogEventSerializer (OpenTelemetryEventlogEvent -> EventInfo)
+    | BinaryLogEventSerializer (OpenTelemetryEventlogEvent -> EventInfo)
 
 instance Show LogEventSerializerAr where
     show (TextLogEventSerializer _) = "TextLogEventSerializer"
@@ -38,7 +38,7 @@ instance Arbitrary LogEventSerializerAr where
           serializers = [TextLogEventSerializer logEventToUserMessage,
                          BinaryLogEventSerializer logEventToUserBinaryMessage]
 
-getSerializer :: LogEventSerializerAr -> (LogEvent -> EventInfo)
+getSerializer :: LogEventSerializerAr -> (OpenTelemetryEventlogEvent -> EventInfo)
 getSerializer (TextLogEventSerializer f) = f
 getSerializer (BinaryLogEventSerializer f) = f
 

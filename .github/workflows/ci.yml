@@ -79,6 +79,9 @@ jobs:
     - name: Test
       run: |
         stack test --fast --stack-yaml ${{ matrix.stack-yaml }}
+    - name: Bench
+      run: |
+        stack bench opentelemetry-extra --benchmark-arguments '+RTS -l'
 
   macos-stack:
     runs-on: macOS-latest
@@ -111,3 +114,6 @@ jobs:
     - name: Test
       run: |
         stack test --fast --stack-yaml ${{ matrix.stack-yaml }}
+    - name: Bench
+      run: |
+        stack bench opentelemetry-extra --benchmark-arguments '+RTS -l'

@@ -36,7 +36,7 @@ instance Arbitrary SpanContext where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary LogEvent where
+instance Arbitrary OpenTelemetryEventlogEvent where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
