@@ -12,6 +12,7 @@ import GHC.Generics
 import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import System.Clock
+import Data.String
 
 type Timestamp = Word64
 
@@ -21,6 +22,9 @@ newtype TagVal = TagVal T.Text deriving (Show, Eq, Generic, ToJSON)
 newtype EventName = EventName T.Text deriving (Show, Eq, Generic)
 newtype EventVal = EventVal T.Text deriving (Show, Eq, Generic, ToJSON)
 
+
+instance IsString TagName where
+  fromString = TagName . T.pack
 
 data TagValue
   = StringTagValue !TagVal

@@ -3,6 +3,7 @@
 
 module OpenTelemetry.EventlogStreaming_Internal where
 
+import Data.Coerce
 import qualified Data.Binary.Get as DBG
 import GHC.Generics
 import GHC.Stack
@@ -38,12 +39,14 @@ import qualified System.Random.SplitMix as R
 data WatDoOnEOF = StopOnEOF | SleepAndRetryOnEOF
 
 data State = S
-  { originTimestamp :: Timestamp,
+  { originTimestamp :: !Timestamp,
     threadMap :: IM.IntMap ThreadId,
     spans :: HM.HashMap SpanId Span,
     traceMap :: HM.HashMap ThreadId TraceId,
     serial2sid :: HM.HashMap Word64 SpanId,
     thread2sid :: HM.HashMap ThreadId SpanId,
+    gcStartedAt :: !Timestamp,
+    gcGeneration :: !Int,
     counterEventsProcessed :: !Int,
     counterOpenTelemetryEventsProcessed :: !Int,
     counterSpansEmitted :: !Int,
@@ -52,7 +55,7 @@ data State = S
   deriving (Show)
 
 initialState :: Word64 -> R.SMGen -> State
-initialState timestamp = S timestamp mempty mempty mempty mempty mempty 0 0 0
+initialState timestamp = S timestamp mempty mempty mempty mempty mempty 0 0 0 0 0
 
 data EventSource
   = EventLogHandle Handle WatDoOnEOF
@@ -154,12 +157,25 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                 },
               []
             )
-        -- (StartGC, _, _) ->
-        --   (pushGCSpans st now, [])
+        (StartGC, _, _) ->
+          (st {gcStartedAt = now}, [])
         -- (GCStatsGHC {gen}, _, _) ->
-        --   (modifyAllSpans (setTag "gen" gen) st, [])
-        -- (EndGC, _, _) ->
-        --   popSpansAcrossAllThreads now st
+        --   (st {gcGeneration = gen}, [])
+        (EndGC, _, _) ->
+          let (span_id, randomGen') = R.nextWord64 randomGen
+              sp = Span
+                { spanOperation = "gc"
+                , spanContext = SpanContext (SId span_id) (TId span_id)
+                , spanStartedAt = gcStartedAt
+                , spanFinishedAt = now
+                , spanThreadId = maxBound
+                , spanTags = mempty
+                , spanEvents = mempty
+                , spanParentId = Nothing
+                , spanStatus = OK
+                }
+              st' = st { randomGen = randomGen' }
+          in (st', [sp])
         -- (HeapAllocated {allocBytes}, _, Just tid) ->
         --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
 
