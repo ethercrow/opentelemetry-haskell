@@ -41,11 +41,6 @@ custom-setup
 
 library
   import: options
-  if impl(ghc < 8.10.0)
-    buildable: True
-  else
-    buildable: False
-
   build-depends:
     base >= 4.12 && < 5,
     proto-lens-runtime

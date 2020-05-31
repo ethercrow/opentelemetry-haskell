@@ -1,1 +1,9 @@
-packages: */*.cabal
+if impl(ghc < 8.10.0)
+  packages: */*.cabal
+else
+  packages: opentelemetry/opentelemetry.cabal
+            megaexample/megaexample.cabal
+            opentelemetry-extra/opentelemetry-extra.cabal
+            opentelemetry-lightstep/opentelemetry-lightstep.cabal
+            -- opentelemetry-proto/opentelemetry-proto.cabal
+            opentelemetry-wai/opentelemetry-wai.cabal
