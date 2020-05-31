@@ -159,3 +159,15 @@ executable eventlog-to-tracy
   build-depends:
     base,
     process,
+
+executable eventlog-to-opentelemetry
+  import: options
+  main-is:    Main.hs
+  hs-source-dirs: exe/eventlog-to-opentelemetry
+  build-depends:
+    base,
+    bytestring,
+    microlens,
+    opentelemetry-proto,
+    proto-lens,
+  default-language: Haskell2010

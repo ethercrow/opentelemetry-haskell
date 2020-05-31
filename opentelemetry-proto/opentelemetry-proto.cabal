@@ -8,6 +8,10 @@ license:             Apache-2.0
 author:              Dmitry Ivanov
 maintainer:          ethercrow@gmail.com
 build-type:          Custom
+extra-source-files:
+  proto/opentelemetry/proto/common/v1/common.proto
+  proto/opentelemetry/proto/resource/v1/resource.proto,
+  proto/opentelemetry/proto/trace/v1/trace.proto
 
 source-repository head
   type: git
@@ -26,8 +30,6 @@ common options
     -ferror-spans
     -freverse-errors
 
-extra-source-files:
-    proto/person.proto
 
 custom-setup
   setup-depends:
@@ -41,8 +43,12 @@ library
   build-depends:
     base >= 4.12 && < 5,
     proto-lens-runtime
-  hs-source-dirs: src
   exposed-modules:
-    Proto.OpenTelemetry.Common
+    Proto.Opentelemetry.Proto.Common.V1.Common,
+    Proto.Opentelemetry.Proto.Common.V1.Common_Fields,
+    Proto.Opentelemetry.Proto.Resource.V1.Resource,
+    Proto.Opentelemetry.Proto.Resource.V1.Resource_Fields,
+    Proto.Opentelemetry.Proto.Trace.V1.Trace,
+    Proto.Opentelemetry.Proto.Trace.V1.Trace_Fields
   other-modules:
-    Paths_opentelemetry-proto
+    Paths_opentelemetry_proto
