@@ -1,3 +1,3 @@
 [submodule "proto"]
 	path = opentelemetry-proto/proto
-	url = /home/dan/demo/haskell/gsoc/tele-meta/opentelemetry-proto
+	url = https://github.com/open-telemetry/opentelemetry-proto.git
