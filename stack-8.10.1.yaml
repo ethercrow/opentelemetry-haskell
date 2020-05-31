@@ -5,7 +5,6 @@ packages:
 - opentelemetry
 - opentelemetry-extra
 - opentelemetry-lightstep
-- opentelemetry-proto
 - opentelemetry-wai
 
 allow-newer: true
