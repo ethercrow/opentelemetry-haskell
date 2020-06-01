@@ -2,6 +2,7 @@
 
 module OpenTelemetry.ChromeExporter where
 
+import Data.HashMap.Strict as HM
 import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy as LBS
@@ -10,6 +11,7 @@ import Data.Word
 import OpenTelemetry.Common
 import OpenTelemetry.Exporter
 import System.IO
+import Data.Function
 
 newtype ChromeBeginSpan = ChromeBegin Span
 
@@ -43,7 +45,12 @@ instance ToJSON ChromeBeginSpan where
         "pid" .= (1 :: Int),
         "tid" .= spanThreadId,
         "ts" .= (div spanStartedAt 1000),
-        "args" .= fmap ChromeTagValue spanTags
+        "args" .= fmap ChromeTagValue
+          (spanTags
+            & HM.insert "gc_us" (IntTagValue . fromIntegral $ spanNanosecondsSpentInGC `div` 1000)
+            & (if spanNanosecondsSpentInGC == 0
+                then id
+                else HM.insert "gc_fraction" (DoubleTagValue (fromIntegral spanNanosecondsSpentInGC / fromIntegral (spanFinishedAt - spanStartedAt)))))
       ]
 
 instance ToJSON ChromeEndSpan where
