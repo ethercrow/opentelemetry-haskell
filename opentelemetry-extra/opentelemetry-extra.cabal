@@ -168,6 +168,11 @@ executable eventlog-to-opentelemetry
     base,
     bytestring,
     microlens,
+    microlens-th,
+    opentelemetry >= 0.4.0,
+    opentelemetry-extra,
     opentelemetry-proto,
+    optparse-applicative,
+    filepath,
     proto-lens,
   default-language: Haskell2010
