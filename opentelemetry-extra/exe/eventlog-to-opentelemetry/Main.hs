@@ -40,6 +40,19 @@ data ConsoleOptions = ConsoleOptions
 
 makeLenses ''ConsoleOptions
 
+headerAttr :: C.AttributeKeyValue
+headerAttr = defMessage
+             & C.key         .~ "Origin Logger"
+             & C.type'       .~ C.AttributeKeyValue'STRING
+             & C.stringValue .~ "GHC Eventlog / opentelemetry-haskell"
+
+headerResource :: R.Resource
+headerResource =
+  defMessage
+      & R.attributes      .~ [headerAttr]
+      & C.type'     .~ C.AttributeKeyValue'STRING
+      & C.stringValue .~ "World"
+
 resource1 :: C.AttributeKeyValue
 resource1 =
   defMessage
