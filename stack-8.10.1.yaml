@@ -1,4 +1,4 @@
-resolver: lts-15.13
+resolver: lts-15.15
 compiler: ghc-8.10.1
 packages:
 - megaexample
