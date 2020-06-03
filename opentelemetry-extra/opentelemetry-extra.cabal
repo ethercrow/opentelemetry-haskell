@@ -164,15 +164,18 @@ executable eventlog-to-opentelemetry
   import: options
   main-is:    Main.hs
   hs-source-dirs: exe/eventlog-to-opentelemetry
+  other-modules: Console, Json, Resource
   build-depends:
+    aeson,
     base,
     bytestring,
+    filepath,
     microlens,
     microlens-th,
     opentelemetry >= 0.4.0,
     opentelemetry-extra,
     opentelemetry-proto,
     optparse-applicative,
-    filepath,
     proto-lens,
+    text,
   default-language: Haskell2010
