@@ -13,3 +13,4 @@ allow-newer: true
 extra-deps:
 - ghc-events-0.13.0
 - ghc-trace-events-0.1.0.1
+- ghc-source-gen-0.4.0.0
