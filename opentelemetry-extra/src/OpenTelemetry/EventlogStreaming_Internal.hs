@@ -173,8 +173,10 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                 , spanEvents = mempty
                 , spanParentId = Nothing
                 , spanStatus = OK
+                , spanNanosecondsSpentInGC = now - gcStartedAt
                 }
-              st' = st { randomGen = randomGen' }
+              spans' = fmap (\live_span -> live_span {spanNanosecondsSpentInGC = (now - gcStartedAt) + spanNanosecondsSpentInGC live_span }) spans
+              st' = st { randomGen = randomGen', spans = spans' }
           in (st', [sp])
         -- (HeapAllocated {allocBytes}, _, Just tid) ->
         --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
@@ -344,6 +346,7 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
                           spanTags = mempty,
                           spanEvents = mempty,
                           spanStatus = OK,
+                          spanNanosecondsSpentInGC = 0,
                           spanParentId = parent
                         }
                  in ( st'
@@ -370,6 +373,7 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
                           spanTags = mempty,
                           spanEvents = mempty,
                           spanStatus = OK,
+                          spanNanosecondsSpentInGC = 0,
                           spanParentId = parent
                         }
                  in ( st'

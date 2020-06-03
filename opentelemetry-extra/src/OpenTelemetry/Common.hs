@@ -60,7 +60,8 @@ data Span = Span
     spanTags :: !(HM.HashMap TagName TagValue),
     spanEvents :: [SpanEvent],
     spanStatus :: !SpanStatus,
-    spanParentId :: Maybe SpanId
+    spanParentId :: Maybe SpanId,
+    spanNanosecondsSpentInGC :: !Word64
   }
   deriving (Show, Eq)
 

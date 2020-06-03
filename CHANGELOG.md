@@ -4,6 +4,8 @@
 
 * Introduce binary eventlog messages.
 * Abandon GHC 8.6 in order to be able to send binary eventlog messages.
+* Reintroduce GC spans
+* Tag all spans with what time was spent in GC
 
 ## 0.4.2 -- 2020-05-22
 
