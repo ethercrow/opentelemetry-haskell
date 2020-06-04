@@ -7,6 +7,7 @@
 
 module Resource where
 
+import Attribute
 import Data.Aeson.TH
 import Data.List as L
 import Data.Maybe
@@ -18,19 +19,12 @@ import Json
 import Lens.Micro
 
 import Proto.Opentelemetry.Proto.Common.V1.Common as C
-import Proto.Opentelemetry.Proto.Common.V1.Common_Fields as C
 import Proto.Opentelemetry.Proto.Resource.V1.Resource as R
 import Proto.Opentelemetry.Proto.Resource.V1.Resource_Fields as R
 
 -- header structures to list of KeyValueAttribute
 class ConversionTo src dst where
     convertTo :: src -> dst
-
-strAttr :: Text -> Text -> C.AttributeKeyValue
-strAttr attrName attrVal = defMessage
-                   & C.key .~ attrName
-                   & C.type' .~ C.AttributeKeyValue'STRING
-                   & C.stringValue .~ attrVal
 
 data ServiceHeader = ServiceHeader
     { _sName       :: Text

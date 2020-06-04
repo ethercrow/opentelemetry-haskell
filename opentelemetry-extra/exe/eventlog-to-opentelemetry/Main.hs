@@ -7,25 +7,41 @@ module Main where
 
 import Console
 import Data.Aeson as A
-import Data.ProtoLens (defMessage, showMessage)
-import Data.ProtoLens.Encoding (encodeMessage, decodeMessageOrDie)
+import Data.ProtoLens (defMessage)
+import Data.ProtoLens.Encoding (encodeMessage)
 
 import Data.ByteString as BS
 import Data.ByteString.Lazy as LBS
 import Data.Maybe
 import Lens.Micro
-import Lens.Micro.TH
+
+import OpenTelemetry.Common as OC
 import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.Exporter
 
-import Proto.Opentelemetry.Proto.Common.V1.Common as C
-import Proto.Opentelemetry.Proto.Common.V1.Common_Fields as C
-import Proto.Opentelemetry.Proto.Resource.V1.Resource as R
-import Proto.Opentelemetry.Proto.Trace.V1.Trace as T
-import Proto.Opentelemetry.Proto.Trace.V1.Trace_Fields as T
-import Resource
-import System.FilePath.Posix
 
+import qualified Proto.Opentelemetry.Proto.Resource.V1.Resource as R
+import qualified Proto.Opentelemetry.Proto.Trace.V1.Trace as T
+import qualified Proto.Opentelemetry.Proto.Trace.V1.Trace_Fields as T
+import Resource
+import Spans
+import System.Clock
+import System.FilePath.Posix
+import System.IO
+
+createExporter :: R.Resource -> FilePath -> IO (Exporter OC.Span)
+createExporter resource path = do
+  f <- openFile path WriteMode
+  pure
+    $! Exporter
+      ( \sps -> do
+          let msg :: T.ResourceSpans = defMessage
+                    & T.resource .~ resource
+                    & T.instrumentationLibrarySpans .~ [spansToLibSpans sps]
+          BS.hPut f (encodeMessage msg)
+          pure ExportSuccess
+      )
+      (hClose f)
 
 main :: IO ()
 main = do
@@ -38,7 +54,7 @@ main = do
                            ++ cmd^.coCmd.trJsonHeader
       header :: ResourceHeader <- (fromMaybe emptyHeaderErr . A.decode)
                 <$> LBS.readFile (cmd^.coCmd.trJsonHeader)
-      let encodedHeader = encodeMessage . (\x -> (convertTo x) :: R.Resource) $ header
-      BS.writeFile dstPath encodedHeader
-      let msg :: R.Resource = decodeMessageOrDie encodedHeader
-      Prelude.putStrLn . showMessage $ msg
+      exporter <- createExporter (convertTo header) dstPath
+      origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime
+      work origin_timestamp exporter $ EventLogFilename dstPath
+      shutdown exporter
