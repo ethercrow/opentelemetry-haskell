@@ -3,12 +3,22 @@ module Main where
 import System.Environment (getArgs)
 import System.Exit
 import System.Process
+import System.Directory
 
 help :: IO ()
 help = do
   putStrLn "Converts eventlog to Tracy format and launches the viewer."
   putStrLn "Path to eventlog is expected."
   exitFailure
+
+callProcessOrExplain :: FilePath -> String -> [String] -> IO ()
+callProcessOrExplain filename instruction args = do
+  exists <- findExecutable filename
+  case exists of
+    Just _ -> callProcess filename args
+    Nothing -> do
+      putStrLn $ filename <> ": command not found, please install " <> instruction
+      exitFailure
 
 main :: IO ()
 main = do
@@ -20,6 +30,6 @@ main = do
       let chromeFile = eventlogFile ++ ".trace.json"
       let tracyFile = eventlogFile ++ ".tracy"
       callProcess "eventlog-to-chrome" ["read", eventlogFile]
-      callProcess "import-chrome" [chromeFile, tracyFile]
-      callProcess "Tracy" [tracyFile]
+      callProcessOrExplain "import-chrome" "chrome" [chromeFile, tracyFile]
+      callProcessOrExplain "Tracy" "Tracy" [tracyFile]
     _ -> help
