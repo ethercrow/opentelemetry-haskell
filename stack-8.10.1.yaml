@@ -14,6 +14,4 @@ extra-deps:
 - ghc-events-0.13.0
 - ghc-trace-events-0.1.0.1
 - ghc-source-gen-0.4.0.0
-- github: google/proto-lens
-  commit: 0bef8c2f3da645f068b8a26ac168c1da41608182
-  subdirs: proto-lens
+- proto-lens-0.7.0.0
