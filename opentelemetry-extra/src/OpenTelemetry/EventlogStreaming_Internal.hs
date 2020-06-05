@@ -3,7 +3,6 @@
 
 module OpenTelemetry.EventlogStreaming_Internal where
 
-import Data.Coerce
 import qualified Data.Binary.Get as DBG
 import GHC.Generics
 import GHC.Stack
@@ -15,7 +14,6 @@ import qualified Data.IntMap as IM
 import Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
-import Data.Word
 import GHC.RTS.Events
 import GHC.RTS.Events.Incremental
 import OpenTelemetry.Common hiding (Event, Timestamp)
@@ -24,17 +22,11 @@ import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import OpenTelemetry.Binary.Eventlog (SpanInFlight (..), MsgType (..), magic)
 import Text.Printf
-import qualified Data.IntMap as IM
 import Data.Bits
-import qualified Data.HashMap.Strict as HM
 import Data.Word
-import GHC.RTS.Events (Timestamp)
-import OpenTelemetry.Common (Span (..))
-import OpenTelemetry.SpanContext
 import qualified System.Random.SplitMix as R
 
 import System.IO
-import qualified System.Random.SplitMix as R
 
 data WatDoOnEOF = StopOnEOF | SleepAndRetryOnEOF
 
@@ -70,7 +62,7 @@ work origin_timestamp exporter source = do
    EventLogFilename path  -> do
      readEventLogFromFile path >>= \case
        Right (dat -> Data {events}) -> do
-         let go s [] = pure ()
+         let go _ [] = pure ()
              go s (e : es) = do
                dd_ "event" (evTime e, evCap e, evSpec e)
                case processEvent e s of
@@ -129,7 +121,7 @@ work origin_timestamp exporter source = do
     go state0 decodeEventLog
   d_ "no more work"
 
-
+parseOpenTelemetry :: EventInfo -> Maybe OpenTelemetryEventlogEvent
 parseOpenTelemetry UserMessage {msg} = parseText (T.words msg)
 parseOpenTelemetry UserBinaryMessage {payload} = parseByteString payload
 parseOpenTelemetry _ = Nothing
