@@ -6,7 +6,7 @@ import Data.HashMap.Strict as HM
 import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy as LBS
-import Data.List
+import Data.List (sortOn)
 import Data.Word
 import OpenTelemetry.EventlogStreaming_Internal (EventSource(EventLogFilename), work)
 import OpenTelemetry.Common
