@@ -3,11 +3,7 @@
 module Main where
 
 import OpenTelemetry.ChromeExporter
-import OpenTelemetry.EventlogStreaming_Internal
-import OpenTelemetry.Exporter
 import Options.Applicative
-import System.Clock
-import System.IO
 import Text.Printf
 
 data ConsoleOptions = ConsoleOptions Command deriving (Show)
@@ -21,10 +17,7 @@ main = do
     EventlogToChromeCmd path -> do
       let target_path = (path <> ".trace.json")
       printf "Converting %s to %s...\n" path target_path
-      exporter <- createChromeSpanExporter target_path
-      origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime
-      work origin_timestamp exporter $ EventLogFilename path
-      shutdown exporter
+      eventlogToChrome path target_path
       putStrLn "\nAll done."
 
 readEventlogFileCmdParser :: Parser Command
