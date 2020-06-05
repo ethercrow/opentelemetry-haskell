@@ -158,4 +158,8 @@ executable eventlog-to-tracy
   hs-source-dirs: exe/eventlog-to-tracy
   build-depends:
     base,
+    clock,
+    directory,
+    opentelemetry >= 0.4.0,
+    opentelemetry-extra,
     process,

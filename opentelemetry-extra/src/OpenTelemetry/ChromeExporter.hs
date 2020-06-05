@@ -8,8 +8,10 @@ import Data.Aeson
 import qualified Data.ByteString.Lazy as LBS
 import Data.List
 import Data.Word
+import OpenTelemetry.EventlogStreaming_Internal (EventSource(EventLogFilename), work)
 import OpenTelemetry.Common
 import OpenTelemetry.Exporter
+import System.Clock (Clock(Realtime), toNanoSecs, getTime)
 import System.IO
 import Data.Function
 
@@ -88,3 +90,10 @@ createChromeSpanExporter path = do
           hPutStrLn f "\n]"
           hClose f
       )
+
+eventlogToChrome :: FilePath -> FilePath -> IO ()
+eventlogToChrome eventlogFile chromeFile = do
+  exporter <- createChromeSpanExporter chromeFile
+  origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime
+  work origin_timestamp exporter $ EventLogFilename eventlogFile
+  shutdown exporter
