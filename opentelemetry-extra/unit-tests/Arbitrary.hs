@@ -6,7 +6,7 @@ module Arbitrary where
 
 import OpenTelemetry.EventlogStreaming_Internal
 import Data.Text as T
-import Data.List as L
+import qualified Data.List as L
 import OpenTelemetry.Binary.Eventlog
 import OpenTelemetry.Common
 import OpenTelemetry.SpanContext
