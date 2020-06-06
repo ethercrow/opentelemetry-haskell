@@ -32,6 +32,7 @@ common options
     ViewPatterns
   ghc-options:
     -Wall
+    -Werror
     -Wcompat
     -Widentities
     -Wincomplete-record-updates
@@ -90,4 +91,3 @@ executable eventlog-to-lightstep
     unordered-containers
   main-is: Main.hs
   hs-source-dirs: exe/eventlog-to-lightstep
-
