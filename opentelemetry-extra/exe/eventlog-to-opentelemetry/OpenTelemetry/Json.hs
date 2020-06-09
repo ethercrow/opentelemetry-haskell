@@ -1,4 +1,4 @@
-module Json (jsonOpts) where
+module OpenTelemetry.Json (jsonOpts) where
 
 import Data.Aeson
 import Data.Char

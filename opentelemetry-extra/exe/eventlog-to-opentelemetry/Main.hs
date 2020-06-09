@@ -5,7 +5,6 @@
 
 module Main where
 
-import Console
 import Data.Aeson as A
 import Data.ProtoLens (defMessage)
 import Data.ProtoLens.Encoding (encodeMessage)
@@ -19,12 +18,12 @@ import OpenTelemetry.Common as OC
 import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.Exporter
 
-
 import qualified Proto.Opentelemetry.Proto.Resource.V1.Resource as R
 import qualified Proto.Opentelemetry.Proto.Trace.V1.Trace as T
 import qualified Proto.Opentelemetry.Proto.Trace.V1.Trace_Fields as T
-import Resource
-import Spans
+import OpenTelemetry.Console
+import OpenTelemetry.Resource
+import OpenTelemetry.Spans
 import System.Clock
 import System.FilePath.Posix
 import System.IO

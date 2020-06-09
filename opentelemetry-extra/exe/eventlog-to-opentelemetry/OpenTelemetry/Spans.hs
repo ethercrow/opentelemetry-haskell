@@ -4,9 +4,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Spans where
+module OpenTelemetry.Spans where
 
-import Attribute
 import Data.ByteString as BS
 import Data.ByteString.Builder as BSB
 import Data.ByteString.Lazy as LBS
@@ -16,16 +15,15 @@ import qualified Data.HashMap.Strict as HM
 import Data.ProtoLens (defMessage)
 import Data.Word
 import Lens.Micro
-
+import OpenTelemetry.Attribute
 import OpenTelemetry.Common as OTC
 import OpenTelemetry.SpanContext
-
+import OpenTelemetry.Resource
 import Proto.Opentelemetry.Proto.Common.V1.Common as C
 import Proto.Opentelemetry.Proto.Common.V1.Common_Fields as C
 import Proto.Opentelemetry.Proto.Trace.V1.Trace as T
 import Proto.Opentelemetry.Proto.Trace.V1.Trace_Fields as T
 
-import Resource
 
 instrLib :: C.InstrumentationLibrary
 instrLib = defMessage

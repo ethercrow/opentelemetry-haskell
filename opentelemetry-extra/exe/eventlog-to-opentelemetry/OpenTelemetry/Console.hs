@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Console
+module OpenTelemetry.Console
     ( parseConsoleOptions
     , Command (..)
     , ConsoleOptions (..)

@@ -5,19 +5,16 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Resource where
+module OpenTelemetry.Resource where
 
-import Attribute
 import Data.Aeson.TH
 import Data.List as L
 import Data.Maybe
 import Data.ProtoLens (defMessage)
 import Data.Text
-
-import Json
-
 import Lens.Micro
-
+import OpenTelemetry.Attribute
+import OpenTelemetry.Json
 import Proto.Opentelemetry.Proto.Common.V1.Common as C
 import Proto.Opentelemetry.Proto.Resource.V1.Resource as R
 import Proto.Opentelemetry.Proto.Resource.V1.Resource_Fields as R

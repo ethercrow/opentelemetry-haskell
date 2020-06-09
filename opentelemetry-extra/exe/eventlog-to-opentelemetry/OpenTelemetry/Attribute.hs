@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Attribute where
+module OpenTelemetry.Attribute where
 
 import Data.ProtoLens (defMessage)
 import Data.Text
