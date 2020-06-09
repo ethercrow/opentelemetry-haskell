@@ -1,10 +1,11 @@
-resolver: lts-15.13
+resolver: lts-15.15
 compiler: ghc-8.10.1
 packages:
 - megaexample
 - opentelemetry
 - opentelemetry-extra
 - opentelemetry-lightstep
+- opentelemetry-proto
 - opentelemetry-wai
 
 allow-newer: true
@@ -12,3 +13,5 @@ allow-newer: true
 extra-deps:
 - ghc-events-0.13.0
 - ghc-trace-events-0.1.0.1
+- ghc-source-gen-0.4.0.0
+- proto-lens-0.7.0.0

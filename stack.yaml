@@ -5,6 +5,7 @@ packages:
 - opentelemetry
 - opentelemetry-extra
 - opentelemetry-lightstep
+- opentelemetry-proto
 - opentelemetry-wai
 
 extra-deps:

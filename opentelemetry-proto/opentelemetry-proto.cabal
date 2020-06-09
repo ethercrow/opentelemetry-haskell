@@ -1,0 +1,55 @@
+cabal-version:       2.4
+name:                opentelemetry-proto
+description:         OpenTelemetry Protobuf Data types
+category:            OpenTelemetry
+version: 0.4.2
+license-file:        LICENSE
+license:             Apache-2.0
+author:              Dmitry Ivanov
+maintainer:          ethercrow@gmail.com
+build-type:          Custom
+extra-source-files:
+  proto/opentelemetry/proto/common/v1/common.proto
+  proto/opentelemetry/proto/resource/v1/resource.proto,
+  proto/opentelemetry/proto/trace/v1/trace.proto
+
+source-repository head
+  type: git
+  location: https://github.com/ethercrow/opentelemetry-haskell
+
+common options
+  default-language: Haskell2010
+  ghc-options:
+    -Wall
+    -Wcompat
+    -Widentities
+    -Wincomplete-record-updates
+    -Wincomplete-uni-patterns
+    -Wpartial-fields
+    -fhide-source-paths
+    -ferror-spans
+    -freverse-errors
+
+
+
+custom-setup
+  setup-depends:
+      Cabal
+    , base
+    , proto-lens-setup
+
+
+library
+  import: options
+  build-depends:
+    base >= 4.12 && < 5,
+    proto-lens-runtime
+  exposed-modules:
+    Proto.Opentelemetry.Proto.Common.V1.Common,
+    Proto.Opentelemetry.Proto.Common.V1.Common_Fields,
+    Proto.Opentelemetry.Proto.Resource.V1.Resource,
+    Proto.Opentelemetry.Proto.Resource.V1.Resource_Fields,
+    Proto.Opentelemetry.Proto.Trace.V1.Trace,
+    Proto.Opentelemetry.Proto.Trace.V1.Trace_Fields
+  other-modules:
+    Paths_opentelemetry_proto

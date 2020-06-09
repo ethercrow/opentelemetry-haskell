@@ -1,0 +1,9 @@
+{
+  "ServiceHeader": {
+    "Name": "service1",
+    "NameSpace": "*",
+    "InstanceId": "74036208-6af7-4f12-b260-23bb2f1334d3",
+    "Version": "version:0.0.1"
+  },
+  "ExtraHeaders": []
+}

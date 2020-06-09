@@ -164,3 +164,30 @@ executable eventlog-to-tracy
     opentelemetry >= 0.4.0,
     opentelemetry-extra,
     process,
+
+executable eventlog-to-opentelemetry
+  import: options
+  main-is:    Main.hs
+  hs-source-dirs: exe/eventlog-to-opentelemetry
+  other-modules:
+    OpenTelemetry.Console,
+    OpenTelemetry.Json,
+    OpenTelemetry.Resource,
+    OpenTelemetry.Attribute,
+    OpenTelemetry.Spans
+  build-depends:
+    aeson,
+    base,
+    bytestring,
+    clock,
+    filepath,
+    microlens,
+    microlens-th,
+    opentelemetry >= 0.4.0,
+    opentelemetry-extra,
+    opentelemetry-proto,
+    optparse-applicative,
+    proto-lens,
+    text,
+    unordered-containers,
+  default-language: Haskell2010
