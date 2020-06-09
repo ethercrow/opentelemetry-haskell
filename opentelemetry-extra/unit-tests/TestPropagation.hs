@@ -22,7 +22,9 @@ prop_render_parse_roundtrip_b3 sid tid =
 
 unit_render_smoke :: Assertion
 unit_render_smoke =
-  propagateToHeaders w3cTraceContext (SpanContext (SId 1) (TId 2)) @?= [("traceparent", "00-2-1-00")]
+  propagateToHeaders w3cTraceContext (SpanContext (SId 1) (TId 2)) @?= expected
+      where
+        expected = [("traceparent" :: String, "00-2-1-00")]
 
 unit_parse_smoke :: Assertion
 unit_parse_smoke =
