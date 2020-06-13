@@ -7,6 +7,8 @@ import qualified Data.Binary.Get as DBG
 import GHC.Generics
 import GHC.Stack
 import Control.Concurrent (threadDelay)
+import Data.List
+import System.Clock
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashMap.Strict as HM
@@ -517,3 +519,14 @@ logEventP =
 
 parseByteString :: B.ByteString -> Maybe OpenTelemetryEventlogEvent
 parseByteString = DBG.runGet logEventP . LBS.fromStrict
+
+exportEventlog :: Exporter Span -> FilePath -> IO ()
+exportEventlog exporter path = do
+  origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime
+  work origin_timestamp exporter $ EventLogFilename path
+  -- TODO(divanov): better way of understanding whether filename points to a named pipe
+  case ".pipe" `isSuffixOf` path of
+    True -> do
+      withFile path ReadMode (\handle ->
+        work origin_timestamp exporter $ EventLogHandle handle SleepAndRetryOnEOF)
+    False -> work origin_timestamp exporter $ EventLogFilename path

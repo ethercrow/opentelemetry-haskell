@@ -151,7 +151,6 @@ executable eventlog-to-chrome
     clock,
     opentelemetry >= 0.4.0,
     opentelemetry-extra,
-    optparse-applicative,
 
 executable eventlog-to-tracy
   import: options
