@@ -7,7 +7,7 @@ import qualified Data.Binary.Get as DBG
 import GHC.Generics
 import GHC.Stack
 import Control.Concurrent (threadDelay)
-import Data.List
+import Data.List (isSuffixOf)
 import System.Clock
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LBS
