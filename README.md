@@ -60,6 +60,49 @@ a free tier.
 
 TODO: Document how to export trace data to Chrome or Tracy.
 
+### Eventlog summary
+
+This is the simplest kind of exporter that doesn't send the trace to any external application or service but prints some statistics about a given eventlog.
+
+```
+> eventlog-summary stack.eventlog
+Count   Tot ms  Min ms  Max ms  Operation
+-----   ------  ------  ------  ---------
+1       0       0       0       Build.build_setLocalFiles
+1       0       0       0       Main.buildCmd_before_inner
+1       0       0       0       Build.Source.loadSourceMap
+1       0       0       0       Build.Execute.getSetupExe
+1       0       0       0       Build.Source.localDependencies
+1       0       0       0       Build.mkBaseConfigOpts
+1       0       0       0       Build.Installed.toInstallMap
+1       0       0       0       Lock.loadYamlThrow
+1       0       0       0       Build.build_checkComponentsBuildable
+1       0       0       0       Config.loadProjectConfig
+3       0       0       0       Config.loadConfigYaml
+1       0       0       0       Build.Execute.executePlan
+1       4       4       4       Build.Source.projectLocalPackages
+9       6       0       1       Storage.Project.loadConfigCache
+19      7       0       1       Build.Source.loadLocalPackage
+1       23      23      23      Build.ConstructPlan.constructPlan
+1       51      51      51      setupEnv
+1       126     126     126     Pantry.loadAndCompleteSnapshotRaw
+1       128     128     128     Lock.lockCacheWanted
+1131    212     0       8       gc
+1       246     246     246     Build.Installed.getInstalled
+1       275     275     275     Build.build
+1       328     328     328     Storage.Project.initProjectStorage
+5       387     45      109     sinkProcessStdout
+5       387     45      109     PackageDump.ghcPkgCmdArgs
+5       408     46      116     Build.Installed.loadDatabase
+1       456     456     456     Config.withBuildConfig
+1       463     463     463     Config.loadConfig
+1       463     463     463     Runners.withConfig
+1       463     463     463     Main.buildCmd_inner
+1       463     463     463     Main.buildCmd
+1       472     472     472     Main.main
+It's fine
+```
+
 ### Zipkin
 
 ```
