@@ -37,7 +37,6 @@ common options
   ghc-options:
     -Wall
     -Wcompat
-    -Werror
     -Widentities
     -Wincomplete-record-updates
     -Wincomplete-uni-patterns
@@ -163,3 +162,15 @@ executable eventlog-to-tracy
     opentelemetry >= 0.4.0,
     opentelemetry-extra,
     process,
+
+executable eventlog-summary
+  import: options
+  main-is:    Main.hs
+  hs-source-dirs: exe/eventlog-summary
+  build-depends:
+    base,
+    hashtables,
+    opentelemetry >= 0.4.0,
+    opentelemetry-extra,
+    text
+

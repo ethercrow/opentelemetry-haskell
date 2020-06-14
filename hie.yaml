@@ -12,6 +12,8 @@ cradle:
     config: { cradle: {stack: {component: "opentelemetry-extra:exe:eventlog-to-zipkin"}} }
   - path: "./opentelemetry-extra/exe/eventlog-to-chrome"
     config: { cradle: {stack: {component: "opentelemetry-extra:exe:eventlog-to-chrome"}} }
+  - path: "./opentelemetry-extra/exe/eventlog-summary"
+    config: { cradle: {stack: {component: "opentelemetry-extra:exe:eventlog-summary"}} }
   - path: "./opentelemetry-wai/src"
     config: { cradle: {stack: {component: "opentelemetry-wai:lib"}} }
   - path: "./opentelemetry-extra/unit-tests"

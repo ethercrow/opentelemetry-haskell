@@ -69,8 +69,12 @@ work origin_timestamp exporter source = do
                dd_ "event" (evTime e, evCap e, evSpec e)
                case processEvent e s of
                  (s', sps) -> do
-                   mapM_ (d_ . ("emit " <>) . show) sps
-                   _ <- export exporter sps
+                   case sps of
+                    [] -> pure ()
+                    _ -> do
+                       mapM_ (d_ . ("emit " <>) . show) sps
+                       _ <- export exporter sps
+                       pure ()
                    go s' es
          go state0 $ sortEvents events
        Left err -> do
