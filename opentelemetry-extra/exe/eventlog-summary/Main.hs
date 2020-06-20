@@ -26,7 +26,7 @@ main = do
   case args of
     [path] -> do
       (opCounts:: H.CuckooHashTable T.Text PerOperationStats) <- H.new
-      let exporter = Exporter
+      let span_exporter = Exporter
             (\sps -> do
               forM_ sps $ \sp -> do
                 let duration = spanFinishedAt sp - spanStartedAt sp
@@ -44,7 +44,8 @@ main = do
                                   m, ()))
               pure ExportSuccess)
             (pure ())
-      exportEventlog exporter path
+          metric_exporter = noopExporter
+      exportEventlog span_exporter metric_exporter path
       leaderboard <- sortOn (total_ns . snd) <$> H.toList opCounts
       printf "Count\tTot ms\tMin ms\tMax ms\tOperation\n"
       printf "-----\t------\t------\t------\t---------\n"

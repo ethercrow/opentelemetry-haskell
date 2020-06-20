@@ -64,33 +64,54 @@ instance ToJSON ChromeEndSpan where
             "ts" .= (div spanFinishedAt 1000)
           ]
 
-createChromeSpanExporter :: FilePath -> IO (Exporter Span)
-createChromeSpanExporter path = do
+createChromeExporter :: FilePath -> IO (Exporter Span, Exporter Metric)
+createChromeExporter path = do
   f <- openFile path WriteMode
   hPutStrLn f "[ "
-  pure
-    $! Exporter
-      ( \sps -> do
-          mapM_
-            ( \sp@Span{..} -> do
-                LBS.hPutStr f $ encode $ ChromeBegin sp
-                LBS.hPutStr f ",\n"
-                forM_ (sortOn spanEventTimestamp spanEvents) $ \ev -> do
-                  LBS.hPutStr f $ encode $ ChromeEvent spanThreadId ev
+  let span_exporter = Exporter
+        ( \sps -> do
+            mapM_
+              ( \sp@Span{..} -> do
+                  LBS.hPutStr f $ encode $ ChromeBegin sp
                   LBS.hPutStr f ",\n"
-                LBS.hPutStr f $ encode $ ChromeEnd sp
-                LBS.hPutStr f ",\n"
-            )
-            sps
-          pure ExportSuccess
-      )
-      ( do
-          hSeek f RelativeSeek (-2) -- overwrite the last comma
-          hPutStrLn f "\n]"
-          hClose f
-      )
+                  forM_ (sortOn spanEventTimestamp spanEvents) $ \ev -> do
+                    LBS.hPutStr f $ encode $ ChromeEvent spanThreadId ev
+                    LBS.hPutStr f ",\n"
+                  LBS.hPutStr f $ encode $ ChromeEnd sp
+                  LBS.hPutStr f ",\n"
+              )
+              sps
+            pure ExportSuccess
+        )
+        ( do
+            hSeek f RelativeSeek (-2) -- overwrite the last comma
+            hPutStrLn f "\n]"
+            hClose f
+        )
+      metric_exporter = Exporter
+        ( \metrics -> do
+            mapM_
+              (\case
+                Gauge ts name value -> do
+                  LBS.hPutStr f $ encode $
+                    object
+                         [ "ph" .= ("C" :: String),
+                           "name" .= name,
+                           "ts" .= (div ts 1000),
+                           "args" .= object [name .= Number (fromIntegral value)]
+                         ]
+                  LBS.hPutStr f ",\n"
+                )
+              metrics
+            pure ExportSuccess
+        )
+        (pure ())
+  pure (span_exporter, metric_exporter)
 
 eventlogToChrome :: FilePath -> FilePath -> IO ()
 eventlogToChrome eventlogFile chromeFile = do
-  exporter <- createChromeSpanExporter chromeFile
-  exportEventlog exporter eventlogFile
+  (span_exporter, metric_exporter) <- createChromeExporter chromeFile
+  exportEventlog span_exporter metric_exporter eventlogFile
+  shutdown span_exporter
+  shutdown metric_exporter
+

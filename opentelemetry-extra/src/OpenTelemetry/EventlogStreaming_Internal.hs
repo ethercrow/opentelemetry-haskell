@@ -55,8 +55,8 @@ data EventSource
   = EventLogHandle Handle WatDoOnEOF
   | EventLogFilename FilePath
 
-work :: Timestamp -> Exporter Span -> EventSource -> IO ()
-work origin_timestamp exporter source = do
+work :: Timestamp -> Exporter Span -> Exporter Metric -> EventSource -> IO ()
+work origin_timestamp span_exporter metric_exporter source = do
   d_ "Starting the eventlog reader"
   smgen <- R.initSMGen -- TODO(divanov): seed the random generator with something more random than current time
   let state0 = initialState origin_timestamp smgen
@@ -68,12 +68,18 @@ work origin_timestamp exporter source = do
              go s (e : es) = do
                dd_ "event" (evTime e, evCap e, evSpec e)
                case processEvent e s of
-                 (s', sps) -> do
+                 (s', sps, ms) -> do
                    case sps of
                     [] -> pure ()
                     _ -> do
-                       mapM_ (d_ . ("emit " <>) . show) sps
-                       _ <- export exporter sps
+                       mapM_ (d_ . ("emit span " <>) . show) sps
+                       _ <- export span_exporter sps
+                       pure ()
+                   case ms of
+                    [] -> pure ()
+                    _ -> do
+                       mapM_ (d_ . ("emit metric " <>) . show) ms
+                       _ <- export metric_exporter ms
                        pure ()
                    go s' es
          go state0 $ sortEvents events
@@ -91,8 +97,8 @@ work origin_timestamp exporter source = do
             _ -> do
               -- d_ "go Produce"
               dd_ "event" (evTime event, evCap event, evSpec event)
-              let (s', sps) = processEvent event s
-              _ <- export exporter sps
+              let (s', sps, _ms) = processEvent event s
+              _ <- export span_exporter sps
               -- print s'
               mapM_ (d_ . ("emit " <>) . show) sps
               go s' next
@@ -132,21 +138,21 @@ parseOpenTelemetry UserMessage {msg} = parseText (T.words msg)
 parseOpenTelemetry UserBinaryMessage {payload} = parseByteString payload
 parseOpenTelemetry _ = Nothing
 
-processEvent :: Event -> State -> (State, [Span])
+processEvent :: Event -> State -> (State, [Span], [Metric])
 processEvent (Event ts ev m_cap) st@(S {..}) =
   let now = originTimestamp + ts
       m_thread_id = m_cap >>= flip IM.lookup threadMap
       m_trace_id = m_thread_id >>= flip HM.lookup traceMap
    in case (ev, m_cap, m_thread_id) of
         (WallClockTime {sec, nsec}, _, _) ->
-          (st {originTimestamp = sec * 1_000_000_000 + fromIntegral nsec - ts}, [])
+          (st {originTimestamp = sec * 1_000_000_000 + fromIntegral nsec - ts}, [], [])
         (CreateThread new_tid, _, _) ->
           let trace_id = case m_trace_id of
                 Just t -> t
                 Nothing -> TId originTimestamp -- TODO: something more random
-           in (st {traceMap = HM.insert new_tid trace_id traceMap}, [])
+           in (st {traceMap = HM.insert new_tid trace_id traceMap}, [], [])
         (RunThread tid, Just cap, _) ->
-          (st {threadMap = IM.insert cap tid threadMap}, [])
+          (st {threadMap = IM.insert cap tid threadMap}, [], [])
         (StopThread tid tstatus, Just cap, _)
           | isTerminalThreadStatus tstatus ->
             ( st
@@ -154,11 +160,11 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                   traceMap = HM.delete tid traceMap
                 },
               []
-            )
+            , [])
         (StartGC, _, _) ->
-          (st {gcStartedAt = now}, [])
-        -- (GCStatsGHC {gen}, _, _) ->
-        --   (st {gcGeneration = gen}, [])
+          (st {gcStartedAt = now}, [], [])
+        (HeapLive {liveBytes}, _, _) -> (st, [], [Gauge now "heap_live" $ fromIntegral liveBytes])
+        (HeapAllocated {allocBytes}, _, _) -> (st, [], [Gauge now "heap_alloc" $ fromIntegral allocBytes])
         (EndGC, _, _) ->
           let (span_id, randomGen') = R.nextWord64 randomGen
               sp = Span
@@ -175,15 +181,15 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                 }
               spans' = fmap (\live_span -> live_span {spanNanosecondsSpentInGC = (now - gcStartedAt) + spanNanosecondsSpentInGC live_span }) spans
               st' = st { randomGen = randomGen', spans = spans' }
-          in (st', [sp])
+          in (st', [sp], [])
         -- (HeapAllocated {allocBytes}, _, Just tid) ->
-        --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [])
+        --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [], [])
 
         (parseOpenTelemetry -> Just ev', _, fromMaybe 1 -> tid) ->
           handleOpenTelemetryEventlogEvent ev' st (tid, now, m_trace_id)
-        _ -> (st, [])
+        _ -> (st, [], [])
 
--- beginSpan :: TraceId -> SpanId -> T.Text -> OTel.Timestamp -> State -> (State, [Span])
+-- beginSpan :: TraceId -> SpanId -> T.Text -> OTel.Timestamp -> State -> (State, [Span], [Metric])
 -- beginSpan trace_id span_id@(SId s) name timestamp st =
 --   case HM.lookup s (specificSpans st) of
 --     Just sp -> (st {specificSpans = HM.delete s (specificSpans st)}, [sp {spanStartedAt = timestamp, spanOperation = name, spanContext = SpanContext span_id trace_id}])
@@ -202,7 +208,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
 --               spanParentId = Nothing
 --             }
 
--- endSpan :: Word64 -> OTel.Timestamp -> State -> (State, [Span])
+-- endSpan :: Word64 -> OTel.Timestamp -> State -> (State, [Span], [Metric])
 -- endSpan serial timestamp st =
 --   case HM.lookup serial (serial2sid st) of
 --     Just span_id@(SId s) -> (st {specificSpans = HM.delete s (specificSpans st)}, [sp {spanFinishedAt = timestamp}])
@@ -255,7 +261,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
 --           spanParentId = spanId <$> maybe_parent
 --         }
 
--- popSpan :: HasCallStack => ThreadId -> OTel.Timestamp -> State -> (State, [Span])
+-- popSpan :: HasCallStack => ThreadId -> OTel.Timestamp -> State -> (State, [Span], [Metric])
 -- popSpan tid timestamp st = (st {spanStacks = new_stacks, traceMap = new_traceMap}, [sp {spanFinishedAt = timestamp}])
 --   where
 --     sp :| new_stack = fromMaybe (error $ printf "popSpan: missing span stack for thread %d" tid) $ HM.lookup tid (spanStacks st)
@@ -269,8 +275,8 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
 --     tids = HM.keys (spanStacks st)
 --     go tid = pushSpan tid "gc" timestamp Nothing
 
--- popSpansAcrossAllThreads :: HasCallStack => OTel.Timestamp -> State -> (State, [Span])
--- popSpansAcrossAllThreads timestamp st = foldr go (st, []) tids
+-- popSpansAcrossAllThreads :: HasCallStack => OTel.Timestamp -> State -> (State, [Span], [Metric])
+-- popSpansAcrossAllThreads timestamp st = foldr go (st, [], []) tids
 --   where
 --     tids = HM.keys (spanStacks st)
 --     go tid (st', sps) =
@@ -296,12 +302,12 @@ data OpenTelemetryEventlogEvent
 handleOpenTelemetryEventlogEvent :: OpenTelemetryEventlogEvent
        -> State
        -> (Word32, Timestamp, Maybe TraceId)
-       -> (State, [Span])
+       -> (State, [Span], [Metric])
 handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
     case m of
       EventEv (SpanInFlight serial) k v ->
           case HM.lookup serial (serial2sid st) of
-              Just span_id -> (modifySpan span_id (addEvent now k v) st, [])
+              Just span_id -> (modifySpan span_id (addEvent now k v) st, [], [])
               Nothing -> error $ "add event: span not found for serial " <> show serial
       SetParentEv (SpanInFlight serial) (SpanContext psid trace_id) ->
           case HM.lookup serial $ serial2sid st of
@@ -309,12 +315,12 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
                 ( (modifySpan span_id (setParent trace_id psid) st)
                    { traceMap = HM.insert tid trace_id (traceMap st)
                    },
-                  []
+                  [], []
                 )
               Nothing -> error $ "set parent: span not found for serial " <> show serial
       SetSpanEv (SpanInFlight serial) span_id ->
           case HM.lookup serial $ serial2sid st of
-              Just old_span_id -> (modifySpan old_span_id (setSpanId span_id) st, [])
+              Just old_span_id -> (modifySpan old_span_id (setSpanId span_id) st, [], [])
               Nothing -> error $ "set spanid " <> show serial <> " " <> show span_id <> ": span id not found"
       SetTraceEv (SpanInFlight serial) trace_id ->
           case HM.lookup serial $ serial2sid st of
@@ -323,12 +329,12 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
                 ( (modifySpan span_id (setTraceId trace_id) st)
                   { traceMap = HM.insert tid trace_id $ traceMap st
                   },
-                  []
+                  [], []
                 )
       TagEv (SpanInFlight serial) k v ->
           case HM.lookup serial $ serial2sid st of
               Nothing -> error $ "set tag: span id not found for serial" <> show serial
-              Just span_id -> (modifySpan span_id (setTag k v) st, [])
+              Just span_id -> (modifySpan span_id (setTag k v) st, [], [])
       EndSpanEv (SpanInFlight serial) ->
           case HM.lookup serial $ serial2sid st of
               Nothing ->
@@ -351,11 +357,11 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
                         { spans = HM.insert span_id sp $ spans st,
                           thread2sid = HM.insert tid span_id $ thread2sid st
                         },
-                      []
+                      [], []
                     )
               Just span_id ->
                 let (st', sp) = emitSpan serial span_id st
-                 in (st', [sp {spanFinishedAt = now}])
+                 in (st', [sp {spanFinishedAt = now}], [])
       BeginSpanEv (SpanInFlight serial) (SpanName operation) ->
          case HM.lookup serial (serial2sid st) of
               Nothing ->
@@ -378,11 +384,11 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
                         { spans = HM.insert span_id sp (spans st),
                           thread2sid = HM.insert tid span_id (thread2sid st)
                         },
-                      []
+                      [], []
                     )
               Just span_id ->
                 let (st', sp) = emitSpan serial span_id st
-                 in (st', [sp {spanOperation = operation, spanStartedAt = now, spanThreadId = tid}])
+                 in (st', [sp {spanOperation = operation, spanStartedAt = now, spanThreadId = tid}], [])
 
 
 emitSpan :: Word64 -> SpanId -> State -> (State, Span)
@@ -524,13 +530,12 @@ logEventP =
 parseByteString :: B.ByteString -> Maybe OpenTelemetryEventlogEvent
 parseByteString = DBG.runGet logEventP . LBS.fromStrict
 
-exportEventlog :: Exporter Span -> FilePath -> IO ()
-exportEventlog exporter path = do
+exportEventlog :: Exporter Span -> Exporter Metric -> FilePath -> IO ()
+exportEventlog span_exporter metric_exporter path = do
   origin_timestamp <- fromIntegral . toNanoSecs <$> getTime Realtime
-  work origin_timestamp exporter $ EventLogFilename path
   -- TODO(divanov): better way of understanding whether filename points to a named pipe
   case ".pipe" `isSuffixOf` path of
     True -> do
       withFile path ReadMode (\handle ->
-        work origin_timestamp exporter $ EventLogHandle handle SleepAndRetryOnEOF)
-    False -> work origin_timestamp exporter $ EventLogFilename path
+        work origin_timestamp span_exporter metric_exporter $ EventLogHandle handle SleepAndRetryOnEOF)
+    False -> work origin_timestamp span_exporter metric_exporter $ EventLogFilename path
