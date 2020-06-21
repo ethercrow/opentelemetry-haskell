@@ -44,12 +44,13 @@ data State = S
     counterEventsProcessed :: !Int,
     counterOpenTelemetryEventsProcessed :: !Int,
     counterSpansEmitted :: !Int,
+    threadCount :: !Int,
     randomGen :: R.SMGen
   }
   deriving (Show)
 
 initialState :: Word64 -> R.SMGen -> State
-initialState timestamp = S timestamp mempty mempty mempty mempty mempty 0 0 0 0 0
+initialState timestamp = S timestamp mempty mempty mempty mempty mempty 0 0 0 0 0 0
 
 data EventSource
   = EventLogHandle Handle WatDoOnEOF
@@ -150,21 +151,26 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
           let trace_id = case m_trace_id of
                 Just t -> t
                 Nothing -> TId originTimestamp -- TODO: something more random
-           in (st {traceMap = HM.insert new_tid trace_id traceMap}, [], [])
+           in (st {
+                traceMap = HM.insert new_tid trace_id traceMap,
+                threadCount = threadCount + 1}
+              , []
+              , [Gauge now "threads" (fromIntegral $ threadCount + 1)])
         (RunThread tid, Just cap, _) ->
           (st {threadMap = IM.insert cap tid threadMap}, [], [])
         (StopThread tid tstatus, Just cap, _)
           | isTerminalThreadStatus tstatus ->
             ( st
                 { threadMap = IM.delete cap threadMap,
-                  traceMap = HM.delete tid traceMap
+                  traceMap = HM.delete tid traceMap,
+                  threadCount = threadCount - 1
                 },
               []
-            , [])
+            , [Gauge now "threads" (fromIntegral $ threadCount - 1)])
         (StartGC, _, _) ->
           (st {gcStartedAt = now}, [], [])
-        (HeapLive {liveBytes}, _, _) -> (st, [], [Gauge now "heap_live" $ fromIntegral liveBytes])
-        (HeapAllocated {allocBytes}, _, _) -> (st, [], [Gauge now "heap_alloc" $ fromIntegral allocBytes])
+        (HeapLive {liveBytes}, _, _) -> (st, [], [Gauge now "heap_live_bytes" $ fromIntegral liveBytes])
+        (HeapAllocated {allocBytes}, _, _) -> (st, [], [Gauge now "heap_alloc_bytes" $ fromIntegral allocBytes])
         (EndGC, _, _) ->
           let (span_id, randomGen') = R.nextWord64 randomGen
               sp = Span
@@ -284,8 +290,6 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
 --        in (st'', sps' <> sps)
 
 isTerminalThreadStatus :: ThreadStopStatus -> Bool
-isTerminalThreadStatus HeapOverflow = True
-isTerminalThreadStatus StackOverflow = True
 isTerminalThreadStatus ThreadFinished = True
 isTerminalThreadStatus _ = False
 
