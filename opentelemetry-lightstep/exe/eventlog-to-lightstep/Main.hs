@@ -17,9 +17,11 @@ main = do
       printf "Sending %s to Lightstep...\n" path
       Just lsConfig <- getEnvConfig
       let service_name = T.pack $ takeBaseName path
-      exporter <- createLightstepSpanExporter lsConfig {lsServiceName = service_name}
-      exportEventlog exporter path
-      shutdown exporter
+      span_exporter <- createLightstepSpanExporter lsConfig {lsServiceName = service_name}
+      let metric_exporter = noopExporter
+      exportEventlog span_exporter metric_exporter path
+      shutdown span_exporter
+      shutdown metric_exporter
       putStrLn "\nAll done."
     _ -> do
       putStrLn "Usage:"

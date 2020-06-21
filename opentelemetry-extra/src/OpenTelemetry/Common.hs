@@ -65,6 +65,10 @@ data Span = Span
   }
   deriving (Show, Eq)
 
+data Metric
+  = Gauge !Timestamp !T.Text !Int
+  deriving (Show, Eq)
+
 spanTraceId :: Span -> TraceId
 spanTraceId Span {spanContext = SpanContext _ tid} = tid
 
