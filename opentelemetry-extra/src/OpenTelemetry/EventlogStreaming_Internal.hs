@@ -188,7 +188,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                 }
               spans' = fmap (\live_span -> live_span {spanNanosecondsSpentInGC = (now - gcStartedAt) + spanNanosecondsSpentInGC live_span }) spans
               st' = st { randomGen = randomGen', spans = spans' }
-          in (st', [sp], [])
+          in (st', [sp], [Gauge now "gc" (fromIntegral $ now - gcStartedAt)])
         -- (HeapAllocated {allocBytes}, _, Just tid) ->
         --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [], [])
 
