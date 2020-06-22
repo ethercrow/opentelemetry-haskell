@@ -21,15 +21,22 @@ data PerOperationStats = PerOperationStats
   , total_ns :: !Word64
   }
 
+data MetricStats = MetricStats
+  { max_threads :: !Int
+  , max_alloc_bytes :: !Int
+  , max_live_bytes :: !Int
+  }
+
 main :: IO ()
 main = do
   args <- getArgs
   case args of
     [path] -> do
       (opCounts:: H.CuckooHashTable T.Text PerOperationStats) <- H.new
-      max_threads <- newIORef 0
-      max_alloc <- newIORef 0
-      max_live <- newIORef 0
+      metricStats <- newIORef (MetricStats 0 0 0)
+      -- max_threads <- newIORef 0
+      -- max_alloc <- newIORef 0
+      -- max_live <- newIORef 0
       let span_exporter = Exporter
             (\sps -> do
               forM_ sps $ \sp -> do
@@ -50,11 +57,12 @@ main = do
             (pure ())
           metric_exporter = Exporter
               ( \metrics -> do
-                  forM_ metrics $ \(Gauge time label value) ->
-                    case T.unpack label of
-                      "threads" -> modifyIORef max_threads (max value)
-                      "heap_alloc_bytes" -> modifyIORef max_alloc (max value)
-                      "heap_live_bytes" -> modifyIORef max_live (max value)
+                  forM_ metrics $ \(Gauge _ label value) ->
+                    modifyIORef metricStats $ \s -> case T.unpack label of
+                      "threads" -> s { max_threads = max value (max_threads s) }
+                      "heap_alloc_bytes" -> s { max_alloc_bytes = max value (max_alloc_bytes s) }
+                      "heap_live_bytes" -> s { max_live_bytes = max value (max_live_bytes s) }
+                      _ -> s
                   pure ExportSuccess
               )
               (pure ())
@@ -71,10 +79,13 @@ main = do
             (max_ns `div` 1000000)
             (T.unpack op))
         leaderboard
+
       putStrLn "---"
-      printf "Max threads: %v\n"  =<< readIORef max_threads
-      printf "Max allocated: %vMB\n" . (`div` 10^6) =<< readIORef max_alloc
-      printf "Max live: %vMB\n" . (`div` 10^6) =<< readIORef max_live
+
+      MetricStats{ max_threads, max_alloc_bytes, max_live_bytes } <- readIORef metricStats
+      printf "Max threads: %v\n" max_threads
+      printf "Max allocated: %vMB\n" (max_alloc_bytes `div` 1000000)
+      printf "Max live: %vMB\n" (max_live_bytes `div` 1000000)
       putStrLn "It's fine"
     _ -> do
       putStrLn "Usage:"
