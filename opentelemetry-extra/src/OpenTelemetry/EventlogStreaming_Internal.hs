@@ -170,7 +170,8 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
         (StartGC, _, _) ->
           (st {gcStartedAt = now}, [], [])
         (HeapLive {liveBytes}, _, _) -> (st, [], [Gauge now "heap_live_bytes" $ fromIntegral liveBytes])
-        (HeapAllocated {allocBytes}, _, _) -> (st, [], [Gauge now "heap_alloc_bytes" $ fromIntegral allocBytes])
+        (HeapAllocated {allocBytes}, (Just cap), _) ->
+          (st, [], [Gauge now ("cap_" <> T.pack (show cap) <> "_heap_alloc_bytes") $ fromIntegral allocBytes])
         (EndGC, _, _) ->
           let (span_id, randomGen') = R.nextWord64 randomGen
               sp = Span
