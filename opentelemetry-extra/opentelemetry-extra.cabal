@@ -170,6 +170,7 @@ executable eventlog-summary
   build-depends:
     base,
     hashtables,
+    containers,
     opentelemetry >= 0.4.0,
     opentelemetry-extra,
     text

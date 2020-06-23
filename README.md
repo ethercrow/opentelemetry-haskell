@@ -65,41 +65,42 @@ TODO: Document how to export trace data to Chrome or Tracy.
 This is the simplest kind of exporter that doesn't send the trace to any external application or service but prints some statistics about a given eventlog.
 
 ```
-> eventlog-summary stack.eventlog
-Count   Tot ms  Min ms  Max ms  Operation
------   ------  ------  ------  ---------
-1       0       0       0       Build.build_setLocalFiles
-1       0       0       0       Main.buildCmd_before_inner
-1       0       0       0       Build.Source.loadSourceMap
-1       0       0       0       Build.Execute.getSetupExe
-1       0       0       0       Build.Source.localDependencies
-1       0       0       0       Build.mkBaseConfigOpts
-1       0       0       0       Build.Installed.toInstallMap
-1       0       0       0       Lock.loadYamlThrow
-1       0       0       0       Build.build_checkComponentsBuildable
-1       0       0       0       Config.loadProjectConfig
-3       0       0       0       Config.loadConfigYaml
-1       0       0       0       Build.Execute.executePlan
-1       4       4       4       Build.Source.projectLocalPackages
-9       6       0       1       Storage.Project.loadConfigCache
-19      7       0       1       Build.Source.loadLocalPackage
-1       23      23      23      Build.ConstructPlan.constructPlan
-1       51      51      51      setupEnv
-1       126     126     126     Pantry.loadAndCompleteSnapshotRaw
-1       128     128     128     Lock.lockCacheWanted
-1131    212     0       8       gc
-1       246     246     246     Build.Installed.getInstalled
-1       275     275     275     Build.build
-1       328     328     328     Storage.Project.initProjectStorage
-5       387     45      109     sinkProcessStdout
-5       387     45      109     PackageDump.ghcPkgCmdArgs
-5       408     46      116     Build.Installed.loadDatabase
-1       456     456     456     Config.withBuildConfig
-1       463     463     463     Config.loadConfig
-1       463     463     463     Runners.withConfig
-1       463     463     463     Main.buildCmd_inner
-1       463     463     463     Main.buildCmd
-1       472     472     472     Main.main
+> eventlog-summary ghcide.eventlog
+Count	Tot ms	Min ms	Max ms	Operation
+-----	------	------	------	---------
+3       0       0        0      GetDependencies
+3       0       0        0      GhcSessionDeps
+3       0       0        0      PackageExports HscEnvEq 18
+8       0       0        0      GhcSessionIO
+8       0       0        0      GetFilesOfInterest
+5       1       0        0      Request:DocumentHighlight
+18      5       0        0      Request:Hover
+45      10      0        0      Request:Definition
+131     19      0        4      IsFileOfInterest
+275     35      0        7      GetModificationTime
+71      42      0        13     GetDependencyInformation
+152     45      0        10     GetFileContents
+3       123     0        83     GetHieFile
+152     144     0        73     GhcSession
+71      170     0        32     ReportImportCycles
+2       176     87       88     GetModuleGraph
+7       194     0        154    GetDocMap
+8       298     0        182    GetParsedModule
+8       486     0        229    TypeCheck
+8472    566     0        15     GetFileExists
+9       1395    43       367    gc
+149     3877    0        709    GetModSummary
+147     9496    0        739    GetLocatedImports
+122     18707   0        902    GetModIfaceFromDisk
+130     28106   0        6302   GetModIface
+---
+Max threads: 395
+Total allocations:
+  * Capability 0: 1316MB
+  * Capability 1: 1814MB
+  * Capability 2: 1153MB
+  * Capability 3: 1136MB
+Max live: 276MB
 It's fine
 ```
 
