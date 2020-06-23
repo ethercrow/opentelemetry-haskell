@@ -96,7 +96,8 @@ main = do
       putStrLn ""
       putStrLn "  eventlog-summary <program.eventlog>"
 
--- | Parse
+-- | Parse capability number out of event/metric name. If it fails, returns
+-- (Nothing, the original string)
 splitCapability :: String -> (Maybe Int, String)
 splitCapability fullName@('c':'a':'p':'_':rest) =
   case span isDigit rest of
