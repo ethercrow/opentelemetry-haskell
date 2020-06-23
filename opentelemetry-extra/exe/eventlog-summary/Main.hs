@@ -7,10 +7,14 @@ import OpenTelemetry.Common
 import OpenTelemetry.EventlogStreaming_Internal
 import System.Environment
 import qualified Data.HashTable.IO as H
+import Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as IntMap
 import Text.Printf
 import Data.List (sortOn)
 import Data.Word
 import Data.IORef
+import Data.Char (isDigit)
+import Debug.Trace
 
 type HashTable k v = H.BasicHashTable k v
 
@@ -23,7 +27,8 @@ data PerOperationStats = PerOperationStats
 
 data MetricStats = MetricStats
   { max_threads :: !Int
-  , max_alloc_bytes :: !Int
+  , total_alloc_bytes :: !(IntMap Int)
+    -- ^ Per-capability
   , max_live_bytes :: !Int
   }
 
@@ -33,7 +38,7 @@ main = do
   case args of
     [path] -> do
       (opCounts:: H.CuckooHashTable T.Text PerOperationStats) <- H.new
-      metricStats <- newIORef (MetricStats 0 0 0)
+      metricStats <- newIORef (MetricStats 0 IntMap.empty 0)
       -- max_threads <- newIORef 0
       -- max_alloc <- newIORef 0
       -- max_live <- newIORef 0
@@ -58,11 +63,11 @@ main = do
           metric_exporter = Exporter
               ( \metrics -> do
                   forM_ metrics $ \(Gauge _ label value) ->
-                    modifyIORef metricStats $ \s -> case T.unpack label of
-                      "threads" -> s { max_threads = max value (max_threads s) }
-                      "heap_alloc_bytes" -> s { max_alloc_bytes = max value (max_alloc_bytes s) }
-                      "heap_live_bytes" -> s { max_live_bytes = max value (max_live_bytes s) }
-                      _ -> s
+                    modifyIORef metricStats $ \s -> case splitCapability $ T.unpack label of
+                      (_, "threads") -> s { max_threads = max value (max_threads s) }
+                      (Just cap, "heap_alloc_bytes") -> s { total_alloc_bytes = IntMap.insert cap value (total_alloc_bytes s) }
+                      (_, "heap_live_bytes") -> s { max_live_bytes = max value (max_live_bytes s) }
+                      _ -> traceShow label s
                   pure ExportSuccess
               )
               (pure ())
@@ -82,12 +87,23 @@ main = do
 
       putStrLn "---"
 
-      MetricStats{ max_threads, max_alloc_bytes, max_live_bytes } <- readIORef metricStats
+      MetricStats{ max_threads, total_alloc_bytes, max_live_bytes } <- readIORef metricStats
       printf "Max threads: %v\n" max_threads
-      printf "Max allocated: %vMB\n" (max_alloc_bytes `div` 1000000)
+      putStrLn "Total allocations:"
+      _ <- IntMap.traverseWithKey
+        (\cap bytes -> printf "  * Capability %v: %vMB\n" cap (bytes `div` 1000000))
+        total_alloc_bytes
       printf "Max live: %vMB\n" (max_live_bytes `div` 1000000)
       putStrLn "It's fine"
     _ -> do
       putStrLn "Usage:"
       putStrLn ""
       putStrLn "  eventlog-summary <program.eventlog>"
+
+-- | Parse
+splitCapability :: String -> (Maybe Int, String)
+splitCapability fullName@('c':'a':'p':'_':rest) =
+  case span isDigit rest of
+    (numStr, '_':name) -> (Just (read numStr), name)
+    _ -> (Nothing, fullName)
+splitCapability name = (Nothing, name)
