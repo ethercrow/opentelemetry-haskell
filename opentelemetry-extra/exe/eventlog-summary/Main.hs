@@ -39,9 +39,6 @@ main = do
     [path] -> do
       (opCounts:: H.CuckooHashTable T.Text PerOperationStats) <- H.new
       metricStats <- newIORef (MetricStats 0 IntMap.empty 0)
-      -- max_threads <- newIORef 0
-      -- max_alloc <- newIORef 0
-      -- max_live <- newIORef 0
       let span_exporter = Exporter
             (\sps -> do
               forM_ sps $ \sp -> do
