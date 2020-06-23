@@ -14,7 +14,6 @@ import Data.List (sortOn)
 import Data.Word
 import Data.IORef
 import Data.Char (isDigit)
-import Debug.Trace
 
 type HashTable k v = H.BasicHashTable k v
 
@@ -64,7 +63,7 @@ main = do
                       (_, "threads") -> s { max_threads = max value (max_threads s) }
                       (Just cap, "heap_alloc_bytes") -> s { total_alloc_bytes = IntMap.insert cap value (total_alloc_bytes s) }
                       (_, "heap_live_bytes") -> s { max_live_bytes = max value (max_live_bytes s) }
-                      _ -> traceShow label s
+                      _ -> s
                   pure ExportSuccess
               )
               (pure ())
