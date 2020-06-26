@@ -35,3 +35,10 @@ observe :: Instrument 'Asynchronous a m t -> t -> IO ()
 observe (SumObserver _) _ = undefined
 observe (UpDownSumObserver _) _ = undefined
 observe (ValueObserver _) _ = undefined
+instrumentName :: Instrument s a m t -> String
+instrumentName (Counter n) = n
+instrumentName (UpDownCounter n) = n
+instrumentName (ValueRecorder n) = n
+instrumentName (SumObserver n) = n
+instrumentName (UpDownSumObserver n) = n
+instrumentName (ValueObserver n) = n
