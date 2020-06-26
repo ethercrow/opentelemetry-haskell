@@ -24,8 +24,6 @@ data Instrument (s :: Synchronicity) (a :: Additivity) (m :: Monotonicity) t whe
   UpDownSumObserver :: String -> UpDownSumObserver t
   ValueObserver     :: String -> ValueObserver t
 
-data SomeInstrument t = forall s a m. SomeInstrument (Instrument s a m t)
-
 add :: Instrument 'Synchronous 'Additive m t -> t -> IO ()
 add (Counter _) _ = undefined
 add (UpDownCounter _) _ = undefined
@@ -37,12 +35,3 @@ observe :: Instrument 'Asynchronous a m t -> t -> IO ()
 observe (SumObserver _) _ = undefined
 observe (UpDownSumObserver _) _ = undefined
 observe (ValueObserver _) _ = undefined
-
-recordWhatever :: SomeInstrument t -> t -> IO ()
-recordWhatever (SomeInstrument si) v = case si of
-  i@Counter{} -> add i v
-  i@UpDownCounter{} -> add i v
-  i@ValueRecorder{} -> record i v
-  i@SumObserver{} -> observe i v
-  i@UpDownSumObserver{} -> observe i v
-  i@ValueObserver{} -> observe i v
