@@ -24,17 +24,6 @@ data Instrument (s :: Synchronicity) (a :: Additivity) (m :: Monotonicity) t whe
   UpDownSumObserver :: String -> UpDownSumObserver t
   ValueObserver     :: String -> ValueObserver t
 
-add :: Instrument 'Synchronous 'Additive m t -> t -> IO ()
-add (Counter _) _ = undefined
-add (UpDownCounter _) _ = undefined
-
-record :: Instrument 'Synchronous 'NonAdditive 'NonMonotonic t -> t -> IO ()
-record (ValueRecorder _) _ = undefined
-
-observe :: Instrument 'Asynchronous a m t -> t -> IO ()
-observe (SumObserver _) _ = undefined
-observe (UpDownSumObserver _) _ = undefined
-observe (ValueObserver _) _ = undefined
 instrumentName :: Instrument s a m t -> String
 instrumentName (Counter n) = n
 instrumentName (UpDownCounter n) = n
