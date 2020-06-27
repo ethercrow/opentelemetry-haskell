@@ -155,7 +155,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                 traceMap = HM.insert new_tid trace_id traceMap,
                 threadCount = threadCount + 1}
               , []
-              , [Gauge now "threads" (fromIntegral $ threadCount + 1)])
+              , [Gauge now "threads" (threadCount + 1)])
         (RunThread tid, Just cap, _) ->
           (st {threadMap = IM.insert cap tid threadMap}, [], [])
         (StopThread tid tstatus, Just cap, _)
