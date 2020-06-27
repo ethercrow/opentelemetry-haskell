@@ -1,3 +1,5 @@
+{-# language OverloadedStrings #-}
+
 module Main where
 
 import Control.Monad
@@ -14,6 +16,8 @@ import Data.List (sortOn)
 import Data.Word
 import Data.IORef
 import Data.Char (isDigit)
+import Graphics.Vega.VegaLite
+import Data.Function
 
 type HashTable k v = H.BasicHashTable k v
 
@@ -90,6 +94,26 @@ main = do
         (\cap bytes -> printf "  * Capability %v: %vMB\n" cap (bytes `div` 1000000))
         total_alloc_bytes
       printf "Max live: %vMB\n" (max_live_bytes `div` 1000000)
+
+      putStrLn "---"
+
+      let vega_visualization = toVegaLite
+            [ title "Total duration of operation" []
+            , vega_dat
+            , mark Bar []
+            , vega_enc
+            ]
+          vega_enc = []
+            & position Y [PName "op", PmType Nominal, PAxis [AxTitle "operation"]]
+            & position X [PName "dur", PmType Quantitative, PAxis [AxTitle "duration in nanoseconds"]]
+            & encoding
+          vega_dat = []
+            & dataColumn "op" (Strings (map fst leaderboard))
+            & dataColumn "dur" (Numbers (map (fromIntegral . total_ns . snd) leaderboard))
+            & dataFromColumns []
+
+      toHtmlFile "eventlog-summary.html" vega_visualization
+      putStrLn "Generated report: eventlog-summary.html"
     _ -> do
       putStrLn "Usage:"
       putStrLn ""

@@ -173,5 +173,6 @@ executable eventlog-summary
     containers,
     opentelemetry >= 0.4.0,
     opentelemetry-extra,
+    hvega,
     text
 
