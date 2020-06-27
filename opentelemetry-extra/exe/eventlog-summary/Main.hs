@@ -90,7 +90,6 @@ main = do
         (\cap bytes -> printf "  * Capability %v: %vMB\n" cap (bytes `div` 1000000))
         total_alloc_bytes
       printf "Max live: %vMB\n" (max_live_bytes `div` 1000000)
-      putStrLn "It's fine"
     _ -> do
       putStrLn "Usage:"
       putStrLn ""
