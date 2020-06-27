@@ -46,7 +46,7 @@ main = do
                   opCounts
                   (spanOperation sp)
                   (\m -> (Just $ maybe
-                                  (PerOperationStats 0 maxBound 0 0)
+                                  (PerOperationStats 1 duration duration duration)
                                   (\PerOperationStats {..} ->
                                     PerOperationStats
                                     (count + 1)
