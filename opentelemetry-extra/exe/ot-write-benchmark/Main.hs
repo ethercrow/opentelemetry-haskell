@@ -4,8 +4,7 @@ module Main where
 
 import Gauge.Main
 import Data.Word
-import qualified OpenTelemetry.Binary.Eventlog as BE
-import qualified OpenTelemetry.Eventlog as E
+import qualified OpenTelemetry.Eventlog as BE
 import OpenTelemetry.SpanContext
 
 
@@ -18,15 +17,6 @@ traceId = TId bigId
 
 spanId :: SpanId
 spanId = SId bigId
-
-traceInText :: IO ()
-traceInText = do
-  E.withSpan "txt span" $ \spanInFlight ->
-   do
-     E.setTag spanInFlight "txt tag name" "txt tag value"
-     E.addEvent spanInFlight "txt event name" "txt event name"
-     E.setTraceId spanInFlight traceId
-     E.setSpanId spanInFlight spanId
 
 traceInBinary :: IO ()
 traceInBinary = do
@@ -43,6 +33,5 @@ traceInBinary = do
 main :: IO ()
 main = do
   defaultMain [
-        bench "in text   mode" $ whnfIO traceInText,
         bench "in binary mode" $ whnfIO traceInBinary
        ]

@@ -7,10 +7,11 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy as LBS
 import LogEventSerializer
-import OpenTelemetry.Binary.Eventlog
+import OpenTelemetry.Eventlog
+import OpenTelemetry.Eventlog_Internal
 import OpenTelemetry.EventlogStreaming_Internal
 
-import Test.QuickCheck
+import Test.Tasty.QuickCheck
 
 newtype MsgTypeAr = MsgTypeAr MsgType deriving (Show)
 
@@ -19,7 +20,7 @@ instance Arbitrary MsgTypeAr where
 
 prop_header_layout_prefix_ot3 :: MsgTypeAr -> Bool
 prop_header_layout_prefix_ot3 (MsgTypeAr msgType) =
-  LBS.take 3 (toLazyByteString (header msgType)) == "OT\03"
+  LBS.take 3 (toLazyByteString (header msgType)) == "OT\x03"
 
 prop_header_layout_suffix_msg :: MsgTypeAr -> Bool
 prop_header_layout_suffix_msg (MsgTypeAr msgType@(MsgType msgTypeId)) =

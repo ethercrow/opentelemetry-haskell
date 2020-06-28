@@ -132,6 +132,7 @@ benchmark ot-write-benchmark
   hs-source-dirs: exe/ot-write-benchmark
   ghc-options:
     -threaded
+    -O2
     -rtsopts
     "-with-rtsopts -T"
     -eventlog

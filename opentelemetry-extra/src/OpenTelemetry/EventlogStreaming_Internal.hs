@@ -22,7 +22,7 @@ import OpenTelemetry.Common hiding (Event, Timestamp)
 import OpenTelemetry.Debug
 import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
-import OpenTelemetry.Binary.Eventlog (SpanInFlight (..), MsgType (..), magic)
+import OpenTelemetry.Eventlog_Internal (SpanInFlight (..), MsgType (..), otelMagic)
 import Text.Printf
 import Data.Bits
 import Data.Word
@@ -394,7 +394,7 @@ headerP :: DBG.Get (Maybe MsgType)
 headerP = do
   h <- DBG.getWord32le
   let !msgTypeId = shiftR h 24
-  if magic == fromIntegral h .&. magic then
+  if otelMagic == fromIntegral h .&. otelMagic then
       if msgTypeId > 7 && msgTypeId < 1
       then fail $ "Bad Msg Type: " ++ show msgTypeId
       else return . Just . MsgType . fromIntegral $ msgTypeId
