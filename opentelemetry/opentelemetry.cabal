@@ -50,6 +50,7 @@ library
   build-depends:
     base >= 4.13 && < 5,
     bytestring,
+    text,
     ghc-trace-events >= 0.1.0.1,
     hashable,
     exceptions

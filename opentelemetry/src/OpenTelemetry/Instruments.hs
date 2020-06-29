@@ -4,9 +4,13 @@
 {-# LANGUAGE StandaloneDeriving #-}
 module OpenTelemetry.Instruments where
 
+import qualified Data.Text as T
+
 data Synchronicity = Synchronous | Asynchronous
 data Additivity = Additive | NonAdditive
 data Monotonicity = Monotonic | NonMonotonic
+
+type InstrumentName = T.Text
 
 type Counter t           = Instrument 'Synchronous  'Additive    'Monotonic t
 type UpDownCounter t     = Instrument 'Synchronous  'Additive    'NonMonotonic t
@@ -18,12 +22,12 @@ type ValueObserver t     = Instrument 'Asynchronous 'NonAdditive 'NonMonotonic t
 -- | An OpenTelemetry instrument as defined in the OpenTelemetry Metrics API
 -- (https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/metrics/api.md)
 data Instrument (s :: Synchronicity) (a :: Additivity) (m :: Monotonicity) t where
-  Counter           :: String -> Counter t
-  UpDownCounter     :: String -> UpDownCounter t
-  ValueRecorder     :: String -> ValueRecorder t
-  SumObserver       :: String -> SumObserver t
-  UpDownSumObserver :: String -> UpDownSumObserver t
-  ValueObserver     :: String -> ValueObserver t
+  Counter           :: InstrumentName -> Counter t
+  UpDownCounter     :: InstrumentName -> UpDownCounter t
+  ValueRecorder     :: InstrumentName -> ValueRecorder t
+  SumObserver       :: InstrumentName -> SumObserver t
+  UpDownSumObserver :: InstrumentName -> UpDownSumObserver t
+  ValueObserver     :: InstrumentName -> ValueObserver t
 
 data SomeInstrument t = forall s a m. SomeInstrument (Instrument s a m t)
 
@@ -44,7 +48,7 @@ instance Eq (SomeInstrument t) where
     (_, _) -> False
 
 
-instrumentName :: Instrument s a m t -> String
+instrumentName :: Instrument s a m t -> InstrumentName
 instrumentName (Counter n) = n
 instrumentName (UpDownCounter n) = n
 instrumentName (ValueRecorder n) = n

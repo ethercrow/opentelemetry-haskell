@@ -67,7 +67,7 @@ setSpanId sp sid = liftIO . traceEventIO $ setSpanId' sp sid
 
 -- TODO: Make private
 writeMetric' :: (Show t, Real t) => Instrument s a m t -> t -> String
-writeMetric' instrument v = printf "ot2 metric %s %v" (instrumentName instrument) (show v)
+writeMetric' instrument v = printf "ot2 metric %s %s" (instrumentName instrument) (show v)
 
 -- TODO: Make private
 writeMetric :: (Show t, Real t) => Instrument s a m t -> t -> IO ()
