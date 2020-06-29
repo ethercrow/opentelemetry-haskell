@@ -12,32 +12,32 @@ data Monotonicity = Monotonic | NonMonotonic
 
 type InstrumentName = T.Text
 
-type Counter t           = Instrument 'Synchronous  'Additive    'Monotonic t
-type UpDownCounter t     = Instrument 'Synchronous  'Additive    'NonMonotonic t
-type ValueRecorder t     = Instrument 'Synchronous  'NonAdditive 'NonMonotonic t
-type SumObserver t       = Instrument 'Asynchronous 'Additive    'Monotonic t
-type UpDownSumObserver t = Instrument 'Asynchronous 'Additive    'NonMonotonic t
-type ValueObserver t     = Instrument 'Asynchronous 'NonAdditive 'NonMonotonic t
+type Counter           = Instrument 'Synchronous  'Additive    'Monotonic
+type UpDownCounter     = Instrument 'Synchronous  'Additive    'NonMonotonic
+type ValueRecorder     = Instrument 'Synchronous  'NonAdditive 'NonMonotonic
+type SumObserver       = Instrument 'Asynchronous 'Additive    'Monotonic
+type UpDownSumObserver = Instrument 'Asynchronous 'Additive    'NonMonotonic
+type ValueObserver     = Instrument 'Asynchronous 'NonAdditive 'NonMonotonic
 
 -- | An OpenTelemetry instrument as defined in the OpenTelemetry Metrics API
 -- (https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/metrics/api.md)
-data Instrument (s :: Synchronicity) (a :: Additivity) (m :: Monotonicity) t where
-  Counter           :: InstrumentName -> Counter t
-  UpDownCounter     :: InstrumentName -> UpDownCounter t
-  ValueRecorder     :: InstrumentName -> ValueRecorder t
-  SumObserver       :: InstrumentName -> SumObserver t
-  UpDownSumObserver :: InstrumentName -> UpDownSumObserver t
-  ValueObserver     :: InstrumentName -> ValueObserver t
+data Instrument (s :: Synchronicity) (a :: Additivity) (m :: Monotonicity) where
+  Counter           :: InstrumentName -> Counter
+  UpDownCounter     :: InstrumentName -> UpDownCounter
+  ValueRecorder     :: InstrumentName -> ValueRecorder
+  SumObserver       :: InstrumentName -> SumObserver
+  UpDownSumObserver :: InstrumentName -> UpDownSumObserver
+  ValueObserver     :: InstrumentName -> ValueObserver
 
-data SomeInstrument t = forall s a m. SomeInstrument (Instrument s a m t)
+data SomeInstrument = forall s a m. SomeInstrument (Instrument s a m)
 
-deriving instance Show (Instrument s a m t)
-deriving instance Eq (Instrument s a m t)
+deriving instance Show (Instrument s a m)
+deriving instance Eq (Instrument s a m)
 
-instance Show (SomeInstrument t) where
+instance Show SomeInstrument where
   show (SomeInstrument i) = show i
 
-instance Eq (SomeInstrument t) where
+instance Eq SomeInstrument where
   (SomeInstrument i1) == (SomeInstrument i2) = case (i1, i2) of
     (Counter s1, Counter s2) -> s1 == s2
     (UpDownCounter s1, UpDownCounter s2) -> s1 == s2
@@ -48,7 +48,7 @@ instance Eq (SomeInstrument t) where
     (_, _) -> False
 
 
-instrumentName :: Instrument s a m t -> InstrumentName
+instrumentName :: Instrument s a m -> InstrumentName
 instrumentName (Counter n) = n
 instrumentName (UpDownCounter n) = n
 instrumentName (ValueRecorder n) = n

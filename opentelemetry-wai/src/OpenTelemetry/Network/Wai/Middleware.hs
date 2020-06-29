@@ -12,7 +12,7 @@ import OpenTelemetry.Instruments
 -- Semantic conventions for HTTP spans:
 -- https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/http.md
 
-requestCounter :: Counter Int
+requestCounter :: Counter
 requestCounter = Counter "requests"
 
 middleware :: Application -> Application
