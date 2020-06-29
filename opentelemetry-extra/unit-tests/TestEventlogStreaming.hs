@@ -52,7 +52,7 @@ prop_user_specified_things_are_used spans =
     ==> classify (length spans > 1) "multiple spans"
     $ let input_events = concatMap convert spans
           convert (span_serial_number, sid@(SId sid'), span_name) =
-            [ Event 0 (logEventToUserBinaryMessage $ BeginSpanEv  span_serial_number span_name) (Just 0),
+            [ Event 0 (logEventToUserBinaryMessage $ BeginSpanEv span_serial_number span_name) (Just 0),
               Event 1 (logEventToUserBinaryMessage $ SetSpanEv span_serial_number sid) (Just 0),
               Event 2 (logEventToUserBinaryMessage $ TagEv span_serial_number (TagName "color") (TagVal $ showt sid')) (Just 0),
               Event 3 (logEventToUserBinaryMessage $ SetTraceEv span_serial_number (TId sid')) (Just 0),
@@ -68,10 +68,12 @@ prop_user_specified_things_are_used spans =
                       [ spanId sp == SId sid,
                         spanTraceId sp == TId sid,
                         HM.lookup (TagName "color") (spanTags sp)
-                              == Just (StringTagValue $ TagVal (showt sid)),
+                          == Just (StringTagValue $ TagVal (showt sid)),
                         any
-                          (\SpanEvent {..} -> (spanEventKey == EventName "message")
-                                              && (spanEventValue == (EventVal (showt sid))))
+                          ( \SpanEvent {..} ->
+                              (spanEventKey == EventName "message")
+                                && (spanEventValue == (EventVal (showt sid)))
+                          )
                           (spanEvents sp)
                       ]
                 )

@@ -2,17 +2,17 @@
 
 module OpenTelemetry.ChromeExporter where
 
-import Data.HashMap.Strict as HM
 import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy as LBS
+import Data.Function
+import Data.HashMap.Strict as HM
 import Data.List (sortOn)
 import Data.Word
-import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.Common
+import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.Exporter
 import System.IO
-import Data.Function
 
 newtype ChromeBeginSpan = ChromeBegin Span
 
@@ -31,11 +31,11 @@ instance ToJSON ChromeTagValue where
 instance ToJSON ChromeEvent where
   toJSON (ChromeEvent threadId SpanEvent {..}) =
     object
-      [ "ph" .= ("i" :: String)
-      , "name" .= spanEventValue
-      , "pid" .= (1 :: Int)
-      , "tid" .= threadId
-      , "ts" .= (div spanEventTimestamp 1000)
+      [ "ph" .= ("i" :: String),
+        "name" .= spanEventValue,
+        "pid" .= (1 :: Int),
+        "tid" .= threadId,
+        "ts" .= (div spanEventTimestamp 1000)
       ]
 
 instance ToJSON ChromeBeginSpan where
@@ -46,66 +46,73 @@ instance ToJSON ChromeBeginSpan where
         "pid" .= (1 :: Int),
         "tid" .= spanThreadId,
         "ts" .= (div spanStartedAt 1000),
-        "args" .= fmap ChromeTagValue
-          (spanTags
-            & HM.insert "gc_us" (IntTagValue . fromIntegral $ spanNanosecondsSpentInGC `div` 1000)
-            & (if spanNanosecondsSpentInGC == 0
-                then id
-                else HM.insert "gc_fraction" (DoubleTagValue (fromIntegral spanNanosecondsSpentInGC / fromIntegral (spanFinishedAt - spanStartedAt)))))
+        "args"
+          .= fmap
+            ChromeTagValue
+            ( spanTags
+                & HM.insert "gc_us" (IntTagValue . fromIntegral $ spanNanosecondsSpentInGC `div` 1000)
+                & ( if spanNanosecondsSpentInGC == 0
+                      then id
+                      else HM.insert "gc_fraction" (DoubleTagValue (fromIntegral spanNanosecondsSpentInGC / fromIntegral (spanFinishedAt - spanStartedAt)))
+                  )
+            )
       ]
 
 instance ToJSON ChromeEndSpan where
   toJSON (ChromeEnd Span {..}) =
-     object
-          [ "ph" .= ("E" :: String),
-            "name" .= spanOperation,
-            "pid" .= (1 :: Int),
-            "tid" .= spanThreadId,
-            "ts" .= (div spanFinishedAt 1000)
-          ]
+    object
+      [ "ph" .= ("E" :: String),
+        "name" .= spanOperation,
+        "pid" .= (1 :: Int),
+        "tid" .= spanThreadId,
+        "ts" .= (div spanFinishedAt 1000)
+      ]
 
 createChromeExporter :: FilePath -> IO (Exporter Span, Exporter Metric)
 createChromeExporter path = do
   f <- openFile path WriteMode
   hPutStrLn f "[ "
-  let span_exporter = Exporter
-        ( \sps -> do
-            mapM_
-              ( \sp@Span{..} -> do
-                  LBS.hPutStr f $ encode $ ChromeBegin sp
-                  LBS.hPutStr f ",\n"
-                  forM_ (sortOn spanEventTimestamp spanEvents) $ \ev -> do
-                    LBS.hPutStr f $ encode $ ChromeEvent spanThreadId ev
+  let span_exporter =
+        Exporter
+          ( \sps -> do
+              mapM_
+                ( \sp@Span {..} -> do
+                    LBS.hPutStr f $ encode $ ChromeBegin sp
                     LBS.hPutStr f ",\n"
-                  LBS.hPutStr f $ encode $ ChromeEnd sp
-                  LBS.hPutStr f ",\n"
-              )
-              sps
-            pure ExportSuccess
-        )
-        ( do
-            hSeek f RelativeSeek (-2) -- overwrite the last comma
-            hPutStrLn f "\n]"
-            hClose f
-        )
-      metric_exporter = Exporter
-        ( \metrics -> do
-            mapM_
-              (\case
-                Gauge ts name value -> do
-                  LBS.hPutStr f $ encode $
-                    object
-                         [ "ph" .= ("C" :: String),
-                           "name" .= name,
-                           "ts" .= (div ts 1000),
-                           "args" .= object [name .= Number (fromIntegral value)]
-                         ]
-                  LBS.hPutStr f ",\n"
+                    forM_ (sortOn spanEventTimestamp spanEvents) $ \ev -> do
+                      LBS.hPutStr f $ encode $ ChromeEvent spanThreadId ev
+                      LBS.hPutStr f ",\n"
+                    LBS.hPutStr f $ encode $ ChromeEnd sp
+                    LBS.hPutStr f ",\n"
                 )
-              metrics
-            pure ExportSuccess
-        )
-        (pure ())
+                sps
+              pure ExportSuccess
+          )
+          ( do
+              hSeek f RelativeSeek (-2) -- overwrite the last comma
+              hPutStrLn f "\n]"
+              hClose f
+          )
+      metric_exporter =
+        Exporter
+          ( \metrics -> do
+              mapM_
+                ( \case
+                    Gauge ts name value -> do
+                      LBS.hPutStr f $
+                        encode $
+                          object
+                            [ "ph" .= ("C" :: String),
+                              "name" .= name,
+                              "ts" .= (div ts 1000),
+                              "args" .= object [name .= Number (fromIntegral value)]
+                            ]
+                      LBS.hPutStr f ",\n"
+                )
+                metrics
+              pure ExportSuccess
+          )
+          (pure ())
   pure (span_exporter, metric_exporter)
 
 eventlogToChrome :: FilePath -> FilePath -> IO ()
@@ -114,4 +121,3 @@ eventlogToChrome eventlogFile chromeFile = do
   exportEventlog span_exporter metric_exporter eventlogFile
   shutdown span_exporter
   shutdown metric_exporter
-

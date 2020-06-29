@@ -1,36 +1,41 @@
-{-# language PatternSynonyms #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module OpenTelemetry.Eventlog
-  ( withSpan
-  , withSpan_
-  , setSpanId
-  , setTraceId
-  , setTag
-  , addEvent
-  , setParentSpanContext
-  , SpanInFlight (..)
-  ) where
+  ( withSpan,
+    withSpan_,
+    setSpanId,
+    setTraceId,
+    setTag,
+    addEvent,
+    setParentSpanContext,
+    SpanInFlight (..),
+  )
+where
 
-import qualified OpenTelemetry.Eventlog_Internal as I
-import OpenTelemetry.Eventlog_Internal (SpanInFlight (..))
 import Control.Monad.Catch
 import Control.Monad.IO.Class
 import Data.Bits
-import Data.ByteString.Builder
-import Data.Char
-import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString as BS
+import Data.ByteString.Builder
+import qualified Data.ByteString.Char8 as BS8
+import Data.Char
 import Data.Hashable
 import Data.Unique
+import Data.Word (Word32, Word64, Word8)
 import Debug.Trace.Binary
-import Data.Word (Word8, Word32, Word64)
+import OpenTelemetry.Eventlog_Internal (SpanInFlight (..))
+import qualified OpenTelemetry.Eventlog_Internal as I
 import OpenTelemetry.SpanContext
 
 {-# INLINE withSpan #-}
-withSpan :: forall m a. (MonadIO m, MonadMask m)
-            => BS.ByteString -> (SpanInFlight -> m a) -> m a
+withSpan ::
+  forall m a.
+  (MonadIO m, MonadMask m) =>
+  BS.ByteString ->
+  (SpanInFlight -> m a) ->
+  m a
 withSpan operation action =
   fst
     <$> generalBracket
@@ -82,5 +87,3 @@ addEvent sp k v = I.traceBuilder $ I.builder_addEvent sp k v
 {-# INLINE setParentSpanContext #-}
 setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
 setParentSpanContext sp ctx = I.traceBuilder $ I.builder_setParentSpanContext sp ctx
-
-
