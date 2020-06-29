@@ -167,7 +167,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                   threadCount = threadCount - 1
                 },
               [],
-              [Gauge now "threads" (fromIntegral $ threadCount - 1)]
+              [Gauge now "threads" (threadCount - 1)]
             )
         (StartGC, _, _) ->
           (st {gcStartedAt = now}, [], [])

@@ -12,7 +12,7 @@ import qualified Data.IntMap.Strict as IntMap
 import Data.List (sortOn)
 import qualified Data.Text as T
 import Data.Word
-import Graphics.Vega.VegaLite
+import Graphics.Vega.VegaLite hiding (name)
 import OpenTelemetry.Common
 import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.Exporter

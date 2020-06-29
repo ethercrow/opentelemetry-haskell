@@ -16,15 +16,8 @@ where
 
 import Control.Monad.Catch
 import Control.Monad.IO.Class
-import Data.Bits
 import qualified Data.ByteString as BS
-import Data.ByteString.Builder
 import qualified Data.ByteString.Char8 as BS8
-import Data.Char
-import Data.Hashable
-import Data.Unique
-import Data.Word (Word32, Word64, Word8)
-import Debug.Trace.Binary
 import OpenTelemetry.Eventlog_Internal (SpanInFlight (..))
 import qualified OpenTelemetry.Eventlog_Internal as I
 import OpenTelemetry.SpanContext
@@ -40,16 +33,16 @@ withSpan operation action =
   fst
     <$> generalBracket
       (liftIO $ beginSpan operation)
-      ( \span exitcase -> liftIO $ do
+      ( \sp exitcase -> liftIO $ do
           case exitcase of
             ExitCaseSuccess _ -> pure ()
             ExitCaseException e -> do
-              setTag span "error" "true"
-              setTag span "error.message" (BS8.pack $ take I.maxMsgLen $ show e)
+              setTag sp "error" "true"
+              setTag sp "error.message" (BS8.pack $ take I.maxMsgLen $ show e)
             ExitCaseAbort -> do
-              setTag span "error" "true"
-              setTag span "error.message" "abort"
-          liftIO $ endSpan span
+              setTag sp "error" "true"
+              setTag sp "error.message" "abort"
+          liftIO $ endSpan sp
       )
       action
 
