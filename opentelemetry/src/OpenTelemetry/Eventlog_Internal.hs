@@ -71,36 +71,28 @@ nextLocalSpan :: MonadIO m => m SpanInFlight
 nextLocalSpan = liftIO $ (SpanInFlight . fromIntegral . hashUnique) <$> newUnique
 
 {-# INLINE builder_beginSpan #-}
-builder_beginSpan ::
-  SpanInFlight ->
-  BS.ByteString ->
-  Builder
-builder_beginSpan (SpanInFlight u) operation = do
-  checkSize (BS.length operation) $
-    header BEGIN_SPAN <> word64LE u <> byteString operation
+builder_beginSpan :: SpanInFlight -> BS.ByteString -> Builder
+builder_beginSpan (SpanInFlight u) operation =
+  header BEGIN_SPAN <> word64LE u <> byteString operation
 
 {-# INLINE builder_endSpan #-}
 builder_endSpan :: SpanInFlight -> Builder
 builder_endSpan (SpanInFlight u) = header END_SPAN <> word64LE u
 
-{-# INLINE uBsBs #-}
-uBsBs ::
-  MsgType ->
-  SpanInFlight ->
-  BS.ByteString ->
-  BS.ByteString ->
-  Builder
-uBsBs msg (SpanInFlight u) k v = do
-  let !l = BS.length k + 1 + BS.length v
-  checkSize l $ header msg <> word64LE u <> byteString k <> word8 0 <> byteString v
+{-# INLINE builder_key_value #-}
+builder_key_value :: MsgType -> SpanInFlight -> BS.ByteString -> BS.ByteString -> Builder
+builder_key_value msg (SpanInFlight u) k v =
+  let klen = fromIntegral $ BS.length k
+      vlen = fromIntegral $ BS.length v
+  in header msg <> word64LE u <> word32LE klen <> word32LE vlen <> byteString k <> byteString v
 
 {-# INLINE builder_setTag #-}
 builder_setTag :: SpanInFlight -> BS.ByteString -> BS.ByteString -> Builder
-builder_setTag = uBsBs TAG
+builder_setTag = builder_key_value TAG
 
 {-# INLINE builder_addEvent #-}
 builder_addEvent :: SpanInFlight -> BS.ByteString -> BS.ByteString -> Builder
-builder_addEvent = uBsBs EVENT
+builder_addEvent = builder_key_value EVENT
 
 {-# INLINE builder_setParentSpanContext #-}
 builder_setParentSpanContext :: SpanInFlight -> SpanContext -> Builder

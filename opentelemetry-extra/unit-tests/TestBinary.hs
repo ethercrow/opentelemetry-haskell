@@ -17,18 +17,18 @@ newtype MsgTypeAr = MsgTypeAr MsgType deriving (Show)
 instance Arbitrary MsgTypeAr where
   arbitrary = elements $ map (MsgTypeAr . MsgType) [1 .. 100]
 
-prop_header_layout_prefix_ot3 :: MsgTypeAr -> Bool
+prop_header_layout_prefix_ot3 :: MsgTypeAr -> Property
 prop_header_layout_prefix_ot3 (MsgTypeAr msgType) =
-  LBS.take 3 (toLazyByteString (header msgType)) == "OT\x03"
+  LBS.take 3 (toLazyByteString (header msgType)) === "OT\x03"
 
-prop_header_layout_suffix_msg :: MsgTypeAr -> Bool
+prop_header_layout_suffix_msg :: MsgTypeAr -> Property
 prop_header_layout_suffix_msg (MsgTypeAr msgType@(MsgType msgTypeId)) =
-  LBS.last (toLazyByteString (header msgType)) == msgTypeId
+  LBS.last (toLazyByteString (header msgType)) === msgTypeId
 
 parseRight :: BS.ByteString -> OpenTelemetryEventlogEvent
 parseRight bs = case parseByteString bs of
   Nothing -> error "No event"
   Just ev -> ev
 
-prop_binary_marshaling :: OpenTelemetryEventlogEvent -> Bool
-prop_binary_marshaling a = a == parseRight (logEventToBs a)
+prop_binary_roundtrip :: OpenTelemetryEventlogEvent -> Property
+prop_binary_roundtrip a = a === parseRight (logEventToBs a)

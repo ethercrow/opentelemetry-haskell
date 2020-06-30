@@ -24,7 +24,7 @@ processEvents events st0 = foldl' go (st0, [], []) events
       let (st', sps', ms') = processEvent e st
        in (st', sps' <> sps, ms <> ms')
 
-prop_number_of_spans_in_eventlog_is_number_of_spans_exported :: [(SpanInFlight, SpanName)] -> Bool
+prop_number_of_spans_in_eventlog_is_number_of_spans_exported :: [(SpanInFlight, SpanName)] -> Property
 prop_number_of_spans_in_eventlog_is_number_of_spans_exported spans =
   let input_events = concatMap convert spans
       convert (span_serial_number, spanName) =
@@ -32,9 +32,9 @@ prop_number_of_spans_in_eventlog_is_number_of_spans_exported spans =
           Event 42 (logEventToUserBinaryMessage $ EndSpanEv span_serial_number) (Just 0)
         ]
       (_end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 (error "randomGen seed"))
-   in length emitted_spans == length spans
+   in length emitted_spans === length spans
 
-prop_user_specified_span_ids_are_used :: [(SpanInFlight, SpanId, SpanName)] -> Bool
+prop_user_specified_span_ids_are_used :: [(SpanInFlight, SpanId, SpanName)] -> Property
 prop_user_specified_span_ids_are_used spans =
   let input_events = concatMap convert spans
       convert (span_serial_number, sid, span_name) =
@@ -43,7 +43,7 @@ prop_user_specified_span_ids_are_used spans =
           Event 42 (logEventToUserBinaryMessage $ EndSpanEv span_serial_number) (Just 0)
         ]
       (_end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 (error "randomGen seed"))
-   in sort (map (\(_, x, _) -> x) spans) == sort (map spanId emitted_spans)
+   in sort (map (\(_, x, _) -> x) spans) === sort (map spanId emitted_spans)
 
 prop_user_specified_things_are_used :: [(SpanInFlight, SpanId, SpanName)] -> Property
 prop_user_specified_things_are_used spans =
@@ -78,7 +78,7 @@ prop_user_specified_things_are_used spans =
                       ]
                 )
               & length
-              & (== (1 :: Int))
+              & (=== (1 :: Int))
        in conjoin $ map corresponding_span_was_emitted spans
 
 prop_parenting_works_when_everything_is_on_one_thread_and_nested_properly :: [SpanInFlight] -> Property

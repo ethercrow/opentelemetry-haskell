@@ -21,7 +21,7 @@ import GHC.RTS.Events.Incremental
 import GHC.Stack
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import OpenTelemetry.Debug
-import OpenTelemetry.Eventlog_Internal (MsgType (..), SpanInFlight (..), otelMagic)
+import OpenTelemetry.Eventlog_Internal
 import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import System.Clock
@@ -412,42 +412,42 @@ headerP = do
         else return . Just . MsgType . fromIntegral $ msgTypeId
     else return Nothing
 
-b8P :: DBG.Get Word64
-b8P = DBG.getWord64le
-
-lazyBs2Txt :: LBS.ByteString -> T.Text
-lazyBs2Txt = TE.decodeUtf8 . LBS.toStrict
-
 lastStringP :: DBG.Get T.Text
-lastStringP = lazyBs2Txt <$> DBG.getRemainingLazyByteString
+lastStringP = (TE.decodeUtf8 . LBS.toStrict) <$> DBG.getRemainingLazyByteString
 
-cStringP :: DBG.Get T.Text
-cStringP = lazyBs2Txt <$> DBG.getLazyByteStringNul
+stringP :: Word32 -> DBG.Get T.Text
+stringP len = TE.decodeUtf8  <$> DBG.getByteString (fromIntegral len)
 
 logEventBodyP :: MsgType -> DBG.Get OpenTelemetryEventlogEvent
 logEventBodyP msgType =
   case msgType of
-    MsgType 1 ->
-      BeginSpanEv <$> (SpanInFlight <$> b8P)
+    BEGIN_SPAN ->
+      BeginSpanEv <$> (SpanInFlight <$> DBG.getWord64le)
         <*> (SpanName <$> lastStringP)
-    MsgType 2 -> EndSpanEv <$> (SpanInFlight <$> b8P)
-    MsgType 3 ->
-      TagEv <$> (SpanInFlight <$> b8P)
-        <*> (TagName <$> cStringP)
-        <*> (TagVal <$> lastStringP)
-    MsgType 4 ->
-      EventEv <$> (SpanInFlight <$> b8P)
-        <*> (EventName <$> cStringP)
-        <*> (EventVal <$> lastStringP)
-    MsgType 5 ->
-      SetParentEv <$> (SpanInFlight <$> b8P)
-        <*> (SpanContext <$> (SId <$> b8P) <*> (TId <$> b8P))
-    MsgType 6 ->
-      SetTraceEv <$> (SpanInFlight <$> b8P)
-        <*> (TId <$> b8P)
-    MsgType 7 ->
-      SetSpanEv <$> (SpanInFlight <$> b8P)
-        <*> (SId <$> b8P)
+    END_SPAN -> EndSpanEv <$> (SpanInFlight <$> DBG.getWord64le)
+    TAG -> do
+      sp <- SpanInFlight <$> DBG.getWord64le
+      klen <- DBG.getWord32le
+      vlen <- DBG.getWord32le
+      k <- TagName <$> stringP klen
+      v <- TagVal <$> stringP vlen
+      pure $ TagEv sp k v
+    EVENT -> do
+      sp <- SpanInFlight <$> DBG.getWord64le
+      klen <- DBG.getWord32le
+      vlen <- DBG.getWord32le
+      k <- EventName <$> stringP klen
+      v <- EventVal <$> stringP vlen
+      pure $ EventEv sp k v
+    SET_PARENT_CONTEXT ->
+      SetParentEv <$> (SpanInFlight <$> DBG.getWord64le)
+        <*> (SpanContext <$> (SId <$> DBG.getWord64le) <*> (TId <$> DBG.getWord64le))
+    SET_TRACE_ID ->
+      SetTraceEv <$> (SpanInFlight <$> DBG.getWord64le)
+        <*> (TId <$> DBG.getWord64le)
+    SET_SPAN_ID ->
+      SetSpanEv <$> (SpanInFlight <$> DBG.getWord64le)
+        <*> (SId <$> DBG.getWord64le)
     MsgType mti ->
       fail $ "Log event of type " ++ show mti ++ " is not supported"
 
