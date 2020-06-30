@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# language GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module OpenTelemetry.SpanContext where
 

@@ -59,4 +59,5 @@ library
     OpenTelemetry.Exporter
     OpenTelemetry.Propagation
     OpenTelemetry.Eventlog
-    OpenTelemetry.Binary.Eventlog
+    OpenTelemetry.Eventlog_Internal
+
