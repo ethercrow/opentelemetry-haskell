@@ -1,7 +1,7 @@
 module Main where
 
 import Data.List (intercalate)
-import OpenTelemetry.ChromeExporter (eventlogToChrome)
+import OpenTelemetry.ChromeExporter
 import System.Directory (findExecutable)
 import System.Environment (getArgs)
 import System.Exit
@@ -10,7 +10,9 @@ import System.Process
 help :: IO ()
 help = do
   putStrLn "Converts eventlog to Tracy format and launches the viewer."
-  putStrLn "Path to eventlog is expected."
+  putStrLn ""
+  putStrLn "Usage:"
+  putStrLn "  eventlog-to-tracy [--collapse-threads | --split-threads] <application.eventlog>"
   exitFailure
 
 tracyInstallInstructions :: String
@@ -36,11 +38,17 @@ main = do
   case args of
     ["-h"] -> help
     ["--help"] -> help
-    [eventlogFile] -> do
-      let chromeFile = eventlogFile ++ ".trace.json"
-      let tracyFile = eventlogFile ++ ".tracy"
-      putStrLn $ "Converting " <> eventlogFile <> " to " <> chromeFile <> "..."
-      eventlogToChrome eventlogFile chromeFile
-      callProcessOrExplain "import-chrome" tracyInstallInstructions [chromeFile, tracyFile]
-      callProcessOrExplain "Tracy" tracyInstallInstructions [tracyFile]
+    ["help"] -> help
+    [eventlogFile] -> work eventlogFile CollapseThreads
+    ["--collapse-threads", eventlogFile] -> work eventlogFile CollapseThreads
+    ["--split-threads", eventlogFile] -> work eventlogFile SplitThreads
     _ -> help
+
+work :: FilePath -> DoWeCollapseThreads -> IO ()
+work inputFile doWeCollapseThreads = do
+  let chromeFile = inputFile ++ ".trace.json"
+      tracyFile = inputFile ++ ".tracy"
+  putStrLn $ "Converting " <> inputFile <> " to " <> chromeFile <> "..."
+  eventlogToChrome inputFile chromeFile doWeCollapseThreads
+  callProcessOrExplain "import-chrome" tracyInstallInstructions [chromeFile, tracyFile]
+  callProcessOrExplain "Tracy" tracyInstallInstructions [tracyFile]

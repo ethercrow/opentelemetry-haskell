@@ -1,11 +1,12 @@
 # Revision history for opentelemetry
 
-## Next
+## 0.5.0 -- 2020-07-01
 
 * Introduce binary eventlog messages.
 * Abandon GHC 8.6 in order to be able to send binary eventlog messages.
 * Reintroduce GC spans
 * Tag all spans with what time was spent in GC
+* Tracy exporter
 
 ## 0.4.2 -- 2020-05-22
 

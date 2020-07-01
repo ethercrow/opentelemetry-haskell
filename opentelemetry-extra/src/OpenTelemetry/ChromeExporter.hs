@@ -69,20 +69,28 @@ instance ToJSON ChromeEndSpan where
       ]
 
 createChromeExporter :: FilePath -> IO (Exporter Span, Exporter Metric)
-createChromeExporter path = do
+createChromeExporter path = createChromeExporter' path SplitThreads
+
+createChromeExporter' :: FilePath -> DoWeCollapseThreads -> IO (Exporter Span, Exporter Metric)
+createChromeExporter' path doWeCollapseThreads = do
   f <- openFile path WriteMode
   hPutStrLn f "[ "
-  let span_exporter =
+  let modifyThreadId = case doWeCollapseThreads of
+        CollapseThreads -> const 1
+        SplitThreads -> id
+      span_exporter =
         Exporter
           ( \sps -> do
               mapM_
-                ( \sp@Span {..} -> do
-                    LBS.hPutStr f $ encode $ ChromeBegin sp
+                ( \sp -> do
+                    let sp' = sp {spanThreadId = modifyThreadId (spanThreadId sp)}
+                    let Span {spanThreadId, spanEvents} = sp'
+                    LBS.hPutStr f $ encode $ ChromeBegin sp'
                     LBS.hPutStr f ",\n"
                     forM_ (sortOn spanEventTimestamp spanEvents) $ \ev -> do
-                      LBS.hPutStr f $ encode $ ChromeEvent spanThreadId ev
+                      LBS.hPutStr f $ encode $ ChromeEvent (modifyThreadId spanThreadId) ev
                       LBS.hPutStr f ",\n"
-                    LBS.hPutStr f $ encode $ ChromeEnd sp
+                    LBS.hPutStr f $ encode $ ChromeEnd sp'
                     LBS.hPutStr f ",\n"
                 )
                 sps
@@ -115,9 +123,11 @@ createChromeExporter path = do
           (pure ())
   pure (span_exporter, metric_exporter)
 
-eventlogToChrome :: FilePath -> FilePath -> IO ()
-eventlogToChrome eventlogFile chromeFile = do
-  (span_exporter, metric_exporter) <- createChromeExporter chromeFile
+data DoWeCollapseThreads = CollapseThreads | SplitThreads
+
+eventlogToChrome :: FilePath -> FilePath -> DoWeCollapseThreads -> IO ()
+eventlogToChrome eventlogFile chromeFile doWeCollapseThreads = do
+  (span_exporter, metric_exporter) <- createChromeExporter' chromeFile doWeCollapseThreads
   exportEventlog span_exporter metric_exporter eventlogFile
   shutdown span_exporter
   shutdown metric_exporter
