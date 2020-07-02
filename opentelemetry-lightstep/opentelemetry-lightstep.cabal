@@ -32,7 +32,6 @@ common options
     ViewPatterns
   ghc-options:
     -Wall
-    -Werror
     -Wcompat
     -Widentities
     -Wincomplete-record-updates
