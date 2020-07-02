@@ -66,24 +66,24 @@ setSpanId :: MonadIO m => SpanInFlight -> SpanId -> m ()
 setSpanId sp sid = liftIO . traceEventIO $ setSpanId' sp sid
 
 -- TODO: Make private
-writeMetric' ::  Instrument s a m -> Int -> String
-writeMetric' instrument v = printf "ot2 metric %s %s" (instrumentName instrument) (show v)
+capture' ::  Instrument s a m -> Int -> String
+capture' instrument v = printf "ot2 metric %s %s" (instrumentName instrument) (show v)
 
 -- TODO: Make private
-writeMetric :: Instrument s a m -> Int -> IO ()
-writeMetric instrument v = liftIO . traceEventIO $ writeMetric' instrument v
+capture :: Instrument s a m -> Int -> IO ()
+capture instrument v = liftIO . traceEventIO $ capture' instrument v
 
 -- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDowncounter')
 add :: Instrument 'Synchronous 'Additive m -> Int -> IO ()
-add = writeMetric
+add = capture
 
 -- | Take a measurement for a synchronous, non-additive instrument ('ValueRecorder')
 record :: Instrument 'Synchronous 'NonAdditive m -> Int -> IO ()
-record = writeMetric
+record = capture
 
 -- | Take a measurement for an asynchronous instrument ('SumObserver', 'UpDownSumObserver', 'ValueObserver')
 observe :: Instrument 'Asynchronous a m -> Int -> IO ()
-observe = writeMetric
+observe = capture
 
 withSpan :: forall m a. (MonadIO m, MonadMask m) => String -> (SpanInFlight -> m a) -> m a
 withSpan operation action =
