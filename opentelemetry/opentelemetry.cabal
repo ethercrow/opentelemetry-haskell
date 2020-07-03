@@ -59,6 +59,6 @@ library
     OpenTelemetry.SpanContext
     OpenTelemetry.Exporter
     OpenTelemetry.Propagation
-    OpenTelemetry.Instruments
+    OpenTelemetry.Metrics
     OpenTelemetry.Eventlog
     OpenTelemetry.Binary.Eventlog

@@ -2,7 +2,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
-module OpenTelemetry.Instruments where
+module OpenTelemetry.Metrics where
 
 import qualified Data.Text as T
 

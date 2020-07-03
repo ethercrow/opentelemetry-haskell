@@ -23,7 +23,7 @@ import OpenTelemetry.Debug
 import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import OpenTelemetry.Binary.Eventlog (SpanInFlight (..), MsgType (..), magic)
-import OpenTelemetry.Instruments
+import OpenTelemetry.Metrics
 import Text.Printf
 import Text.Read
 import Data.Bits

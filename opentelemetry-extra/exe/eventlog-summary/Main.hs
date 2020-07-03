@@ -4,7 +4,7 @@ import Control.Monad
 import qualified Data.Text as T
 import OpenTelemetry.Exporter
 import OpenTelemetry.Common
-import OpenTelemetry.Instruments
+import OpenTelemetry.Metrics
 import OpenTelemetry.EventlogStreaming_Internal
 import System.Environment
 import qualified Data.HashTable.IO as H

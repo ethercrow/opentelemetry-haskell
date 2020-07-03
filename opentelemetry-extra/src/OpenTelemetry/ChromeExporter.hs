@@ -13,7 +13,7 @@ import OpenTelemetry.Common
 import OpenTelemetry.Exporter
 import System.IO
 import Data.Function
-import OpenTelemetry.Instruments (instrumentName, SomeInstrument(SomeInstrument))
+import OpenTelemetry.Metrics (instrumentName, SomeInstrument(SomeInstrument))
 
 newtype ChromeBeginSpan = ChromeBegin Span
 

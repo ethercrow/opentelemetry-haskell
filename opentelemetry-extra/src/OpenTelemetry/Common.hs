@@ -13,7 +13,7 @@ import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import System.Clock
 import Data.String
-import OpenTelemetry.Instruments (SomeInstrument)
+import OpenTelemetry.Metrics (SomeInstrument)
 
 type Timestamp = Word64
 
