@@ -47,13 +47,12 @@ data State = S
     counterEventsProcessed :: !Int,
     counterOpenTelemetryEventsProcessed :: !Int,
     counterSpansEmitted :: !Int,
-    threadCount :: !Int,
     randomGen :: R.SMGen
   }
   deriving (Show)
 
 initialState :: Word64 -> R.SMGen -> State
-initialState timestamp = S timestamp mempty mempty mempty mempty mempty 0 0 0 0 0 0
+initialState timestamp = S timestamp mempty mempty mempty mempty mempty 0 0 0 0 0
 
 data EventSource
   = EventLogHandle Handle WatDoOnEOF
@@ -154,9 +153,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
           let trace_id = case m_trace_id of
                 Just t -> t
                 Nothing -> TId originTimestamp -- TODO: something more random
-           in (st {
-                traceMap = HM.insert new_tid trace_id traceMap,
-                threadCount = threadCount + 1}
+           in (st { traceMap = HM.insert new_tid trace_id traceMap }
               , []
               , [Metric (SomeInstrument threads) [MetricDatapoint now 1]])
         (RunThread tid, Just cap, _) ->
@@ -164,9 +161,8 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
         (StopThread tid tstatus, Just cap, _)
           | isTerminalThreadStatus tstatus ->
             ( st
-                { threadMap = IM.delete cap threadMap,
-                  traceMap = HM.delete tid traceMap,
-                  threadCount = threadCount - 1
+                { threadMap = IM.delete cap threadMap
+                , traceMap = HM.delete tid traceMap
                 },
               []
             , [Metric (SomeInstrument threads) [MetricDatapoint now (-1)]])

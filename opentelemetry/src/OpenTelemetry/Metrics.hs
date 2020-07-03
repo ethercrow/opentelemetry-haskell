@@ -71,6 +71,8 @@ type SumObserver       = Instrument 'Asynchronous 'Additive    'Monotonic
 type UpDownSumObserver = Instrument 'Asynchronous 'Additive    'NonMonotonic
 type ValueObserver     = Instrument 'Asynchronous 'NonAdditive 'NonMonotonic
 
+-- TODO: Support tags
+
 -- | An OpenTelemetry instrument as defined in the OpenTelemetry Metrics API
 -- (<https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/metrics/api.md>)
 data Instrument (s :: Synchronicity) (a :: Additivity) (m :: Monotonicity) where
