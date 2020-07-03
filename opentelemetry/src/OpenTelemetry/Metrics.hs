@@ -5,6 +5,9 @@
 module OpenTelemetry.Metrics where
 
 import qualified Data.Text as T
+import Debug.Trace
+import Text.Printf
+import Control.Monad.IO.Class
 
 data Synchronicity = Synchronous | Asynchronous
 data Additivity = Additive | NonAdditive
@@ -31,22 +34,6 @@ data Instrument (s :: Synchronicity) (a :: Additivity) (m :: Monotonicity) where
 
 data SomeInstrument = forall s a m. SomeInstrument (Instrument s a m)
 
-deriving instance Show (Instrument s a m)
-deriving instance Eq (Instrument s a m)
-
-instance Show SomeInstrument where
-  show (SomeInstrument i) = show i
-
-instance Eq SomeInstrument where
-  (SomeInstrument i1) == (SomeInstrument i2) = case (i1, i2) of
-    (Counter s1, Counter s2) -> s1 == s2
-    (UpDownCounter s1, UpDownCounter s2) -> s1 == s2
-    (ValueRecorder s1, ValueRecorder s2) -> s1 == s2
-    (SumObserver s1, SumObserver s2) -> s1 == s2
-    (UpDownSumObserver s1, UpDownSumObserver s2) -> s1 == s2
-    (ValueObserver s1, ValueObserver s2) -> s1 == s2
-    (_, _) -> False
-
 instrumentName :: Instrument s a m -> InstrumentName
 instrumentName (Counter n) = n
 instrumentName (UpDownCounter n) = n
@@ -71,3 +58,40 @@ readInstrumentType "SumObserver" = Just $ SomeInstrument . SumObserver
 readInstrumentType "UpDownSumObserver" = Just $ SomeInstrument . UpDownSumObserver
 readInstrumentType "ValueObserver" = Just $ SomeInstrument . ValueObserver
 readInstrumentType _ = Nothing
+
+-- TODO: Make private
+capture' ::  Instrument s a m -> Int -> String
+capture' instrument v = printf "ot2 metric %s %s %s" (showInstrumentType instrument) (instrumentName instrument) (show v)
+
+-- TODO: Make private
+capture :: Instrument s a m -> Int -> IO ()
+capture instrument v = liftIO . traceEventIO $ capture' instrument v
+
+-- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDowncounter')
+add :: Instrument 'Synchronous 'Additive m -> Int -> IO ()
+add = capture
+
+-- | Take a measurement for a synchronous, non-additive instrument ('ValueRecorder')
+record :: Instrument 'Synchronous 'NonAdditive m -> Int -> IO ()
+record = capture
+
+-- | Take a measurement for an asynchronous instrument ('SumObserver', 'UpDownSumObserver', 'ValueObserver')
+observe :: Instrument 'Asynchronous a m -> Int -> IO ()
+observe = capture
+
+deriving instance Show (Instrument s a m)
+deriving instance Eq (Instrument s a m)
+
+instance Show SomeInstrument where
+  show (SomeInstrument i) = show i
+
+instance Eq SomeInstrument where
+  (SomeInstrument i1) == (SomeInstrument i2) = case (i1, i2) of
+    (Counter s1, Counter s2) -> s1 == s2
+    (UpDownCounter s1, UpDownCounter s2) -> s1 == s2
+    (ValueRecorder s1, ValueRecorder s2) -> s1 == s2
+    (SumObserver s1, SumObserver s2) -> s1 == s2
+    (UpDownSumObserver s1, UpDownSumObserver s2) -> s1 == s2
+    (ValueObserver s1, ValueObserver s2) -> s1 == s2
+    (_, _) -> False
+

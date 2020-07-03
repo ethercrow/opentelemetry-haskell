@@ -1,7 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GADTs #-}
 
-module OpenTelemetry.Eventlog where
+module OpenTelemetry.Eventlog
+  ( module OpenTelemetry.Eventlog
+  , module OpenTelemetry.Metrics
+  ) where
 
 import Control.Monad.Catch
 import Control.Monad.IO.Class
@@ -12,7 +15,7 @@ import OpenTelemetry.SpanContext
 import OpenTelemetry.Binary.Eventlog (SpanInFlight (..))
 import Text.Printf
 import Prelude hiding (span)
-import OpenTelemetry.Instruments
+import OpenTelemetry.Metrics
 
 beginSpan' :: SpanInFlight -> String -> String
 beginSpan' (SpanInFlight u64) operation =
@@ -64,26 +67,6 @@ setSpanId' (SpanInFlight u64) (SId sid) =
 
 setSpanId :: MonadIO m => SpanInFlight -> SpanId -> m ()
 setSpanId sp sid = liftIO . traceEventIO $ setSpanId' sp sid
-
--- TODO: Make private
-capture' ::  Instrument s a m -> Int -> String
-capture' instrument v = printf "ot2 metric %s %s %s" (showInstrumentType instrument) (instrumentName instrument) (show v)
-
--- TODO: Make private
-capture :: Instrument s a m -> Int -> IO ()
-capture instrument v = liftIO . traceEventIO $ capture' instrument v
-
--- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDowncounter')
-add :: Instrument 'Synchronous 'Additive m -> Int -> IO ()
-add = capture
-
--- | Take a measurement for a synchronous, non-additive instrument ('ValueRecorder')
-record :: Instrument 'Synchronous 'NonAdditive m -> Int -> IO ()
-record = capture
-
--- | Take a measurement for an asynchronous instrument ('SumObserver', 'UpDownSumObserver', 'ValueObserver')
-observe :: Instrument 'Asynchronous a m -> Int -> IO ()
-observe = capture
 
 withSpan :: forall m a. (MonadIO m, MonadMask m) => String -> (SpanInFlight -> m a) -> m a
 withSpan operation action =
