@@ -67,7 +67,7 @@ setSpanId sp sid = liftIO . traceEventIO $ setSpanId' sp sid
 
 -- TODO: Make private
 capture' ::  Instrument s a m -> Int -> String
-capture' instrument v = printf "ot2 metric %s %s" (instrumentName instrument) (show v)
+capture' instrument v = printf "ot2 metric %s %s %s" (showInstrumentType instrument) (instrumentName instrument) (show v)
 
 -- TODO: Make private
 capture :: Instrument s a m -> Int -> IO ()

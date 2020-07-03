@@ -47,7 +47,6 @@ instance Eq SomeInstrument where
     (ValueObserver s1, ValueObserver s2) -> s1 == s2
     (_, _) -> False
 
-
 instrumentName :: Instrument s a m -> InstrumentName
 instrumentName (Counter n) = n
 instrumentName (UpDownCounter n) = n
@@ -55,3 +54,11 @@ instrumentName (ValueRecorder n) = n
 instrumentName (SumObserver n) = n
 instrumentName (UpDownSumObserver n) = n
 instrumentName (ValueObserver n) = n
+
+showInstrumentType :: Instrument s a m -> String
+showInstrumentType Counter{} = "Counter"
+showInstrumentType UpDownCounter{} = "UpDownCounter"
+showInstrumentType ValueRecorder{} = "ValueRecorder"
+showInstrumentType SumObserver{} = "SumObserver"
+showInstrumentType UpDownSumObserver{} = "UpDownSumObserver"
+showInstrumentType ValueObserver{} = "ValueObserver"
