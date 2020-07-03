@@ -2,7 +2,25 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
-module OpenTelemetry.Metrics where
+module OpenTelemetry.Metrics
+  ( Synchronicity(..)
+  , Additivity(..)
+  , Monotonicity(..)
+  , Counter
+  , UpDownCounter
+  , ValueRecorder
+  , SumObserver
+  , UpDownSumObserver
+  , ValueObserver
+  , Instrument(..)
+  , SomeInstrument(..)
+  , instrumentName
+  , showInstrumentType
+  , readInstrumentType
+  , add
+  , record
+  , observe
+  ) where
 
 import qualified Data.Text as T
 import Debug.Trace
@@ -59,13 +77,9 @@ readInstrumentType "UpDownSumObserver" = Just $ SomeInstrument . UpDownSumObserv
 readInstrumentType "ValueObserver" = Just $ SomeInstrument . ValueObserver
 readInstrumentType _ = Nothing
 
--- TODO: Make private
-capture' ::  Instrument s a m -> Int -> String
-capture' instrument v = printf "ot2 metric %s %s %s" (showInstrumentType instrument) (instrumentName instrument) (show v)
-
--- TODO: Make private
 capture :: Instrument s a m -> Int -> IO ()
-capture instrument v = liftIO . traceEventIO $ capture' instrument v
+capture instrument v = liftIO . traceEventIO
+  $ printf "ot2 metric %s %s %s" (showInstrumentType instrument) (instrumentName instrument) (show v)
 
 -- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDowncounter')
 add :: Instrument 'Synchronous 'Additive m -> Int -> IO ()
