@@ -1,3 +1,29 @@
+{-|
+
+This module implements the metrics portion of the OpenTelemetry API.
+
+The way to use this module is to declare an 'Instrument' and then use 'add',
+'record' or 'observe' (depending on the instrument type) to capture metrics on
+that instrument.
+
+Usage:
+@
+import OpenTelemetry.Metrics
+
+aCounter :: Counter
+aCounter = Counter "myCounter"
+
+anObserver :: ValueObserver
+anObserver = ValueObserver "myObserver"
+
+main :: IO ()
+main = do
+  add aCounter 3
+  record anObserver 40
+@
+
+-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GADTs #-}
