@@ -62,3 +62,12 @@ showInstrumentType ValueRecorder{} = "ValueRecorder"
 showInstrumentType SumObserver{} = "SumObserver"
 showInstrumentType UpDownSumObserver{} = "UpDownSumObserver"
 showInstrumentType ValueObserver{} = "ValueObserver"
+
+readInstrumentType :: String -> Maybe (InstrumentName -> SomeInstrument)
+readInstrumentType "Counter" = Just $ SomeInstrument . Counter
+readInstrumentType "UpDownCounter" = Just $ SomeInstrument . UpDownCounter
+readInstrumentType "ValueRecorder" = Just $ SomeInstrument . ValueRecorder
+readInstrumentType "SumObserver" = Just $ SomeInstrument . SumObserver
+readInstrumentType "UpDownSumObserver" = Just $ SomeInstrument . UpDownSumObserver
+readInstrumentType "ValueObserver" = Just $ SomeInstrument . ValueObserver
+readInstrumentType _ = Nothing

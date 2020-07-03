@@ -13,6 +13,7 @@ import OpenTelemetry.Common
 import OpenTelemetry.Exporter
 import System.IO
 import Data.Function
+import OpenTelemetry.Instruments (instrumentName, SomeInstrument(SomeInstrument))
 
 newtype ChromeBeginSpan = ChromeBegin Span
 
@@ -90,19 +91,16 @@ createChromeExporter path = do
         )
       metric_exporter = Exporter
         ( \metrics -> do
-            mapM_
-              (\case
-                Gauge ts name value -> do
-                  LBS.hPutStr f $ encode $
-                    object
-                         [ "ph" .= ("C" :: String),
-                           "name" .= name,
-                           "ts" .= (div ts 1000),
-                           "args" .= object [name .= Number (fromIntegral value)]
-                         ]
-                  LBS.hPutStr f ",\n"
-                )
-              metrics
+            forM_ metrics $ \(Metric (SomeInstrument (instrumentName -> name)) datapoints) ->
+              forM_ datapoints $ \(MetricDatapoint ts value) -> do
+                LBS.hPutStr f $ encode $
+                  object
+                        [ "ph" .= ("C" :: String),
+                          "name" .= name,
+                          "ts" .= (div ts 1000),
+                          "args" .= object [name .= Number (fromIntegral value)]
+                        ]
+                LBS.hPutStr f ",\n"
             pure ExportSuccess
         )
         (pure ())

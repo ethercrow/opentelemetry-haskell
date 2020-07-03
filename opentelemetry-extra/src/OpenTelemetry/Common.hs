@@ -13,6 +13,7 @@ import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import System.Clock
 import Data.String
+import OpenTelemetry.Instruments (SomeInstrument)
 
 type Timestamp = Word64
 
@@ -65,8 +66,13 @@ data Span = Span
   }
   deriving (Show, Eq)
 
-data Metric
-  = Gauge !Timestamp !T.Text !Int
+-- | Based on https://github.com/open-telemetry/opentelemetry-proto/blob/1a931b4b57c34e7fd8f7dddcaa9b7587840e9c08/opentelemetry/proto/metrics/v1/metrics.proto#L96-L107
+data Metric = Metric
+  { instrument :: !SomeInstrument,
+    datapoints :: ![MetricDatapoint]
+  }
+  deriving (Show, Eq)
+data MetricDatapoint = MetricDatapoint !Timestamp !Int
   deriving (Show, Eq)
 
 spanTraceId :: Span -> TraceId
