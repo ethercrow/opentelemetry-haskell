@@ -3,7 +3,9 @@
 {-# LANGUAGE PatternSynonyms #-}
 
 module OpenTelemetry.Eventlog
-  ( withSpan,
+  ( beginSpan,
+    endSpan,
+    withSpan,
     withSpan_,
     setSpanId,
     setTraceId,

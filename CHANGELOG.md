@@ -1,6 +1,10 @@
 # Revision history for opentelemetry
 
-## 0.5.1 -- 2020-07-01
+## 0.5.2 -- 2020-07-03
+
+* Bring back beginSpan and endSpan lost in refactoring
+
+## 0.5.1 -- 2020-07-03
 
 * Update version bounds
 
