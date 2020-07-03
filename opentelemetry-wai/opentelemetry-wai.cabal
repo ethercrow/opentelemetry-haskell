@@ -2,7 +2,7 @@ cabal-version:       2.4
 name:                opentelemetry-wai
 description:         OpenTelemetry middleware for wai
 category:            OpenTelemetry
-version: 0.5.0
+version: 0.5.1
 license-file:        LICENSE
 license:             Apache-2.0
 author:              Dmitry Ivanov
@@ -50,7 +50,7 @@ library
   build-depends:
     base >= 4.12 && < 5,
     bytestring,
-    opentelemetry >= 0.4.0,
+    opentelemetry >= 0.5.1,
     http-types,
     text,
     wai

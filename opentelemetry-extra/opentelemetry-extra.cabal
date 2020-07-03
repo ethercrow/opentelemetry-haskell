@@ -2,7 +2,7 @@ cabal-version:       2.4
 name:                opentelemetry-extra
 description:         The OpenTelemetry Haskell Client https://opentelemetry.io
 category:            OpenTelemetry
-version: 0.5.0
+version: 0.5.1
 license-file:        LICENSE
 license:             Apache-2.0
 author:              Dmitry Ivanov
@@ -63,7 +63,7 @@ library
     http-client,
     http-client-tls,
     http-types,
-    opentelemetry >= 0.4.0,
+    opentelemetry >= 0.5.1,
     random >= 1.1,
     scientific,
     text-show,
@@ -97,7 +97,7 @@ test-suite unit-tests
     bytestring,
     ghc-events,
     hashable,
-    opentelemetry >= 0.4.0,
+    opentelemetry >= 0.5.1,
     opentelemetry-extra,
     tasty,
     tasty-discover,
@@ -120,7 +120,7 @@ executable eventlog-to-zipkin
     filepath,
     http-client,
     http-client-tls,
-    opentelemetry >= 0.4.0,
+    opentelemetry >= 0.5.1,
     opentelemetry-extra,
     text,
     typed-process
@@ -139,7 +139,7 @@ benchmark ot-write-benchmark
   build-depends:
     base,
     gauge >= 0.2.4,
-    opentelemetry >= 0.4.0,
+    opentelemetry >= 0.5.1,
 
 executable eventlog-to-chrome
   import: options
@@ -149,7 +149,7 @@ executable eventlog-to-chrome
     base,
     exceptions,
     clock,
-    opentelemetry >= 0.4.0,
+    opentelemetry >= 0.5.1,
     opentelemetry-extra,
 
 executable eventlog-to-tracy
@@ -160,7 +160,7 @@ executable eventlog-to-tracy
     base,
     clock,
     directory,
-    opentelemetry >= 0.4.0,
+    opentelemetry >= 0.5.1,
     opentelemetry-extra,
     process,
 
@@ -172,7 +172,7 @@ executable eventlog-summary
     base,
     hashtables,
     containers,
-    opentelemetry >= 0.4.0,
+    opentelemetry >= 0.5.1,
     opentelemetry-extra,
     hvega,
     text

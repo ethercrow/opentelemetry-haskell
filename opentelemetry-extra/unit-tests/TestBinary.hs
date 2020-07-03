@@ -7,7 +7,6 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy as LBS
 import LogEventSerializer
-import OpenTelemetry.Eventlog
 import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.Eventlog_Internal
 import Test.Tasty.QuickCheck

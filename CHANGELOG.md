@@ -1,5 +1,9 @@
 # Revision history for opentelemetry
 
+## 0.5.1 -- 2020-07-01
+
+* Update version bounds
+
 ## 0.5.0 -- 2020-07-01
 
 * Introduce binary eventlog messages.
