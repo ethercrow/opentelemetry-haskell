@@ -7,6 +7,7 @@ The way to use this module is to declare an 'Instrument' and then use 'add',
 that instrument.
 
 Usage:
+
 @
 import OpenTelemetry.Metrics
 
@@ -29,23 +30,27 @@ main = do
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
 module OpenTelemetry.Metrics
-  ( Synchronicity(..)
-  , Additivity(..)
-  , Monotonicity(..)
+  ( Instrument(..)
+  , SomeInstrument(..)
+  -- * Capturing metrics
+  , add
+  , record
+  , observe
+  -- * Synonyms for specific types of Instrument
   , Counter
   , UpDownCounter
   , ValueRecorder
   , SumObserver
   , UpDownSumObserver
   , ValueObserver
-  , Instrument(..)
-  , SomeInstrument(..)
+  -- * Used for indexing Instrument. All possible combinations are covered
+  , Synchronicity(..)
+  , Additivity(..)
+  , Monotonicity(..)
+  , InstrumentName
   , instrumentName
   , showInstrumentType
   , readInstrumentType
-  , add
-  , record
-  , observe
   ) where
 
 import qualified Data.Text as T
@@ -67,7 +72,7 @@ type UpDownSumObserver = Instrument 'Asynchronous 'Additive    'NonMonotonic
 type ValueObserver     = Instrument 'Asynchronous 'NonAdditive 'NonMonotonic
 
 -- | An OpenTelemetry instrument as defined in the OpenTelemetry Metrics API
--- (https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/metrics/api.md)
+-- (<https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/metrics/api.md>)
 data Instrument (s :: Synchronicity) (a :: Additivity) (m :: Monotonicity) where
   Counter           :: InstrumentName -> Counter
   UpDownCounter     :: InstrumentName -> UpDownCounter
@@ -76,6 +81,7 @@ data Instrument (s :: Synchronicity) (a :: Additivity) (m :: Monotonicity) where
   UpDownSumObserver :: InstrumentName -> UpDownSumObserver
   ValueObserver     :: InstrumentName -> ValueObserver
 
+-- | Existential wrapper for 'Instrument'. Use when the exact type of Instrument does not matter.
 data SomeInstrument = forall s a m. SomeInstrument (Instrument s a m)
 
 instrumentName :: Instrument s a m -> InstrumentName
@@ -107,7 +113,7 @@ capture :: Instrument s a m -> Int -> IO ()
 capture instrument v = liftIO . traceEventIO
   $ printf "ot2 metric %s %s %s" (showInstrumentType instrument) (instrumentName instrument) (show v)
 
--- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDowncounter')
+-- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDownCounter')
 add :: Instrument 'Synchronous 'Additive m -> Int -> IO ()
 add = capture
 
