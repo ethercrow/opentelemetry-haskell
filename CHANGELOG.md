@@ -1,5 +1,9 @@
 # Revision history for opentelemetry
 
+## 0.5.3 -- 2020-07-04
+
+* Use random numbers for span ids.
+
 ## 0.5.2 -- 2020-07-03
 
 * Bring back beginSpan and endSpan lost in refactoring.

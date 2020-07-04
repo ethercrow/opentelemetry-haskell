@@ -14,8 +14,12 @@ import OpenTelemetry.Common hiding (Event)
 import OpenTelemetry.Eventlog
 import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.SpanContext
+import qualified System.Random.SplitMix as R
 import Test.QuickCheck
 import TextShow
+
+smgen0 :: R.SMGen
+smgen0 = R.mkSMGen 0
 
 processEvents :: [Event] -> State -> (State, [Span], [Metric])
 processEvents events st0 = foldl' go (st0, [], []) events
@@ -31,7 +35,7 @@ prop_number_of_spans_in_eventlog_is_number_of_spans_exported spans =
         [ Event 0 (logEventToUserBinaryMessage $ BeginSpanEv span_serial_number spanName) (Just 0),
           Event 42 (logEventToUserBinaryMessage $ EndSpanEv span_serial_number) (Just 0)
         ]
-      (_end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 (error "randomGen seed"))
+      (_end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 smgen0)
    in length emitted_spans === length spans
 
 prop_user_specified_span_ids_are_used :: [(SpanInFlight, SpanId, SpanName)] -> Property
@@ -42,7 +46,7 @@ prop_user_specified_span_ids_are_used spans =
           Event 1 (logEventToUserBinaryMessage $ SetSpanEv span_serial_number sid) (Just 0),
           Event 42 (logEventToUserBinaryMessage $ EndSpanEv span_serial_number) (Just 0)
         ]
-      (_end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 (error "randomGen seed"))
+      (_end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 smgen0)
    in sort (map (\(_, x, _) -> x) spans) === sort (map spanId emitted_spans)
 
 prop_user_specified_things_are_used :: [(SpanInFlight, SpanId, SpanName)] -> Property
@@ -59,7 +63,7 @@ prop_user_specified_things_are_used spans =
               Event 4 (logEventToUserBinaryMessage $ EventEv span_serial_number (EventName "message") (EventVal $ showt sid')) (Just 0),
               Event 42 (logEventToUserBinaryMessage $ EndSpanEv span_serial_number) (Just 0)
             ]
-          (_end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 (error "randomGen seed"))
+          (_end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 smgen0)
           corresponding_span_was_emitted (_serial, SId sid, _thread_id) =
             emitted_spans
               & filter
@@ -90,7 +94,7 @@ prop_parenting_works_when_everything_is_on_one_thread_and_nested_properly serial
               Event 1 (logEventToUserBinaryMessage $ BeginSpanEv serial $ SpanName $ showt serial) (Just 0)
             convert_end serial =
               Event 42 (logEventToUserBinaryMessage $ EndSpanEv serial) (Just 0)
-            (_end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 (error "randomGen seed"))
+            (_end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 smgen0)
             check_relationship (sp, psp) = spanParentId sp === Just (spanId psp)
          in conjoin $ map check_relationship (zip (tail emitted_spans) emitted_spans)
 
@@ -104,7 +108,7 @@ prop_beginning_a_span_on_one_thread_and_ending_on_another_is_fine serial begin_t
           Event 4 (RunThread end_tid) (Just end_cap),
           Event 5 (logEventToUserBinaryMessage $ EndSpanEv serial) (Just end_cap)
         ]
-      (end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 (error "randomGen seed"))
+      (end_state, emitted_spans, _emitted_metrics) = processEvents input_events (initialState 0 smgen0)
    in conjoin
         [ length emitted_spans === 1,
           spanOperation (head emitted_spans) === showt serial,

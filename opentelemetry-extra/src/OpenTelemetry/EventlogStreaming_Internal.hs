@@ -354,9 +354,11 @@ setSpanId sid sp =
     }
 
 inventSpanId :: Word64 -> State -> (State, SpanId)
-inventSpanId serial st = (st {serial2sid = HM.insert serial sid (serial2sid st)}, sid)
+inventSpanId serial st = (st', sid)
   where
-    sid = SId serial -- TODO: use random generator instead
+    S {serial2sid, randomGen} = st
+    (SId -> sid, randomGen') = R.nextWord64 randomGen
+    st' = st {serial2sid = HM.insert serial sid serial2sid, randomGen = randomGen'}
 
 parseText :: [T.Text] -> Maybe OpenTelemetryEventlogEvent
 parseText =
