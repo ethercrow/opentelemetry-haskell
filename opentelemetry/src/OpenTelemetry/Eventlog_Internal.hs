@@ -84,7 +84,7 @@ builder_key_value :: MsgType -> SpanInFlight -> BS.ByteString -> BS.ByteString -
 builder_key_value msg (SpanInFlight u) k v =
   let klen = fromIntegral $ BS.length k
       vlen = fromIntegral $ BS.length v
-  in header msg <> word64LE u <> word32LE klen <> word32LE vlen <> byteString k <> byteString v
+   in header msg <> word64LE u <> word32LE klen <> word32LE vlen <> byteString k <> byteString v
 
 {-# INLINE builder_setTag #-}
 builder_setTag :: SpanInFlight -> BS.ByteString -> BS.ByteString -> Builder

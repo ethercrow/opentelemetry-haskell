@@ -192,9 +192,6 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
               spans' = fmap (\live_span -> live_span {spanNanosecondsSpentInGC = (now - gcStartedAt) + spanNanosecondsSpentInGC live_span}) spans
               st' = st {randomGen = randomGen', spans = spans'}
            in (st', [sp], [Gauge now "gc" (fromIntegral $ now - gcStartedAt)])
-        -- (HeapAllocated {allocBytes}, _, Just tid) ->
-        --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [], [])
-
         (parseOpenTelemetry -> Just ev', _, fromMaybe 1 -> tid) ->
           handleOpenTelemetryEventlogEvent ev' st (tid, now, m_trace_id)
         _ -> (st, [], [])
@@ -270,13 +267,7 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
                     spanNanosecondsSpentInGC = 0,
                     spanParentId = parent
                   }
-           in ( st'
-                  { spans = HM.insert span_id sp $ spans st,
-                    thread2sid = HM.insert tid span_id $ thread2sid st
-                  },
-                [],
-                []
-              )
+           in (createSpan span_id sp st', [], [])
         Just span_id ->
           let (st', sp) = emitSpan serial span_id st
            in (st', [sp {spanFinishedAt = now}], [])
@@ -298,16 +289,17 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
                     spanNanosecondsSpentInGC = 0,
                     spanParentId = parent
                   }
-           in ( st'
-                  { spans = HM.insert span_id sp (spans st),
-                    thread2sid = HM.insert tid span_id (thread2sid st)
-                  },
-                [],
-                []
-              )
+           in (createSpan span_id sp st', [], [])
         Just span_id ->
           let (st', sp) = emitSpan serial span_id st
            in (st', [sp {spanOperation = operation, spanStartedAt = now, spanThreadId = tid}], [])
+
+createSpan :: SpanId -> Span -> State -> State
+createSpan span_id sp st =
+  st
+    { spans = HM.insert span_id sp (spans st),
+      thread2sid = HM.insert (spanThreadId sp) span_id (thread2sid st)
+    }
 
 emitSpan :: Word64 -> SpanId -> State -> (State, Span)
 emitSpan serial span_id st =
@@ -416,7 +408,7 @@ lastStringP :: DBG.Get T.Text
 lastStringP = (TE.decodeUtf8 . LBS.toStrict) <$> DBG.getRemainingLazyByteString
 
 stringP :: Word32 -> DBG.Get T.Text
-stringP len = TE.decodeUtf8  <$> DBG.getByteString (fromIntegral len)
+stringP len = TE.decodeUtf8 <$> DBG.getByteString (fromIntegral len)
 
 logEventBodyP :: MsgType -> DBG.Get OpenTelemetryEventlogEvent
 logEventBodyP msgType =
