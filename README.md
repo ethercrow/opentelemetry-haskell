@@ -62,7 +62,12 @@ TODO: Document how to export trace data to Chrome or Tracy.
 
 ### Eventlog summary
 
-This is the simplest kind of exporter that doesn't send the trace to any external application or service but prints some statistics about a given eventlog.
+This is the simplest kind of exporter that doesn't send the trace to
+any external application or service but prints some statistics about a
+given eventlog. This is one of the executables bundled as part of
+[opentelemetry-extra](https://hackage.haskell.org/package/opentelemetry-extra
+"opentelemetry-extra") package which is developed as part of this
+repository.
 
 ```
 > eventlog-summary ghcide.eventlog
