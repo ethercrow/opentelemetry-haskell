@@ -20,7 +20,6 @@ import GHC.RTS.Events
 import GHC.RTS.Events.Incremental
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import OpenTelemetry.Debug
-import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import OpenTelemetry.Binary.Eventlog (SpanInFlight (..), MsgType (..), magic)
 import OpenTelemetry.Metrics

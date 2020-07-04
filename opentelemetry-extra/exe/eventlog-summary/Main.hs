@@ -2,7 +2,6 @@ module Main where
 
 import Control.Monad
 import qualified Data.Text as T
-import OpenTelemetry.Exporter
 import OpenTelemetry.Common
 import OpenTelemetry.Metrics
 import OpenTelemetry.EventlogStreaming_Internal

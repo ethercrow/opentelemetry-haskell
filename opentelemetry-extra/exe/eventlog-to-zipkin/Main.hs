@@ -4,7 +4,7 @@ module Main where
 
 import qualified Data.Text as T
 import OpenTelemetry.EventlogStreaming_Internal
-import OpenTelemetry.Exporter
+import OpenTelemetry.Common
 import OpenTelemetry.ZipkinExporter
 import System.Environment (getArgs)
 import System.FilePath

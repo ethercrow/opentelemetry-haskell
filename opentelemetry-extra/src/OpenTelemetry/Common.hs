@@ -9,7 +9,6 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import Data.Word
 import GHC.Generics
-import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import System.Clock
 import Data.String
@@ -103,6 +102,21 @@ data SpanProcessor = SpanProcessor
 data OpenTelemetryConfig = OpenTelemetryConfig
   { otcSpanExporter :: Exporter Span
   }
+
+data ExportResult
+  = ExportSuccess
+  | ExportFailedRetryable
+  | ExportFailedNotRetryable
+  deriving (Show, Eq)
+
+data Exporter thing
+  = Exporter
+      { export :: [thing] -> IO ExportResult,
+        shutdown :: IO ()
+      }
+
+noopExporter :: Exporter whatever
+noopExporter = Exporter (const (pure ExportFailedNotRetryable)) (pure ())
 
 now64 :: IO Timestamp
 now64 = do

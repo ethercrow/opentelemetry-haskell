@@ -10,7 +10,6 @@ import Data.List (sortOn)
 import Data.Word
 import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.Common
-import OpenTelemetry.Exporter
 import System.IO
 import Data.Function
 import OpenTelemetry.Metrics (instrumentName, SomeInstrument(SomeInstrument))

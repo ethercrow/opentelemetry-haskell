@@ -57,7 +57,6 @@ library
   hs-source-dirs: src
   exposed-modules:
     OpenTelemetry.SpanContext
-    OpenTelemetry.Exporter
     OpenTelemetry.Propagation
     OpenTelemetry.Metrics
     OpenTelemetry.Eventlog
