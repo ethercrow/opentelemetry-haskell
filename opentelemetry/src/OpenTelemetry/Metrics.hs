@@ -29,6 +29,7 @@ main = do
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
+
 module OpenTelemetry.Metrics
   ( Instrument(..)
   , SomeInstrument(..)
@@ -51,12 +52,14 @@ module OpenTelemetry.Metrics
   , instrumentName
   , showInstrumentType
   , readInstrumentType
+  , additive
   ) where
 
 import qualified Data.Text as T
 import Debug.Trace
 import Text.Printf
 import Control.Monad.IO.Class
+import Data.Hashable (Hashable(..))
 
 data Synchronicity = Synchronous | Asynchronous
 data Additivity = Additive | NonAdditive
@@ -111,6 +114,15 @@ readInstrumentType "UpDownSumObserver" = Just $ SomeInstrument . UpDownSumObserv
 readInstrumentType "ValueObserver" = Just $ SomeInstrument . ValueObserver
 readInstrumentType _ = Nothing
 
+additive :: SomeInstrument -> Bool
+additive (SomeInstrument i) = case i of
+  Counter{} -> True
+  UpDownCounter{} -> True
+  ValueRecorder{} -> False
+  SumObserver{} -> True
+  UpDownSumObserver{} -> True
+  ValueObserver{} -> False
+
 capture :: Instrument s a m -> Int -> IO ()
 capture instrument v = liftIO . traceEventIO
   $ printf "ot2 metric %s %s %s" (showInstrumentType instrument) (instrumentName instrument) (show v)
@@ -143,3 +155,16 @@ instance Eq SomeInstrument where
     (ValueObserver s1, ValueObserver s2) -> s1 == s2
     (_, _) -> False
 
+instance Hashable (Instrument s a m) where
+  hashWithSalt s i = s `hashWithSalt` (constructorIdx i) `hashWithSalt` (instrumentName i)
+    where
+      constructorIdx :: Instrument s a m -> Int
+      constructorIdx Counter{} = 0
+      constructorIdx UpDownCounter{} = 1
+      constructorIdx ValueRecorder{} = 2
+      constructorIdx SumObserver{} = 3
+      constructorIdx UpDownSumObserver{} = 4
+      constructorIdx ValueObserver{} = 5
+
+instance Hashable SomeInstrument where
+  hashWithSalt s (SomeInstrument i) = hashWithSalt s i

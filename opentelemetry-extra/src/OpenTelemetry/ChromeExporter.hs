@@ -88,21 +88,20 @@ createChromeExporter path = do
             hPutStrLn f "\n]"
             hClose f
         )
-      metric_exporter = Exporter
-        ( \metrics -> do
-            forM_ metrics $ \(Metric (SomeInstrument (instrumentName -> name)) datapoints) ->
-              forM_ datapoints $ \(MetricDatapoint ts value) -> do
-                LBS.hPutStr f $ encode $
-                  object
-                        [ "ph" .= ("C" :: String),
-                          "name" .= name,
-                          "ts" .= (div ts 1000),
-                          "args" .= object [name .= Number (fromIntegral value)]
-                        ]
-                LBS.hPutStr f ",\n"
-            pure ExportSuccess
-        )
-        (pure ())
+  metric_exporter <- aggregated $ Exporter
+    ( \metrics -> do
+        forM_ metrics $ \(AggregatedMetric (SomeInstrument (instrumentName -> name)) (MetricDatapoint ts value)) -> do
+          LBS.hPutStr f $ encode $
+            object
+                  [ "ph" .= ("C" :: String),
+                    "name" .= name,
+                    "ts" .= (div ts 1000),
+                    "args" .= object [name .= Number (fromIntegral value)]
+                  ]
+          LBS.hPutStr f ",\n"
+        pure ExportSuccess
+    )
+    (pure ())
   pure (span_exporter, metric_exporter)
 
 eventlogToChrome :: FilePath -> FilePath -> IO ()

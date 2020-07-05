@@ -56,18 +56,17 @@ main = do
                                   m, ()))
               pure ExportSuccess)
             (pure ())
-          metric_exporter = Exporter
-              ( \metrics -> do
-                  forM_ metrics $ \(Metric (SomeInstrument (instrumentName -> label)) datapoints) ->
-                    forM_ datapoints $ \(MetricDatapoint _ value) ->
-                      modifyIORef metricStats $ \s -> case splitCapability $ T.unpack label of
-                        (_, "threads") -> s { max_threads = max value (max_threads s) }
-                        (Just cap, "heap_alloc_bytes") -> s { total_alloc_bytes = IntMap.insert cap value (total_alloc_bytes s) }
-                        (_, "heap_live_bytes") -> s { max_live_bytes = max value (max_live_bytes s) }
-                        _ -> s
-                  pure ExportSuccess
-              )
-              (pure ())
+      metric_exporter <- aggregated $ Exporter
+        ( \metrics -> do
+            forM_ metrics $ \(AggregatedMetric (SomeInstrument instrument) (MetricDatapoint _ value)) ->
+              modifyIORef metricStats $ \s -> case splitCapability $ T.unpack (instrumentName instrument) of
+                (_, "threads") -> s { max_threads = max value (max_threads s) }
+                (Just cap, "heap_alloc_bytes") -> s { total_alloc_bytes = IntMap.insert cap value (total_alloc_bytes s) }
+                (_, "heap_live_bytes") -> s { max_live_bytes = max value (max_live_bytes s) }
+                _ -> s
+            pure ExportSuccess
+        )
+        (pure ())
       exportEventlog span_exporter metric_exporter path
       leaderboard <- sortOn (total_ns . snd) <$> H.toList opCounts
       printf "Count\tTot ms\tMin ms\tMax ms\tOperation\n"
