@@ -69,6 +69,11 @@ clientMain = withSpan "clientMain" $ \sp -> do
   resp <- httpLbs ((fromString $ printf "http://127.0.0.1:%d/http/127.0.0.1:%d/stuff" megaport megaport) {requestHeaders = propagationHeaders}) manager
   print resp
 
+#ifndef OPEN_TELEMETRY_USE_BINARY
+httpRequestCounter :: Counter
+httpRequestCounter = Counter "http_requests"
+#endif
+
 microservice :: Wai.Application
 microservice = \req respond -> withSpan "handle_http_request" $ \sp -> do
   my_trace_id <- case propagateFromHeaders w3cTraceContext (Wai.requestHeaders req) of
@@ -85,6 +90,9 @@ microservice = \req respond -> withSpan "handle_http_request" $ \sp -> do
       performGC
       respond $ Wai.responseLBS status200 [] ""
     ("http" : rest) -> do
+#ifndef OPEN_TELEMETRY_USE_BINARY
+      add httpRequestCounter 1
+#endif
       let target = "http://" <> T.intercalate "/" rest
       result <- get my_trace_id target
       respond $ Wai.responseLBS status200 [] result
