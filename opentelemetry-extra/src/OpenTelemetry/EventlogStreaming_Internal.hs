@@ -201,7 +201,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
     gcTimeI = SumObserver "gc"
 
     heapAllocBytesI :: Int -> SumObserver
-    heapAllocBytesI cap = SumObserver ("cap_" <> T.pack (show cap) <> "_heap_alloc_bytes")
+    heapAllocBytesI cap = SumObserver ("cap_" <> show cap <> "_heap_alloc_bytes")
 
 
 isTerminalThreadStatus :: ThreadStopStatus -> Bool
@@ -406,7 +406,7 @@ parseText =
         let mInstrumentType = readInstrumentType $ T.unpack instrumentTypeStr
             mVal = readMaybe (T.unpack $ T.unwords valStr)
          in case (mInstrumentType, mVal) of
-            (Just instrumentType, Just val) -> Just (MetricEv (instrumentType name) val)
+            (Just instrumentType, Just val) -> Just (MetricEv (instrumentType $ T.unpack name) val)
             (Nothing, _) -> error $ printf "Invalid instrument: %s" (show instrumentTypeStr)
             (_, Nothing) -> error $ printf "Invalid metric value: %s" (show valStr)
       ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)

@@ -5,6 +5,7 @@ module OpenTelemetry.ChromeExporter where
 import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text as T
 import Data.Function
 import Data.HashMap.Strict as HM
 import Data.List (sortOn)
@@ -109,7 +110,7 @@ createChromeExporter' path doWeCollapseThreads = do
                   [ "ph" .= ("C" :: String),
                     "name" .= name,
                     "ts" .= (div ts 1000),
-                    "args" .= object [name .= Number (fromIntegral value)]
+                    "args" .= object [T.pack name .= Number (fromIntegral value)]
                   ]
           LBS.hPutStr f ",\n"
         pure ExportSuccess

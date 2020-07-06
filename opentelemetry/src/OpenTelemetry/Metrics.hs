@@ -55,7 +55,6 @@ module OpenTelemetry.Metrics
   , additive
   ) where
 
-import qualified Data.Text as T
 import Debug.Trace
 import Text.Printf
 import Control.Monad.IO.Class
@@ -65,7 +64,7 @@ data Synchronicity = Synchronous | Asynchronous
 data Additivity = Additive | NonAdditive
 data Monotonicity = Monotonic | NonMonotonic
 
-type InstrumentName = T.Text
+type InstrumentName = String
 
 type Counter           = Instrument 'Synchronous  'Additive    'Monotonic
 type UpDownCounter     = Instrument 'Synchronous  'Additive    'NonMonotonic
