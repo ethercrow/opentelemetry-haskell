@@ -404,7 +404,7 @@ parseText =
             mVal = readMaybe (T.unpack $ T.unwords valStr)
          in case (mInstrumentType, mVal) of
             (Just instrumentType, Just val) -> Just (MetricEv (instrumentType name) val)
-            (Nothing, _) -> error $ printf "Invalid instrument: %s" (show valStr)
+            (Nothing, _) -> error $ printf "Invalid instrument: %s" (show instrumentTypeStr)
             (_, Nothing) -> error $ printf "Invalid metric value: %s" (show valStr)
       ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
       _ -> Nothing
