@@ -30,7 +30,6 @@ import Data.Word
 import qualified System.Random.SplitMix as R
 
 import System.IO
-import Debug.Trace (trace)
 
 data WatDoOnEOF = StopOnEOF | SleepAndRetryOnEOF
 
@@ -154,7 +153,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                 Nothing -> TId originTimestamp -- TODO: something more random
            in (st { traceMap = HM.insert new_tid trace_id traceMap }
               , []
-              , [Metric (SomeInstrument threads) [MetricDatapoint now 1]])
+              , [Metric (SomeInstrument threadsI) [MetricDatapoint now 1]])
         (RunThread tid, Just cap, _) ->
           (st {threadMap = IM.insert cap tid threadMap}, [], [])
         (StopThread tid tstatus, Just cap, _)
@@ -164,12 +163,12 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                 , traceMap = HM.delete tid traceMap
                 },
               []
-            , [Metric (SomeInstrument threads) [MetricDatapoint now (-1)]])
+            , [Metric (SomeInstrument threadsI) [MetricDatapoint now (-1)]])
         (StartGC, _, _) ->
           (st {gcStartedAt = now}, [], [])
-        (HeapLive {liveBytes}, _, _) -> (st, [], [Metric (SomeInstrument heapLiveBytes) [MetricDatapoint now $ fromIntegral liveBytes]])
-        (HeapAllocated {allocBytes=_}, (Just cap), _) ->
-          (st, [], trace "Need instrument tags to process heap allocations" []) -- [Metric _heapAllocInstrument [fromIntegral allocBytes]]
+        (HeapLive {liveBytes}, _, _) -> (st, [], [Metric (SomeInstrument heapLiveBytesI) [MetricDatapoint now $ fromIntegral liveBytes]])
+        (HeapAllocated {allocBytes}, (Just cap), _) ->
+          (st, [], [Metric (SomeInstrument $ heapAllocBytesI cap) [MetricDatapoint now $ fromIntegral allocBytes]])
         (EndGC, _, _) ->
           let (span_id, randomGen') = R.nextWord64 randomGen
               sp = Span
@@ -186,7 +185,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                 }
               spans' = fmap (\live_span -> live_span {spanNanosecondsSpentInGC = (now - gcStartedAt) + spanNanosecondsSpentInGC live_span }) spans
               st' = st { randomGen = randomGen', spans = spans' }
-          in (st', [sp], [Metric (SomeInstrument gcTime) [MetricDatapoint now (fromIntegral $ now - gcStartedAt)]])
+          in (st', [sp], [Metric (SomeInstrument gcTimeI) [MetricDatapoint now (fromIntegral $ now - gcStartedAt)]])
         -- (HeapAllocated {allocBytes}, _, Just tid) ->
         --   (modifySpan tid (addEvent now "heap_alloc_bytes" (showT allocBytes)) st, [], [])
 
@@ -194,14 +193,17 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
           handleOpenTelemetryEventlogEvent ev' st (tid, now, m_trace_id)
         _ -> (st, [], [])
   where
-    threads :: UpDownSumObserver
-    threads = UpDownSumObserver "threads"
+    threadsI :: UpDownSumObserver
+    threadsI = UpDownSumObserver "threads"
 
-    heapLiveBytes :: ValueObserver
-    heapLiveBytes = ValueObserver "heap_live_bytes"
+    heapLiveBytesI :: ValueObserver
+    heapLiveBytesI = ValueObserver "heap_live_bytes"
 
-    gcTime :: SumObserver
-    gcTime = SumObserver "gc"
+    gcTimeI :: SumObserver
+    gcTimeI = SumObserver "gc"
+
+    heapAllocBytesI :: Int -> SumObserver
+    heapAllocBytesI cap = SumObserver ("cap_" <> T.pack (show cap) <> "_heap_alloc_bytes")
 
 
 isTerminalThreadStatus :: ThreadStopStatus -> Bool
