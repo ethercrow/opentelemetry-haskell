@@ -1,15 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE CPP #-}
 
 import Control.Concurrent
 import Control.Concurrent.Async
-#ifdef OPEN_TELEMETRY_USE_BINARY
-import qualified Data.ByteString.Lazy.Char8 as BS
-#else
 import qualified Data.ByteString.Char8 as BS
-#endif
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Function
 import Data.String
@@ -20,12 +15,7 @@ import Network.HTTP.Client.TLS
 import Network.HTTP.Types (status200, statusCode)
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
--- use to turn on: stack build --flag megaexample:binary
-#ifdef OPEN_TELEMETRY_USE_BINARY
-import OpenTelemetry.Binary.Eventlog
-#else
 import OpenTelemetry.Eventlog
-#endif
 import qualified OpenTelemetry.Network.Wai.Middleware as WaiTelemetry
 import OpenTelemetry.Propagation
 import OpenTelemetry.SpanContext
@@ -69,10 +59,8 @@ clientMain = withSpan "clientMain" $ \sp -> do
   resp <- httpLbs ((fromString $ printf "http://127.0.0.1:%d/http/127.0.0.1:%d/stuff" megaport megaport) {requestHeaders = propagationHeaders}) manager
   print resp
 
-#ifndef OPEN_TELEMETRY_USE_BINARY
 httpRequestCounter :: Counter
 httpRequestCounter = Counter "http_requests"
-#endif
 
 microservice :: Wai.Application
 microservice = \req respond -> withSpan "handle_http_request" $ \sp -> do
@@ -90,9 +78,7 @@ microservice = \req respond -> withSpan "handle_http_request" $ \sp -> do
       performGC
       respond $ Wai.responseLBS status200 [] ""
     ("http" : rest) -> do
-#ifndef OPEN_TELEMETRY_USE_BINARY
       add httpRequestCounter 1
-#endif
       let target = "http://" <> T.intercalate "/" rest
       result <- get my_trace_id target
       respond $ Wai.responseLBS status200 [] result

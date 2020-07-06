@@ -1,14 +1,15 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module OpenTelemetry.Common where
 
 import Data.Aeson
-import Data.Hashable
 import qualified Data.HashMap.Strict as HM
+import Data.Hashable
+import Data.String
 import qualified Data.Text as T
 import Data.Word
 import GHC.Generics
@@ -23,11 +24,14 @@ import Data.List (sortOn)
 type Timestamp = Word64
 
 newtype SpanName = SpanName T.Text deriving (Show, Eq, Generic)
-newtype TagName = TagName T.Text deriving (Show, Eq, Generic, ToJSONKey, Hashable)
-newtype TagVal = TagVal T.Text deriving (Show, Eq, Generic, ToJSON)
-newtype EventName = EventName T.Text deriving (Show, Eq, Generic)
-newtype EventVal = EventVal T.Text deriving (Show, Eq, Generic, ToJSON)
 
+newtype TagName = TagName T.Text deriving (Show, Eq, Generic, ToJSONKey, Hashable)
+
+newtype TagVal = TagVal T.Text deriving (Show, Eq, Generic, ToJSON)
+
+newtype EventName = EventName T.Text deriving (Show, Eq, Generic)
+
+newtype EventVal = EventVal T.Text deriving (Show, Eq, Generic, ToJSON)
 
 instance IsString TagName where
   fromString = TagName . T.pack
@@ -163,4 +167,3 @@ now64 :: IO Timestamp
 now64 = do
   TimeSpec secs nsecs <- getTime Realtime
   pure $! fromIntegral secs * 1_000_000_000 + fromIntegral nsecs
-

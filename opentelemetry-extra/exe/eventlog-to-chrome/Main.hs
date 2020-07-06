@@ -17,7 +17,7 @@ main = do
     ["read", path] -> do
       let target_path = (path <> ".trace.json")
       printf "Converting %s to %s...\n" path target_path
-      eventlogToChrome path target_path
+      eventlogToChrome path target_path SplitThreads
       putStrLn "\nAll done."
     _ -> do
       putStrLn "Usage:"

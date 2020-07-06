@@ -1,11 +1,24 @@
 # Revision history for opentelemetry
 
-## Next
+## 0.5.3 -- 2020-07-04
+
+* Use random numbers for span ids.
+
+## 0.5.2 -- 2020-07-03
+
+* Bring back beginSpan and endSpan lost in refactoring.
+
+## 0.5.1 -- 2020-07-03
+
+* Update version bounds.
+
+## 0.5.0 -- 2020-07-01
 
 * Introduce binary eventlog messages.
 * Abandon GHC 8.6 in order to be able to send binary eventlog messages.
-* Reintroduce GC spans
-* Tag all spans with what time was spent in GC
+* Reintroduce GC spans.
+* Tag all spans with what time was spent in GC.
+* Tracy exporter.
 
 ## 0.4.2 -- 2020-05-22
 
