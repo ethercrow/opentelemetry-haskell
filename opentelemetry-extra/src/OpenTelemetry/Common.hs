@@ -17,7 +17,7 @@ import System.Clock
 import Data.String
 import OpenTelemetry.Metrics (additive, SomeInstrument)
 import Data.IORef (readIORef, modifyIORef, newIORef)
-import Control.Monad (forM, forM_)
+import Control.Monad
 import Data.List (sortOn)
 
 type Timestamp = Word64

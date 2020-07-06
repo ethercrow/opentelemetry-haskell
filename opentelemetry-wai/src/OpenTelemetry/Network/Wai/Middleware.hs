@@ -7,7 +7,6 @@ import Network.HTTP.Types
 import Network.Wai
 import OpenTelemetry.Eventlog
 import OpenTelemetry.Propagation
-import OpenTelemetry.Metrics
 
 -- Semantic conventions for HTTP spans:
 -- https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/http.md
