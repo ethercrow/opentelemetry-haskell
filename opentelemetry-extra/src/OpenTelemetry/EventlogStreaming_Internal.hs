@@ -25,16 +25,11 @@ import OpenTelemetry.SpanContext
 import OpenTelemetry.Metrics
 import Text.Printf
 import Text.Read
-import Data.Bits
-import Data.Word
 import qualified System.Random.SplitMix as R
 
 import OpenTelemetry.Eventlog_Internal
-import OpenTelemetry.SpanContext
 import System.Clock
 import System.IO
-import qualified System.Random.SplitMix as R
-import Text.Printf
 
 data WatDoOnEOF = StopOnEOF | SleepAndRetryOnEOF
 

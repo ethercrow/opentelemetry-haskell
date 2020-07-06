@@ -15,7 +15,6 @@ import Data.Word
 import GHC.Generics
 import OpenTelemetry.SpanContext
 import System.Clock
-import Data.String
 import OpenTelemetry.Metrics (additive, SomeInstrument)
 import Data.IORef (readIORef, modifyIORef, newIORef)
 import Control.Monad

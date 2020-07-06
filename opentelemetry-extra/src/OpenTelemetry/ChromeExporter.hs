@@ -11,10 +11,8 @@ import Data.List (sortOn)
 import Data.Word
 import OpenTelemetry.Common
 import System.IO
-import Data.Function
 import OpenTelemetry.Metrics (instrumentName, SomeInstrument(SomeInstrument))
 import OpenTelemetry.EventlogStreaming_Internal
-import System.IO
 
 newtype ChromeBeginSpan = ChromeBegin Span
 

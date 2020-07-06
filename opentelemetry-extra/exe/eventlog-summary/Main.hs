@@ -15,12 +15,8 @@ import Data.IORef
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
 import Data.List (sortOn)
-import qualified Data.Text as T
 import Data.Word
 import Graphics.Vega.VegaLite hiding (name)
-import OpenTelemetry.Common
-import OpenTelemetry.EventlogStreaming_Internal
-import System.Environment
 import Text.Printf
 
 type HashTable k v = H.BasicHashTable k v
