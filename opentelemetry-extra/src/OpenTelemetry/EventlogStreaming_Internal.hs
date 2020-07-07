@@ -7,6 +7,7 @@ import Control.Concurrent (threadDelay)
 import qualified Data.Binary.Get as DBG
 import Data.Bits
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap as IM
@@ -201,7 +202,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
     gcTimeI = SumObserver "gc"
 
     heapAllocBytesI :: Int -> SumObserver
-    heapAllocBytesI cap = SumObserver ("cap_" <> show cap <> "_heap_alloc_bytes")
+    heapAllocBytesI cap = SumObserver ("cap_" <> B8.pack (show cap) <> "_heap_alloc_bytes")
 
 
 isTerminalThreadStatus :: ThreadStopStatus -> Bool
@@ -403,10 +404,10 @@ parseText =
         let serial = read (T.unpack serial_text)
          in Just . EventEv (SpanInFlight serial) (EventName k) $ EventVal $ T.unwords v
       ("ot2" : "metric" : instrumentTypeStr : name : valStr) ->
-        let mInstrumentType = readInstrumentType $ T.unpack instrumentTypeStr
+        let mInstrumentType = readInstrumentTagStr $ T.unpack instrumentTypeStr
             mVal = readMaybe (T.unpack $ T.unwords valStr)
          in case (mInstrumentType, mVal) of
-            (Just instrumentType, Just val) -> Just (MetricEv (instrumentType $ T.unpack name) val)
+            (Just instrumentType, Just val) -> Just (MetricEv (instrumentType $ TE.encodeUtf8 name) val)
             (Nothing, _) -> error $ printf "Invalid instrument: %s" (show instrumentTypeStr)
             (_, Nothing) -> error $ printf "Invalid metric value: %s" (show valStr)
       ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
@@ -459,6 +460,13 @@ logEventBodyP msgType =
     SET_SPAN_ID ->
       SetSpanEv <$> (SpanInFlight <$> DBG.getWord64le)
         <*> (SId <$> DBG.getWord64le)
+    METRIC_CAPTURE -> do
+      iTag <- DBG.getInt8
+      val <- fromIntegral <$> DBG.getInt64le
+      iName <- LBS.toStrict <$> DBG.getRemainingLazyByteString
+      case readInstrumentTag iTag of
+        Just iType -> return $ MetricEv (iType iName) val
+        Nothing -> fail $ "Invalid instrument tag: " ++ show iTag
     MsgType mti ->
       fail $ "Log event of type " ++ show mti ++ " is not supported"
 

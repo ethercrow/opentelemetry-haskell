@@ -176,5 +176,5 @@ executable eventlog-summary
     opentelemetry >= 0.5.3,
     opentelemetry-extra,
     hvega,
-    text
-
+    text,
+    bytestring

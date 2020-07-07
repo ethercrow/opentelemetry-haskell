@@ -1,15 +1,17 @@
 {-|
 
-This module implements the metrics portion of the OpenTelemetry API.
+This module implements the instruments of the metrics portion of the
+OpenTelemetry API. It is reexported by "OpenTelemetry.Eventlog" and should be
+used by importing that.
 
-The way to use this module is to declare an 'Instrument' and then use 'add',
-'record' or 'observe' (depending on the instrument type) to capture metrics on
-that instrument.
+The way to use the 'Instrument' type is throught the 'add', 'record' or
+'observe' functions (depending on the instrument type) which capture metrics on
+a given instrument.
 
 Usage:
 
 @
-import OpenTelemetry.Metrics
+import OpenTelemetry.Eventlog
 
 aCounter :: Counter
 aCounter = Counter "myCounter"
@@ -33,10 +35,6 @@ main = do
 module OpenTelemetry.Metrics
   ( Instrument(..)
   , SomeInstrument(..)
-  -- * Capturing metrics
-  , add
-  , record
-  , observe
   -- * Synonyms for specific types of Instrument
   , Counter
   , UpDownCounter
@@ -50,21 +48,22 @@ module OpenTelemetry.Metrics
   , Monotonicity(..)
   , InstrumentName
   , instrumentName
-  , showInstrumentType
-  , readInstrumentType
+  , instrumentTag
+  , readInstrumentTag
+  , instrumentTagStr
+  , readInstrumentTagStr
   , additive
   ) where
 
-import Debug.Trace
-import Text.Printf
-import Control.Monad.IO.Class
 import Data.Hashable (Hashable(..))
+import Data.Int
+import Data.ByteString as BS
 
 data Synchronicity = Synchronous | Asynchronous
 data Additivity = Additive | NonAdditive
 data Monotonicity = Monotonic | NonMonotonic
 
-type InstrumentName = String
+type InstrumentName = BS.ByteString
 
 type Counter           = Instrument 'Synchronous  'Additive    'Monotonic
 type UpDownCounter     = Instrument 'Synchronous  'Additive    'NonMonotonic
@@ -96,22 +95,39 @@ instrumentName (SumObserver n) = n
 instrumentName (UpDownSumObserver n) = n
 instrumentName (ValueObserver n) = n
 
-showInstrumentType :: Instrument s a m -> String
-showInstrumentType Counter{} = "Counter"
-showInstrumentType UpDownCounter{} = "UpDownCounter"
-showInstrumentType ValueRecorder{} = "ValueRecorder"
-showInstrumentType SumObserver{} = "SumObserver"
-showInstrumentType UpDownSumObserver{} = "UpDownSumObserver"
-showInstrumentType ValueObserver{} = "ValueObserver"
+instrumentTag :: Instrument s a m -> Int8
+instrumentTag Counter{} = 1
+instrumentTag UpDownCounter{} = 2
+instrumentTag ValueRecorder{} = 3
+instrumentTag SumObserver{} = 4
+instrumentTag UpDownSumObserver{} = 5
+instrumentTag ValueObserver{} = 6
 
-readInstrumentType :: String -> Maybe (InstrumentName -> SomeInstrument)
-readInstrumentType "Counter" = Just $ SomeInstrument . Counter
-readInstrumentType "UpDownCounter" = Just $ SomeInstrument . UpDownCounter
-readInstrumentType "ValueRecorder" = Just $ SomeInstrument . ValueRecorder
-readInstrumentType "SumObserver" = Just $ SomeInstrument . SumObserver
-readInstrumentType "UpDownSumObserver" = Just $ SomeInstrument . UpDownSumObserver
-readInstrumentType "ValueObserver" = Just $ SomeInstrument . ValueObserver
-readInstrumentType _ = Nothing
+readInstrumentTag :: Int8 -> Maybe (InstrumentName -> SomeInstrument)
+readInstrumentTag 1 = Just $ SomeInstrument . Counter
+readInstrumentTag 2 = Just $ SomeInstrument . UpDownCounter
+readInstrumentTag 3 = Just $ SomeInstrument . ValueRecorder
+readInstrumentTag 4 = Just $ SomeInstrument . SumObserver
+readInstrumentTag 5 = Just $ SomeInstrument . UpDownSumObserver
+readInstrumentTag 6 = Just $ SomeInstrument . ValueObserver
+readInstrumentTag _ = Nothing
+
+instrumentTagStr :: Instrument s a m -> String
+instrumentTagStr Counter{} = "Counter"
+instrumentTagStr UpDownCounter{} = "UpDownCounter"
+instrumentTagStr ValueRecorder{} = "ValueRecorder"
+instrumentTagStr SumObserver{} = "SumObserver"
+instrumentTagStr UpDownSumObserver{} = "UpDownSumObserver"
+instrumentTagStr ValueObserver{} = "ValueObserver"
+
+readInstrumentTagStr :: String -> Maybe (InstrumentName -> SomeInstrument)
+readInstrumentTagStr "Counter" = Just $ SomeInstrument . Counter
+readInstrumentTagStr "UpDownCounter" = Just $ SomeInstrument . UpDownCounter
+readInstrumentTagStr "ValueRecorder" = Just $ SomeInstrument . ValueRecorder
+readInstrumentTagStr "SumObserver" = Just $ SomeInstrument . SumObserver
+readInstrumentTagStr "UpDownSumObserver" = Just $ SomeInstrument . UpDownSumObserver
+readInstrumentTagStr "ValueObserver" = Just $ SomeInstrument . ValueObserver
+readInstrumentTagStr _ = Nothing
 
 additive :: SomeInstrument -> Bool
 additive (SomeInstrument i) = case i of
@@ -121,22 +137,6 @@ additive (SomeInstrument i) = case i of
   SumObserver{} -> True
   UpDownSumObserver{} -> True
   ValueObserver{} -> False
-
-capture :: Instrument s a m -> Int -> IO ()
-capture instrument v = liftIO . traceEventIO
-  $ printf "ot2 metric %s %s %s" (showInstrumentType instrument) (instrumentName instrument) (show v)
-
--- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDownCounter')
-add :: Instrument 'Synchronous 'Additive m -> Int -> IO ()
-add = capture
-
--- | Take a measurement for a synchronous, non-additive instrument ('ValueRecorder')
-record :: Instrument 'Synchronous 'NonAdditive m -> Int -> IO ()
-record = capture
-
--- | Take a measurement for an asynchronous instrument ('SumObserver', 'UpDownSumObserver', 'ValueObserver')
-observe :: Instrument 'Asynchronous a m -> Int -> IO ()
-observe = capture
 
 deriving instance Show (Instrument s a m)
 deriving instance Eq (Instrument s a m)

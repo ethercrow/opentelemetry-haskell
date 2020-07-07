@@ -5,7 +5,7 @@ module OpenTelemetry.ChromeExporter where
 import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 import Data.Function
 import Data.HashMap.Strict as HM
 import Data.List (sortOn)
@@ -104,13 +104,13 @@ createChromeExporter' path doWeCollapseThreads = do
           )
   metric_exporter <- aggregated $ Exporter
     ( \metrics -> do
-        forM_ metrics $ \(AggregatedMetric (SomeInstrument (instrumentName -> name)) (MetricDatapoint ts value)) -> do
+        forM_ metrics $ \(AggregatedMetric (SomeInstrument (TE.decodeUtf8 . instrumentName -> name)) (MetricDatapoint ts value)) -> do
           LBS.hPutStr f $ encode $
             object
                   [ "ph" .= ("C" :: String),
                     "name" .= name,
                     "ts" .= (div ts 1000),
-                    "args" .= object [T.pack name .= Number (fromIntegral value)]
+                    "args" .= object [name .= Number (fromIntegral value)]
                   ]
           LBS.hPutStr f ",\n"
         pure ExportSuccess
