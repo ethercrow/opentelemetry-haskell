@@ -14,6 +14,7 @@ import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.SpanContext
 import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
+import Test.QuickCheck.Instances.ByteString()
 import TextShow
 
 newtype TextWithout0 = TextWithout0 T.Text
@@ -43,6 +44,16 @@ deriving instance Arbitrary SpanInFlight
 deriving instance Arbitrary SpanId
 
 deriving instance Arbitrary TraceId
+
+instance Arbitrary SomeInstrument where
+  arbitrary = oneof
+    [ SomeInstrument . Counter <$> arbitrary
+    , SomeInstrument . UpDownCounter <$> arbitrary
+    , SomeInstrument . ValueRecorder <$> arbitrary
+    , SomeInstrument . SumObserver <$> arbitrary
+    , SomeInstrument . UpDownSumObserver <$> arbitrary
+    , SomeInstrument . ValueObserver <$> arbitrary
+    ]
 
 instance Arbitrary SpanContext where
   arbitrary = genericArbitrary

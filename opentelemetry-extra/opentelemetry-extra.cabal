@@ -107,7 +107,8 @@ test-suite unit-tests
     generic-arbitrary,
     text,
     text-show,
-    unordered-containers
+    unordered-containers,
+    quickcheck-instances
 
 executable eventlog-to-zipkin
   import: options

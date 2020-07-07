@@ -8,6 +8,7 @@ import GHC.RTS.Events
 import OpenTelemetry.Common
 import OpenTelemetry.EventlogStreaming_Internal
 import qualified OpenTelemetry.Eventlog_Internal as BE
+import OpenTelemetry.Metrics
 
 logEventToBs :: OpenTelemetryEventlogEvent -> BS.ByteString
 logEventToBs = LBS.toStrict . toLazyByteString . logEventToBuilder
@@ -23,6 +24,7 @@ logEventToBuilder (EventEv localId (EventName k) (EventVal v)) =
 logEventToBuilder (SetParentEv locId spnCtx) = BE.builder_setParentSpanContext locId spnCtx
 logEventToBuilder (SetTraceEv localId traceId) = BE.builder_setTraceId localId traceId
 logEventToBuilder (SetSpanEv localId spanId') = BE.builder_setSpanId localId spanId'
+logEventToBuilder (MetricEv (SomeInstrument i) val) = BE.builder_captureMetric i val
 
 logEventToUserBinaryMessage :: OpenTelemetryEventlogEvent -> EventInfo
 logEventToUserBinaryMessage = UserBinaryMessage . logEventToBs
