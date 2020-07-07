@@ -7,6 +7,7 @@ import Control.Concurrent (threadDelay)
 import qualified Data.Binary.Get as DBG
 import Data.Bits
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IntMap as IM
@@ -21,13 +22,15 @@ import GHC.RTS.Events.Incremental
 import GHC.Stack
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import OpenTelemetry.Debug
-import OpenTelemetry.Eventlog_Internal
-import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
+import OpenTelemetry.Metrics
+import Text.Printf
+import Text.Read
+import qualified System.Random.SplitMix as R
+
+import OpenTelemetry.Eventlog_Internal
 import System.Clock
 import System.IO
-import qualified System.Random.SplitMix as R
-import Text.Printf
 
 data WatDoOnEOF = StopOnEOF | SleepAndRetryOnEOF
 
@@ -43,13 +46,12 @@ data State = S
     counterEventsProcessed :: !Int,
     counterOpenTelemetryEventsProcessed :: !Int,
     counterSpansEmitted :: !Int,
-    threadCount :: !Int,
     randomGen :: R.SMGen
   }
   deriving (Show)
 
 initialState :: Word64 -> R.SMGen -> State
-initialState timestamp = S timestamp mempty mempty mempty mempty mempty 0 0 0 0 0 0
+initialState timestamp = S timestamp mempty mempty mempty mempty mempty 0 0 0 0 0
 
 data EventSource
   = EventLogHandle Handle WatDoOnEOF
@@ -150,30 +152,24 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
           let trace_id = case m_trace_id of
                 Just t -> t
                 Nothing -> TId originTimestamp -- TODO: something more random
-           in ( st
-                  { traceMap = HM.insert new_tid trace_id traceMap,
-                    threadCount = threadCount + 1
-                  },
-                [],
-                [Gauge now "threads" (threadCount + 1)]
-              )
+           in (st { traceMap = HM.insert new_tid trace_id traceMap }
+              , []
+              , [Metric (SomeInstrument threadsI) [MetricDatapoint now 1]])
         (RunThread tid, Just cap, _) ->
           (st {threadMap = IM.insert cap tid threadMap}, [], [])
         (StopThread tid tstatus, Just cap, _)
           | isTerminalThreadStatus tstatus ->
             ( st
-                { threadMap = IM.delete cap threadMap,
-                  traceMap = HM.delete tid traceMap,
-                  threadCount = threadCount - 1
+                { threadMap = IM.delete cap threadMap
+                , traceMap = HM.delete tid traceMap
                 },
-              [],
-              [Gauge now "threads" (threadCount - 1)]
-            )
+              []
+            , [Metric (SomeInstrument threadsI) [MetricDatapoint now (-1)]])
         (StartGC, _, _) ->
           (st {gcStartedAt = now}, [], [])
-        (HeapLive {liveBytes}, _, _) -> (st, [], [Gauge now "heap_live_bytes" $ fromIntegral liveBytes])
+        (HeapLive {liveBytes}, _, _) -> (st, [], [Metric (SomeInstrument heapLiveBytesI) [MetricDatapoint now $ fromIntegral liveBytes]])
         (HeapAllocated {allocBytes}, (Just cap), _) ->
-          (st, [], [Gauge now ("cap_" <> T.pack (show cap) <> "_heap_alloc_bytes") $ fromIntegral allocBytes])
+          (st, [], [Metric (SomeInstrument $ heapAllocBytesI cap) [MetricDatapoint now $ fromIntegral allocBytes]])
         (EndGC, _, _) ->
           let (span_id, randomGen') = R.nextWord64 randomGen
               sp =
@@ -191,10 +187,23 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                   }
               spans' = fmap (\live_span -> live_span {spanNanosecondsSpentInGC = (now - gcStartedAt) + spanNanosecondsSpentInGC live_span}) spans
               st' = st {randomGen = randomGen', spans = spans'}
-           in (st', [sp], [Gauge now "gc" (fromIntegral $ now - gcStartedAt)])
+           in (st', [sp], [Metric (SomeInstrument gcTimeI) [MetricDatapoint now (fromIntegral $ now - gcStartedAt)]])
         (parseOpenTelemetry -> Just ev', _, fromMaybe 1 -> tid) ->
           handleOpenTelemetryEventlogEvent ev' st (tid, now, m_trace_id)
         _ -> (st, [], [])
+  where
+    threadsI :: UpDownSumObserver
+    threadsI = UpDownSumObserver "threads"
+
+    heapLiveBytesI :: ValueObserver
+    heapLiveBytesI = ValueObserver "heap_live_bytes"
+
+    gcTimeI :: SumObserver
+    gcTimeI = SumObserver "gc"
+
+    heapAllocBytesI :: Int -> SumObserver
+    heapAllocBytesI cap = SumObserver ("cap_" <> B8.pack (show cap) <> "_heap_alloc_bytes")
+
 
 isTerminalThreadStatus :: ThreadStopStatus -> Bool
 isTerminalThreadStatus ThreadFinished = True
@@ -208,6 +217,7 @@ data OpenTelemetryEventlogEvent
   | SetParentEv SpanInFlight SpanContext
   | SetTraceEv SpanInFlight TraceId
   | SetSpanEv SpanInFlight SpanId
+  | MetricEv    SomeInstrument Int
   deriving (Show, Eq, Generic)
 
 handleOpenTelemetryEventlogEvent ::
@@ -293,6 +303,7 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
         Just span_id ->
           let (st', sp) = emitSpan serial span_id st
            in (st', [sp {spanOperation = operation, spanStartedAt = now, spanThreadId = tid}], [])
+    MetricEv instrument val -> (st, [], [Metric instrument [MetricDatapoint now val]])
 
 createSpan :: SpanId -> Span -> State -> State
 createSpan span_id sp st =
@@ -362,38 +373,45 @@ inventSpanId serial st = (st', sid)
 
 parseText :: [T.Text] -> Maybe OpenTelemetryEventlogEvent
 parseText =
-  \case
-    ("ot2" : "begin" : "span" : serial_text : name) ->
-      let serial = read (T.unpack serial_text)
-          operation = T.intercalate " " name
-       in Just $ BeginSpanEv (SpanInFlight serial) (SpanName operation)
-    ["ot2", "end", "span", serial_text] ->
-      let serial = read (T.unpack serial_text)
-       in Just $ EndSpanEv (SpanInFlight serial)
-    ("ot2" : "set" : "tag" : serial_text : k : v) ->
-      let serial = read (T.unpack serial_text)
-       in Just $ TagEv (SpanInFlight serial) (TagName k) (TagVal $ T.unwords v)
-    ["ot2", "set", "traceid", serial_text, trace_id_text] ->
-      let serial = read (T.unpack serial_text)
-          trace_id = TId (read ("0x" <> T.unpack trace_id_text))
-       in Just $ SetTraceEv (SpanInFlight serial) trace_id
-    ["ot2", "set", "spanid", serial_text, new_span_id_text] ->
-      let serial = read (T.unpack serial_text)
-          span_id = (SId (read ("0x" <> T.unpack new_span_id_text)))
-       in Just $ SetSpanEv (SpanInFlight serial) span_id
-    ["ot2", "set", "parent", serial_text, trace_id_text, parent_span_id_text] ->
-      let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
-          serial = read (T.unpack serial_text)
-          psid = SId (read ("0x" <> T.unpack parent_span_id_text))
-       in Just $
-            SetParentEv
-              (SpanInFlight serial)
-              (SpanContext psid trace_id)
-    ("ot2" : "add" : "event" : serial_text : k : v) ->
-      let serial = read (T.unpack serial_text)
-       in Just . EventEv (SpanInFlight serial) (EventName k) $ EventVal $ T.unwords v
-    ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
-    _ -> Nothing
+    \case
+      ("ot2" : "begin" : "span" : serial_text : name) ->
+        let serial = read (T.unpack serial_text)
+            operation = T.intercalate " " name
+         in Just $ BeginSpanEv (SpanInFlight serial) (SpanName operation)
+      ["ot2", "end", "span", serial_text] ->
+        let serial = read (T.unpack serial_text)
+         in Just $ EndSpanEv (SpanInFlight serial)
+      ("ot2" : "set" : "tag" : serial_text : k : v) ->
+        let serial = read (T.unpack serial_text)
+         in Just $ TagEv (SpanInFlight serial) (TagName k) (TagVal $ T.unwords v)
+      ["ot2", "set", "traceid", serial_text, trace_id_text] ->
+        let serial = read (T.unpack serial_text)
+            trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+         in Just $ SetTraceEv (SpanInFlight serial) trace_id
+      ["ot2", "set", "spanid", serial_text, new_span_id_text] ->
+        let serial = read (T.unpack serial_text)
+            span_id = (SId (read ("0x" <> T.unpack new_span_id_text)))
+         in Just $ SetSpanEv (SpanInFlight serial) span_id
+      ["ot2", "set", "parent", serial_text, trace_id_text, parent_span_id_text] ->
+        let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+            serial = read (T.unpack serial_text)
+            psid = SId (read ("0x" <> T.unpack parent_span_id_text))
+         in Just $
+              SetParentEv
+                (SpanInFlight serial)
+                (SpanContext psid trace_id)
+      ("ot2" : "add" : "event" : serial_text : k : v) ->
+        let serial = read (T.unpack serial_text)
+         in Just . EventEv (SpanInFlight serial) (EventName k) $ EventVal $ T.unwords v
+      ("ot2" : "metric" : instrumentTypeStr : name : valStr) ->
+        let mInstrumentType = readInstrumentTagStr $ T.unpack instrumentTypeStr
+            mVal = readMaybe (T.unpack $ T.unwords valStr)
+         in case (mInstrumentType, mVal) of
+            (Just instrumentType, Just val) -> Just (MetricEv (instrumentType $ TE.encodeUtf8 name) val)
+            (Nothing, _) -> error $ printf "Invalid instrument: %s" (show instrumentTypeStr)
+            (_, Nothing) -> error $ printf "Invalid metric value: %s" (show valStr)
+      ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
+      _ -> Nothing
 
 headerP :: DBG.Get (Maybe MsgType)
 headerP = do
@@ -442,6 +460,13 @@ logEventBodyP msgType =
     SET_SPAN_ID ->
       SetSpanEv <$> (SpanInFlight <$> DBG.getWord64le)
         <*> (SId <$> DBG.getWord64le)
+    METRIC_CAPTURE -> do
+      iTag <- DBG.getInt8
+      val <- fromIntegral <$> DBG.getInt64le
+      iName <- LBS.toStrict <$> DBG.getRemainingLazyByteString
+      case readInstrumentTag iTag of
+        Just iType -> return $ MetricEv (iType iName) val
+        Nothing -> fail $ "Invalid instrument tag: " ++ show iTag
     MsgType mti ->
       fail $ "Log event of type " ++ show mti ++ " is not supported"
 

@@ -17,7 +17,6 @@ import Network.HTTP.Client.TLS
 import Network.HTTP.Types
 import OpenTelemetry.Common
 import OpenTelemetry.Debug
-import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import System.IO.Unsafe
 import Text.Printf

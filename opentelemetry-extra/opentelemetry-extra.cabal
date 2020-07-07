@@ -107,7 +107,8 @@ test-suite unit-tests
     generic-arbitrary,
     text,
     text-show,
-    unordered-containers
+    unordered-containers,
+    quickcheck-instances
 
 executable eventlog-to-zipkin
   import: options
@@ -176,5 +177,5 @@ executable eventlog-summary
     opentelemetry >= 0.5.3,
     opentelemetry-extra,
     hvega,
-    text
-
+    text,
+    bytestring

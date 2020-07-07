@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 module OpenTelemetry.Eventlog
@@ -12,9 +13,12 @@ module OpenTelemetry.Eventlog
     setTag,
     addEvent,
     setParentSpanContext,
+    add,
+    record,
+    observe,
     SpanInFlight (..),
-  )
-where
+    module OpenTelemetry.Metrics
+  ) where
 
 import Control.Monad.Catch
 import Control.Monad.IO.Class
@@ -23,6 +27,7 @@ import qualified Data.ByteString.Char8 as BS8
 import OpenTelemetry.Eventlog_Internal (SpanInFlight (..))
 import qualified OpenTelemetry.Eventlog_Internal as I
 import OpenTelemetry.SpanContext
+import OpenTelemetry.Metrics
 
 {-# INLINE withSpan #-}
 withSpan ::
@@ -82,3 +87,18 @@ addEvent sp k v = I.traceBuilder $ I.builder_addEvent sp k v
 {-# INLINE setParentSpanContext #-}
 setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
 setParentSpanContext sp ctx = I.traceBuilder $ I.builder_setParentSpanContext sp ctx
+
+-- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDownCounter')
+{-# INLINE add #-}
+add :: MonadIO m => Instrument 'Synchronous 'Additive m' -> Int -> m ()
+add i v = I.traceBuilder $ I.builder_captureMetric i v
+
+-- | Take a measurement for a synchronous, non-additive instrument ('ValueRecorder')
+{-# INLINE record #-}
+record :: MonadIO m => Instrument 'Synchronous 'NonAdditive m' -> Int -> m ()
+record i v = I.traceBuilder $ I.builder_captureMetric i v
+
+-- | Take a measurement for an asynchronous instrument ('SumObserver', 'UpDownSumObserver', 'ValueObserver')
+{-# INLINE observe #-}
+observe :: MonadIO m => Instrument 'Asynchronous a m' -> Int -> m ()
+observe i v = I.traceBuilder $ I.builder_captureMetric i v

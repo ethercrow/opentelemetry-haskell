@@ -4,7 +4,6 @@ module OpenTelemetry.Lightstep.Exporter where
 
 import Control.Monad.IO.Class
 import OpenTelemetry.Common
-import OpenTelemetry.Exporter
 import OpenTelemetry.Lightstep.Config
 import OpenTelemetry.ZipkinExporter
 import Text.Printf

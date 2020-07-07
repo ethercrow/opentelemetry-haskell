@@ -15,6 +15,7 @@ import Data.Unique
 import Data.Word (Word64, Word8)
 import Debug.Trace.Binary
 import OpenTelemetry.SpanContext
+import OpenTelemetry.Metrics
 import Prelude hiding (span)
 
 -- This is not a Span Id in terms of OpenTelemetry.
@@ -27,7 +28,7 @@ newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber
 newtype MsgType = MsgType Word8
   deriving (Show)
 
-pattern BEGIN_SPAN, END_SPAN, TAG, EVENT, SET_PARENT_CONTEXT, SET_TRACE_ID, SET_SPAN_ID :: MsgType
+pattern BEGIN_SPAN, END_SPAN, TAG, EVENT, SET_PARENT_CONTEXT, SET_TRACE_ID, SET_SPAN_ID, METRIC_CAPTURE :: MsgType
 pattern BEGIN_SPAN = MsgType 1
 pattern END_SPAN = MsgType 2
 pattern TAG = MsgType 3
@@ -35,6 +36,7 @@ pattern EVENT = MsgType 4
 pattern SET_PARENT_CONTEXT = MsgType 5
 pattern SET_TRACE_ID = MsgType 6
 pattern SET_SPAN_ID = MsgType 7
+pattern METRIC_CAPTURE = MsgType 8
 
 {-# INLINE maxMsgLen #-}
 maxMsgLen :: Int
@@ -106,6 +108,14 @@ builder_setTraceId (SpanInFlight u) (TId tid) = header SET_TRACE_ID <> word64LE 
 {-# INLINE builder_setSpanId #-}
 builder_setSpanId :: SpanInFlight -> SpanId -> Builder
 builder_setSpanId (SpanInFlight u) (SId sid) = header SET_SPAN_ID <> word64LE u <> word64LE sid
+
+{-# INLINE builder_captureMetric #-}
+builder_captureMetric :: Instrument s a m -> Int -> Builder
+builder_captureMetric instrument v =
+  header METRIC_CAPTURE <>
+  int8 (instrumentTag instrument) <>
+  int64LE (fromIntegral v) <>
+  byteString (instrumentName instrument)
 
 {-# INLINE traceBuilder #-}
 traceBuilder :: MonadIO m => Builder -> m ()

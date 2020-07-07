@@ -2,8 +2,8 @@
 
 import qualified Data.Text as T
 import OpenTelemetry.EventlogStreaming_Internal
-import OpenTelemetry.Exporter
 import OpenTelemetry.Lightstep.Config
+import OpenTelemetry.Common
 import OpenTelemetry.Lightstep.Exporter
 import System.Environment (getArgs)
 import System.FilePath

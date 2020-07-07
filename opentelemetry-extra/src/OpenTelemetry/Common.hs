@@ -1,4 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module OpenTelemetry.Common where
@@ -10,9 +13,12 @@ import Data.String
 import qualified Data.Text as T
 import Data.Word
 import GHC.Generics
-import OpenTelemetry.Exporter
 import OpenTelemetry.SpanContext
 import System.Clock
+import OpenTelemetry.Metrics (additive, SomeInstrument)
+import Data.IORef (readIORef, modifyIORef, newIORef)
+import Control.Monad
+import Data.List (sortOn)
 
 type Timestamp = Word64
 
@@ -68,9 +74,24 @@ data Span = Span
   }
   deriving (Show, Eq)
 
-data Metric
-  = Gauge !Timestamp !T.Text !Int
+-- | Based on https://github.com/open-telemetry/opentelemetry-proto/blob/1a931b4b57c34e7fd8f7dddcaa9b7587840e9c08/opentelemetry/proto/metrics/v1/metrics.proto#L96-L107
+data Metric = Metric
+  { instrument :: !SomeInstrument,
+    datapoints :: ![MetricDatapoint Int]
+  }
   deriving (Show, Eq)
+
+data AggregatedMetric = AggregatedMetric
+  { instrument :: !SomeInstrument,
+    datapoints :: !(MetricDatapoint Int)
+  }
+  deriving (Show, Eq)
+
+data MetricDatapoint a = MetricDatapoint
+  { timestamp :: !Timestamp
+  , value :: !a
+  }
+  deriving (Show, Eq, Functor)
 
 spanTraceId :: Span -> TraceId
 spanTraceId Span {spanContext = SpanContext _ tid} = tid
@@ -100,6 +121,46 @@ data SpanProcessor = SpanProcessor
 data OpenTelemetryConfig = OpenTelemetryConfig
   { otcSpanExporter :: Exporter Span
   }
+
+data ExportResult
+  = ExportSuccess
+  | ExportFailedRetryable
+  | ExportFailedNotRetryable
+  deriving (Show, Eq)
+
+data Exporter thing
+  = Exporter
+      { export :: [thing] -> IO ExportResult,
+        shutdown :: IO ()
+      }
+
+noopExporter :: Exporter whatever
+noopExporter = Exporter (const (pure ExportFailedNotRetryable)) (pure ())
+
+aggregated :: Exporter AggregatedMetric -> IO (Exporter Metric)
+aggregated (Exporter export shutdown) = do
+  -- We keep a mutable map of latest metric values. When a new datapoint comes
+  -- in, it either replaces or gets added to the current value, based on whether
+  -- the instrument is additive.
+  currentValuesRef <- newIORef HM.empty
+  return $ Exporter
+    { export = \metrics -> do
+        forM_ metrics $ \(Metric instrument datapoints) -> do
+          forM_ (sortOn timestamp datapoints) $ \dp@(MetricDatapoint ts value) ->
+            modifyIORef currentValuesRef $
+              if additive instrument
+              then HM.alter
+                 (\case
+                    Nothing -> Just dp
+                    Just (MetricDatapoint _ oldValue) -> Just (MetricDatapoint ts $ oldValue+value))
+                instrument
+              else HM.insert instrument dp
+
+        -- Read the latest value for each instrument
+        currentValues <- readIORef currentValuesRef
+        export [AggregatedMetric i (currentValues HM.! i) | Metric i _ <- metrics]
+    , shutdown
+    }
 
 now64 :: IO Timestamp
 now64 = do
