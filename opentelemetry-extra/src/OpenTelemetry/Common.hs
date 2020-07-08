@@ -75,7 +75,7 @@ data Span = Span
   }
   deriving (Show, Eq)
 
--- | Reflects the constructors of 'OpenTelemetry.Metrics.Instrument'
+-- | Reflects the constructors of 'OpenTelemetry.Metrics_Internal.Instrument'
 data InstrumentType
   = CounterType
   | UpDownCounterType

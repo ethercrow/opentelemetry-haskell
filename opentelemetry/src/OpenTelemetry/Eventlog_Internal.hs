@@ -16,7 +16,7 @@ import Data.Unique
 import Data.Word (Word64, Word8)
 import Debug.Trace.Binary
 import OpenTelemetry.SpanContext
-import OpenTelemetry.Metrics
+import OpenTelemetry.Metrics_Internal
 import Prelude hiding (span)
 import Data.Int
 

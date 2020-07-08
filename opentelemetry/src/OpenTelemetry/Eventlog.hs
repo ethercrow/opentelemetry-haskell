@@ -23,7 +23,7 @@ module OpenTelemetry.Eventlog
     record,
     observe,
     SpanInFlight (..),
-    module OpenTelemetry.Metrics
+    module OpenTelemetry.Metrics_Internal
   ) where
 
 import Control.Monad.Catch
@@ -33,7 +33,7 @@ import qualified Data.ByteString.Char8 as BS8
 import OpenTelemetry.Eventlog_Internal (SpanInFlight (..))
 import qualified OpenTelemetry.Eventlog_Internal as I
 import OpenTelemetry.SpanContext
-import OpenTelemetry.Metrics
+import OpenTelemetry.Metrics_Internal
 
 {-# INLINE withSpan #-}
 withSpan ::

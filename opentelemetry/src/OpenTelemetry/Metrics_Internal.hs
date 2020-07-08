@@ -32,7 +32,7 @@ main = do
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
-module OpenTelemetry.Metrics
+module OpenTelemetry.Metrics_Internal
   ( Instrument(..)
   , SomeInstrument(..)
   -- * Synonyms for specific types of Instrument

@@ -8,7 +8,7 @@ import GHC.RTS.Events
 import OpenTelemetry.Common
 import OpenTelemetry.EventlogStreaming_Internal
 import qualified OpenTelemetry.Eventlog_Internal as BE
-import OpenTelemetry.Metrics
+import OpenTelemetry.Metrics_Internal
 
 logEventToBs :: OpenTelemetryEventlogEvent -> BS.ByteString
 logEventToBs = LBS.toStrict . toLazyByteString . logEventToBuilder
