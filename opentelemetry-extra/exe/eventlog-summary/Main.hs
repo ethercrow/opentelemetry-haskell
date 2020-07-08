@@ -6,7 +6,6 @@ import Control.Monad
 import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as B8
 import OpenTelemetry.Common
-import OpenTelemetry.Metrics
 import OpenTelemetry.EventlogStreaming_Internal
 import System.Environment
 import Data.Char (isDigit)
@@ -71,8 +70,8 @@ main = do
               (pure ())
       metric_exporter <- aggregated $ Exporter
         ( \metrics -> do
-            forM_ metrics $ \(AggregatedMetric (SomeInstrument instrument) (MetricDatapoint _ value)) ->
-              modifyIORef metricStats $ \s -> case splitCapability (B8.unpack $ instrumentName instrument) of
+            forM_ metrics $ \(AggregatedMetric (CaptureInstrument _ name) (MetricDatapoint _ value)) ->
+              modifyIORef metricStats $ \s -> case splitCapability (B8.unpack name) of
                 (_, "threads") -> s { max_threads = max value (max_threads s) }
                 (Just cap, "heap_alloc_bytes") -> s { total_alloc_bytes = IntMap.insert cap value (total_alloc_bytes s) }
                 (_, "heap_live_bytes") -> s { max_live_bytes = max value (max_live_bytes s) }
