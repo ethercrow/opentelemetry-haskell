@@ -88,8 +88,8 @@ data AggregatedMetric = AggregatedMetric
   deriving (Show, Eq)
 
 data MetricDatapoint a = MetricDatapoint
-  { timestamp :: !Timestamp
-  , value :: !a
+  { timestamp :: !Timestamp,
+    value :: !a
   }
   deriving (Show, Eq, Functor)
 
