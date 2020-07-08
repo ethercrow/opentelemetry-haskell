@@ -139,14 +139,14 @@ mkValueObserver name = do
 -- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDownCounter')
 {-# INLINE add #-}
 add :: MonadIO m => Instrument 'Synchronous 'Additive m' -> Int -> m ()
-add i v = I.traceBuilder $ I.builder_captureMetric i v
+add i v = I.traceBuilder $ I.builder_captureMetric (instrumentId i) v
 
 -- | Take a measurement for a synchronous, non-additive instrument ('ValueRecorder')
 {-# INLINE record #-}
 record :: MonadIO m => Instrument 'Synchronous 'NonAdditive m' -> Int -> m ()
-record i v = I.traceBuilder $ I.builder_captureMetric i v
+record i v = I.traceBuilder $ I.builder_captureMetric (instrumentId i) v
 
 -- | Take a measurement for an asynchronous instrument ('SumObserver', 'UpDownSumObserver', 'ValueObserver')
 {-# INLINE observe #-}
 observe :: MonadIO m => Instrument 'Asynchronous a m' -> Int -> m ()
-observe i v = I.traceBuilder $ I.builder_captureMetric i v
+observe i v = I.traceBuilder $ I.builder_captureMetric (instrumentId i) v

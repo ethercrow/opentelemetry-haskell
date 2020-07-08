@@ -47,15 +47,19 @@ deriving instance Arbitrary TraceId
 
 instance Arbitrary SomeInstrument where
   arbitrary = oneof
-    [ SomeInstrument . Counter <$> arbitrary
-    , SomeInstrument . UpDownCounter <$> arbitrary
-    , SomeInstrument . ValueRecorder <$> arbitrary
-    , SomeInstrument . SumObserver <$> arbitrary
-    , SomeInstrument . UpDownSumObserver <$> arbitrary
-    , SomeInstrument . ValueObserver <$> arbitrary
+    [ SomeInstrument <$> (Counter <$> arbitrary <*> arbitrary)
+    , SomeInstrument <$> (UpDownCounter <$> arbitrary <*> arbitrary)
+    , SomeInstrument <$> (ValueRecorder <$> arbitrary <*> arbitrary)
+    , SomeInstrument <$> (SumObserver <$> arbitrary <*> arbitrary)
+    , SomeInstrument <$> (UpDownSumObserver <$> arbitrary <*> arbitrary)
+    , SomeInstrument <$> (ValueObserver <$> arbitrary <*> arbitrary)
     ]
 
 instance Arbitrary SpanContext where
+  arbitrary = genericArbitrary
+  shrink = genericShrink
+
+instance Arbitrary InstrumentType where
   arbitrary = genericArbitrary
   shrink = genericShrink
 

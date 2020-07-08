@@ -125,16 +125,17 @@ builder_declareInstrument instrument =
   byteString (instrumentName instrument)
 
 {-# INLINE builder_captureMetric #-}
-builder_captureMetric :: Instrument s a m -> Int -> Builder
-builder_captureMetric instrument v =
+builder_captureMetric :: InstrumentId -> Int -> Builder
+builder_captureMetric iId v =
   header METRIC_CAPTURE <>
-  word64LE (instrumentId instrument) <>
+  word64LE iId <>
   int64LE (fromIntegral v)
 
 {-# INLINE traceBuilder #-}
 traceBuilder :: MonadIO m => Builder -> m ()
 traceBuilder = liftIO . traceBinaryEventIO . LBS.toStrict . toLazyByteString
 
+{-# INLINE instrumentTag #-}
 instrumentTag :: Instrument s a m -> Int8
 instrumentTag Counter{} = 1
 instrumentTag UpDownCounter{} = 2
@@ -143,6 +144,7 @@ instrumentTag SumObserver{} = 4
 instrumentTag UpDownSumObserver{} = 5
 instrumentTag ValueObserver{} = 6
 
+{-# INLINE instrumentTagStr #-}
 instrumentTagStr :: Instrument s a m -> String
 instrumentTagStr Counter{} = "Counter"
 instrumentTagStr UpDownCounter{} = "UpDownCounter"

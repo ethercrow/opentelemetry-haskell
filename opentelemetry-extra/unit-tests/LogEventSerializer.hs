@@ -24,7 +24,17 @@ logEventToBuilder (EventEv localId (EventName k) (EventVal v)) =
 logEventToBuilder (SetParentEv locId spnCtx) = BE.builder_setParentSpanContext locId spnCtx
 logEventToBuilder (SetTraceEv localId traceId) = BE.builder_setTraceId localId traceId
 logEventToBuilder (SetSpanEv localId spanId') = BE.builder_setSpanId localId spanId'
-logEventToBuilder (MetricEv (SomeInstrument i) val) = BE.builder_captureMetric i val
+logEventToBuilder (DeclareInstrumentEv tag iId iName) = case declareInstrumentEvToInstrument tag iId iName of
+  SomeInstrument i -> BE.builder_declareInstrument i
+logEventToBuilder (MetricCaptureEv i val) = BE.builder_captureMetric i val
 
 logEventToUserBinaryMessage :: OpenTelemetryEventlogEvent -> EventInfo
 logEventToUserBinaryMessage = UserBinaryMessage . logEventToBs
+
+declareInstrumentEvToInstrument :: InstrumentType -> InstrumentId -> InstrumentName -> SomeInstrument
+declareInstrumentEvToInstrument CounterType iid name = SomeInstrument $ Counter name iid
+declareInstrumentEvToInstrument UpDownCounterType iid name = SomeInstrument $ UpDownCounter name iid
+declareInstrumentEvToInstrument ValueRecorderType iid name = SomeInstrument $ ValueRecorder name iid
+declareInstrumentEvToInstrument SumObserverType iid name = SomeInstrument $ SumObserver name iid
+declareInstrumentEvToInstrument UpDownSumObserverType iid name = SomeInstrument $ UpDownSumObserver name iid
+declareInstrumentEvToInstrument ValueObserverType iid name = SomeInstrument $ ValueObserver name iid
