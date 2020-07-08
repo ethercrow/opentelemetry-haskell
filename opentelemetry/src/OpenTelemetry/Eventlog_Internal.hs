@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE GADTs #-}
 
 module OpenTelemetry.Eventlog_Internal where
 
@@ -17,6 +18,7 @@ import Debug.Trace.Binary
 import OpenTelemetry.SpanContext
 import OpenTelemetry.Metrics
 import Prelude hiding (span)
+import Data.Int
 
 -- This is not a Span Id in terms of OpenTelemetry.
 -- It's unique only in scope of one process, not globally.
@@ -28,7 +30,7 @@ newtype SpanInFlight = SpanInFlight ProcessLocalSpanSerialNumber
 newtype MsgType = MsgType Word8
   deriving (Show)
 
-pattern BEGIN_SPAN, END_SPAN, TAG, EVENT, SET_PARENT_CONTEXT, SET_TRACE_ID, SET_SPAN_ID, METRIC_CAPTURE :: MsgType
+pattern BEGIN_SPAN, END_SPAN, TAG, EVENT, SET_PARENT_CONTEXT, SET_TRACE_ID, SET_SPAN_ID, DECLARE_INSTRUMENT, METRIC_CAPTURE :: MsgType
 pattern BEGIN_SPAN = MsgType 1
 pattern END_SPAN = MsgType 2
 pattern TAG = MsgType 3
@@ -36,7 +38,8 @@ pattern EVENT = MsgType 4
 pattern SET_PARENT_CONTEXT = MsgType 5
 pattern SET_TRACE_ID = MsgType 6
 pattern SET_SPAN_ID = MsgType 7
-pattern METRIC_CAPTURE = MsgType 8
+pattern DECLARE_INSTRUMENT = MsgType 8
+pattern METRIC_CAPTURE = MsgType 9
 
 {-# INLINE maxMsgLen #-}
 maxMsgLen :: Int
@@ -71,6 +74,10 @@ checkSize s next = do
 {-# INLINE nextLocalSpan #-}
 nextLocalSpan :: MonadIO m => m SpanInFlight
 nextLocalSpan = liftIO $ (SpanInFlight . fromIntegral . hashUnique) <$> newUnique
+
+{-# INLINE nextInstrumentId #-}
+nextInstrumentId :: MonadIO m => m InstrumentId
+nextInstrumentId = liftIO $ (fromIntegral . hashUnique) <$> newUnique
 
 {-# INLINE builder_beginSpan #-}
 builder_beginSpan :: SpanInFlight -> BS.ByteString -> Builder
@@ -109,14 +116,37 @@ builder_setTraceId (SpanInFlight u) (TId tid) = header SET_TRACE_ID <> word64LE 
 builder_setSpanId :: SpanInFlight -> SpanId -> Builder
 builder_setSpanId (SpanInFlight u) (SId sid) = header SET_SPAN_ID <> word64LE u <> word64LE sid
 
+{-# INLINE builder_declareInstrument #-}
+builder_declareInstrument :: Instrument s a m -> Builder
+builder_declareInstrument instrument =
+  header DECLARE_INSTRUMENT <>
+  int8 (instrumentTag instrument) <>
+  word64LE (instrumentId instrument) <>
+  byteString (instrumentName instrument)
+
 {-# INLINE builder_captureMetric #-}
 builder_captureMetric :: Instrument s a m -> Int -> Builder
 builder_captureMetric instrument v =
   header METRIC_CAPTURE <>
-  int8 (instrumentTag instrument) <>
-  int64LE (fromIntegral v) <>
-  byteString (instrumentName instrument)
+  word64LE (instrumentId instrument) <>
+  int64LE (fromIntegral v)
 
 {-# INLINE traceBuilder #-}
 traceBuilder :: MonadIO m => Builder -> m ()
 traceBuilder = liftIO . traceBinaryEventIO . LBS.toStrict . toLazyByteString
+
+instrumentTag :: Instrument s a m -> Int8
+instrumentTag Counter{} = 1
+instrumentTag UpDownCounter{} = 2
+instrumentTag ValueRecorder{} = 3
+instrumentTag SumObserver{} = 4
+instrumentTag UpDownSumObserver{} = 5
+instrumentTag ValueObserver{} = 6
+
+instrumentTagStr :: Instrument s a m -> String
+instrumentTagStr Counter{} = "Counter"
+instrumentTagStr UpDownCounter{} = "UpDownCounter"
+instrumentTagStr ValueRecorder{} = "ValueRecorder"
+instrumentTagStr SumObserver{} = "SumObserver"
+instrumentTagStr UpDownSumObserver{} = "UpDownSumObserver"
+instrumentTagStr ValueObserver{} = "ValueObserver"

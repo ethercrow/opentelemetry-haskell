@@ -13,6 +13,12 @@ module OpenTelemetry.Eventlog
     setTag,
     addEvent,
     setParentSpanContext,
+    mkCounter,
+    mkUpDownCounter,
+    mkValueRecorder,
+    mkSumObserver,
+    mkUpDownSumObserver,
+    mkValueObserver,
     add,
     record,
     observe,
@@ -87,6 +93,48 @@ addEvent sp k v = I.traceBuilder $ I.builder_addEvent sp k v
 {-# INLINE setParentSpanContext #-}
 setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
 setParentSpanContext sp ctx = I.traceBuilder $ I.builder_setParentSpanContext sp ctx
+
+{-# INLINE mkCounter #-}
+mkCounter :: MonadIO m => InstrumentName -> m Counter
+mkCounter name = do
+  inst <- Counter name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
+
+{-# INLINE mkUpDownCounter #-}
+mkUpDownCounter :: MonadIO m => InstrumentName -> m UpDownCounter
+mkUpDownCounter name = do
+  inst <- UpDownCounter name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
+
+{-# INLINE mkValueRecorder #-}
+mkValueRecorder :: MonadIO m => InstrumentName -> m ValueRecorder
+mkValueRecorder name = do
+  inst <- ValueRecorder name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
+
+{-# INLINE mkSumObserver #-}
+mkSumObserver :: MonadIO m => InstrumentName -> m SumObserver
+mkSumObserver name = do
+  inst <- SumObserver name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
+
+{-# INLINE mkUpDownSumObserver #-}
+mkUpDownSumObserver :: MonadIO m => InstrumentName -> m UpDownSumObserver
+mkUpDownSumObserver name = do
+  inst <- UpDownSumObserver name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
+
+{-# INLINE mkValueObserver #-}
+mkValueObserver :: MonadIO m => InstrumentName -> m ValueObserver
+mkValueObserver name = do
+  inst <- ValueObserver name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
 
 -- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDownCounter')
 {-# INLINE add #-}
