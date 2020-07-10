@@ -1,5 +1,9 @@
 # Revision history for opentelemetry
 
+## 0.6.0 -- 2020-07-10
+
+* Metrics API.
+
 ## 0.5.3 -- 2020-07-04
 
 * Use random numbers for span ids.
