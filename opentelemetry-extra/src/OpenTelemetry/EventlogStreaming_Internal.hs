@@ -6,6 +6,7 @@ module OpenTelemetry.EventlogStreaming_Internal where
 import Control.Concurrent (threadDelay)
 import qualified Data.Binary.Get as DBG
 import Data.Bits
+import Data.Int
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as LBS
@@ -23,9 +24,8 @@ import GHC.Stack
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import OpenTelemetry.Debug
 import OpenTelemetry.SpanContext
-import OpenTelemetry.Metrics
+import OpenTelemetry.Eventlog (InstrumentId, InstrumentName)
 import Text.Printf
-import Text.Read
 import qualified System.Random.SplitMix as R
 
 import OpenTelemetry.Eventlog_Internal
@@ -38,6 +38,7 @@ data State = S
   { originTimestamp :: !Timestamp,
     threadMap :: IM.IntMap ThreadId,
     spans :: HM.HashMap SpanId Span,
+    instrumentMap :: HM.HashMap InstrumentId CaptureInstrument,
     traceMap :: HM.HashMap ThreadId TraceId,
     serial2sid :: HM.HashMap Word64 SpanId,
     thread2sid :: HM.HashMap ThreadId SpanId,
@@ -51,7 +52,7 @@ data State = S
   deriving (Show)
 
 initialState :: Word64 -> R.SMGen -> State
-initialState timestamp = S timestamp mempty mempty mempty mempty mempty 0 0 0 0 0
+initialState timestamp = S timestamp mempty mempty mempty mempty mempty mempty 0 0 0 0 0
 
 data EventSource
   = EventLogHandle Handle WatDoOnEOF
@@ -154,7 +155,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                 Nothing -> TId originTimestamp -- TODO: something more random
            in (st { traceMap = HM.insert new_tid trace_id traceMap }
               , []
-              , [Metric (SomeInstrument threadsI) [MetricDatapoint now 1]])
+              , [Metric threadsI [MetricDatapoint now 1]])
         (RunThread tid, Just cap, _) ->
           (st {threadMap = IM.insert cap tid threadMap}, [], [])
         (StopThread tid tstatus, Just cap, _)
@@ -164,12 +165,12 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                 , traceMap = HM.delete tid traceMap
                 },
               []
-            , [Metric (SomeInstrument threadsI) [MetricDatapoint now (-1)]])
+            , [Metric threadsI [MetricDatapoint now (-1)]])
         (StartGC, _, _) ->
           (st {gcStartedAt = now}, [], [])
-        (HeapLive {liveBytes}, _, _) -> (st, [], [Metric (SomeInstrument heapLiveBytesI) [MetricDatapoint now $ fromIntegral liveBytes]])
+        (HeapLive {liveBytes}, _, _) -> (st, [], [Metric heapLiveBytesI [MetricDatapoint now $ fromIntegral liveBytes]])
         (HeapAllocated {allocBytes}, (Just cap), _) ->
-          (st, [], [Metric (SomeInstrument $ heapAllocBytesI cap) [MetricDatapoint now $ fromIntegral allocBytes]])
+          (st, [], [Metric (heapAllocBytesI cap) [MetricDatapoint now $ fromIntegral allocBytes]])
         (EndGC, _, _) ->
           let (span_id, randomGen') = R.nextWord64 randomGen
               sp =
@@ -187,22 +188,22 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                   }
               spans' = fmap (\live_span -> live_span {spanNanosecondsSpentInGC = (now - gcStartedAt) + spanNanosecondsSpentInGC live_span}) spans
               st' = st {randomGen = randomGen', spans = spans'}
-           in (st', [sp], [Metric (SomeInstrument gcTimeI) [MetricDatapoint now (fromIntegral $ now - gcStartedAt)]])
+           in (st', [sp], [Metric gcTimeI [MetricDatapoint now (fromIntegral $ now - gcStartedAt)]])
         (parseOpenTelemetry -> Just ev', _, fromMaybe 1 -> tid) ->
           handleOpenTelemetryEventlogEvent ev' st (tid, now, m_trace_id)
         _ -> (st, [], [])
   where
-    threadsI :: UpDownSumObserver
-    threadsI = UpDownSumObserver "threads"
+    threadsI :: CaptureInstrument
+    threadsI = CaptureInstrument UpDownSumObserverType "threads"
 
-    heapLiveBytesI :: ValueObserver
-    heapLiveBytesI = ValueObserver "heap_live_bytes"
+    heapLiveBytesI :: CaptureInstrument
+    heapLiveBytesI = CaptureInstrument ValueObserverType "heap_live_bytes"
 
-    gcTimeI :: SumObserver
-    gcTimeI = SumObserver "gc"
+    gcTimeI :: CaptureInstrument
+    gcTimeI = CaptureInstrument SumObserverType "gc"
 
-    heapAllocBytesI :: Int -> SumObserver
-    heapAllocBytesI cap = SumObserver ("cap_" <> B8.pack (show cap) <> "_heap_alloc_bytes")
+    heapAllocBytesI :: Int -> CaptureInstrument
+    heapAllocBytesI cap = CaptureInstrument SumObserverType ("cap_" <> B8.pack (show cap) <> "_heap_alloc_bytes")
 
 
 isTerminalThreadStatus :: ThreadStopStatus -> Bool
@@ -217,7 +218,8 @@ data OpenTelemetryEventlogEvent
   | SetParentEv SpanInFlight SpanContext
   | SetTraceEv SpanInFlight TraceId
   | SetSpanEv SpanInFlight SpanId
-  | MetricEv    SomeInstrument Int
+  | DeclareInstrumentEv InstrumentType InstrumentId InstrumentName
+  | MetricCaptureEv InstrumentId Int
   deriving (Show, Eq, Generic)
 
 handleOpenTelemetryEventlogEvent ::
@@ -303,7 +305,11 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
         Just span_id ->
           let (st', sp) = emitSpan serial span_id st
            in (st', [sp {spanOperation = operation, spanStartedAt = now, spanThreadId = tid}], [])
-    MetricEv instrument val -> (st, [], [Metric instrument [MetricDatapoint now val]])
+    DeclareInstrumentEv iType iId iName ->
+      (st { instrumentMap = HM.insert iId (CaptureInstrument iType iName) (instrumentMap st) }, [], [])
+    MetricCaptureEv instrumentId val -> case HM.lookup instrumentId (instrumentMap st) of
+      Just instrument -> (st, [], [Metric instrument [MetricDatapoint now val]])
+      Nothing -> error $ "Undeclared instrument id: " ++ show instrumentId
 
 createSpan :: SpanId -> Span -> State -> State
 createSpan span_id sp st =
@@ -403,13 +409,10 @@ parseText =
       ("ot2" : "add" : "event" : serial_text : k : v) ->
         let serial = read (T.unpack serial_text)
          in Just . EventEv (SpanInFlight serial) (EventName k) $ EventVal $ T.unwords v
-      ("ot2" : "metric" : instrumentTypeStr : name : valStr) ->
-        let mInstrumentType = readInstrumentTagStr $ T.unpack instrumentTypeStr
-            mVal = readMaybe (T.unpack $ T.unwords valStr)
-         in case (mInstrumentType, mVal) of
-            (Just instrumentType, Just val) -> Just (MetricEv (instrumentType $ TE.encodeUtf8 name) val)
-            (Nothing, _) -> error $ printf "Invalid instrument: %s" (show instrumentTypeStr)
-            (_, Nothing) -> error $ printf "Invalid metric value: %s" (show valStr)
+      ("ot2" : "metric" : "capture" : instrumentIdText : valStr) ->
+        let instrumentId = read ("0x" ++ T.unpack instrumentIdText)
+            val = read (T.unpack $ T.intercalate " " valStr)
+         in Just $ MetricCaptureEv instrumentId val
       ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
       _ -> Nothing
 
@@ -460,13 +463,13 @@ logEventBodyP msgType =
     SET_SPAN_ID ->
       SetSpanEv <$> (SpanInFlight <$> DBG.getWord64le)
         <*> (SId <$> DBG.getWord64le)
-    METRIC_CAPTURE -> do
-      iTag <- DBG.getInt8
-      val <- fromIntegral <$> DBG.getInt64le
-      iName <- LBS.toStrict <$> DBG.getRemainingLazyByteString
-      case readInstrumentTag iTag of
-        Just iType -> return $ MetricEv (iType iName) val
-        Nothing -> fail $ "Invalid instrument tag: " ++ show iTag
+    DECLARE_INSTRUMENT -> DeclareInstrumentEv
+      <$> (instrumentTagP =<< DBG.getInt8)
+      <*> DBG.getWord64le
+      <*> (LBS.toStrict <$> DBG.getRemainingLazyByteString)
+    METRIC_CAPTURE -> MetricCaptureEv
+      <$> DBG.getWord64le
+      <*> (fromIntegral <$> DBG.getInt64le)
     MsgType mti ->
       fail $ "Log event of type " ++ show mti ++ " is not supported"
 
@@ -475,6 +478,15 @@ logEventP =
   DBG.lookAheadM headerP >>= \case
     Nothing -> return Nothing
     Just msgType -> logEventBodyP msgType >>= return . Just
+
+instrumentTagP :: MonadFail m => Int8 -> m InstrumentType
+instrumentTagP 1 = return CounterType
+instrumentTagP 2 = return UpDownCounterType
+instrumentTagP 3 = return ValueRecorderType
+instrumentTagP 4 = return SumObserverType
+instrumentTagP 5 = return UpDownSumObserverType
+instrumentTagP 6 = return ValueObserverType
+instrumentTagP n = fail $ "Bad instrument tag: " ++ show n
 
 parseByteString :: B.ByteString -> Maybe OpenTelemetryEventlogEvent
 parseByteString = DBG.runGet logEventP . LBS.fromStrict

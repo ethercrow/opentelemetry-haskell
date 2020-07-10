@@ -15,10 +15,11 @@ import Data.Word
 import GHC.Generics
 import OpenTelemetry.SpanContext
 import System.Clock
-import OpenTelemetry.Metrics (additive, SomeInstrument)
 import Data.IORef (readIORef, modifyIORef, newIORef)
 import Control.Monad
 import Data.List (sortOn)
+import qualified Data.ByteString as BS
+import GHC.Int (Int8)
 
 type Timestamp = Word64
 
@@ -74,22 +75,40 @@ data Span = Span
   }
   deriving (Show, Eq)
 
+-- | Reflects the constructors of 'OpenTelemetry.Metrics_Internal.Instrument'
+data InstrumentType
+  = CounterType
+  | UpDownCounterType
+  | ValueRecorderType
+  | SumObserverType
+  | UpDownSumObserverType
+  | ValueObserverType
+  deriving (Show, Eq, Enum, Generic)
+instance Hashable InstrumentType
+
+data CaptureInstrument = CaptureInstrument
+  { instrumentType :: !InstrumentType,
+    instrumentName :: !BS.ByteString
+  }
+  deriving (Show, Eq, Generic)
+instance Hashable CaptureInstrument
+
 -- | Based on https://github.com/open-telemetry/opentelemetry-proto/blob/1a931b4b57c34e7fd8f7dddcaa9b7587840e9c08/opentelemetry/proto/metrics/v1/metrics.proto#L96-L107
 data Metric = Metric
-  { instrument :: !SomeInstrument,
+  { instrument :: !CaptureInstrument,
     datapoints :: ![MetricDatapoint Int]
   }
   deriving (Show, Eq)
 
 data AggregatedMetric = AggregatedMetric
-  { instrument :: !SomeInstrument,
-    datapoints :: !(MetricDatapoint Int)
+  { instrument :: !CaptureInstrument,
+    datapoint :: !(MetricDatapoint Int)
   }
   deriving (Show, Eq)
 
 data MetricDatapoint a = MetricDatapoint
-  { timestamp :: !Timestamp
-  , value :: !a
+  { timestamp :: !Timestamp,
+    value :: !a
   }
   deriving (Show, Eq, Functor)
 
@@ -134,6 +153,23 @@ data Exporter thing
         shutdown :: IO ()
       }
 
+readInstrumentTag :: Int8 -> Maybe InstrumentType
+readInstrumentTag 1 = Just CounterType
+readInstrumentTag 2 = Just UpDownCounterType
+readInstrumentTag 3 = Just ValueRecorderType
+readInstrumentTag 4 = Just SumObserverType
+readInstrumentTag 5 = Just UpDownSumObserverType
+readInstrumentTag 6 = Just ValueObserverType
+readInstrumentTag _ = Nothing
+
+additive :: InstrumentType -> Bool
+additive CounterType = True
+additive UpDownCounterType = True
+additive ValueRecorderType = False
+additive SumObserverType = True
+additive UpDownSumObserverType = True
+additive ValueObserverType = False
+
 noopExporter :: Exporter whatever
 noopExporter = Exporter (const (pure ExportFailedNotRetryable)) (pure ())
 
@@ -148,7 +184,7 @@ aggregated (Exporter export shutdown) = do
         forM_ metrics $ \(Metric instrument datapoints) -> do
           forM_ (sortOn timestamp datapoints) $ \dp@(MetricDatapoint ts value) ->
             modifyIORef currentValuesRef $
-              if additive instrument
+              if additive (instrumentType instrument)
               then HM.alter
                  (\case
                     Nothing -> Just dp

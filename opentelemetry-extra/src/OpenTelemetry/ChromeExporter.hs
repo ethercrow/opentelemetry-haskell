@@ -12,7 +12,6 @@ import Data.List (sortOn)
 import Data.Word
 import OpenTelemetry.Common
 import System.IO
-import OpenTelemetry.Metrics (instrumentName, SomeInstrument(SomeInstrument))
 import OpenTelemetry.EventlogStreaming_Internal
 
 newtype ChromeBeginSpan = ChromeBegin Span
@@ -104,7 +103,8 @@ createChromeExporter' path doWeCollapseThreads = do
           )
   metric_exporter <- aggregated $ Exporter
     ( \metrics -> do
-        forM_ metrics $ \(AggregatedMetric (SomeInstrument (TE.decodeUtf8 . instrumentName -> name)) (MetricDatapoint ts value)) -> do
+        -- forM_ metrics $ \(AggregatedMetric (SomeInstrument (TE.decodeUtf8 . instrumentName -> name)) (MetricDatapoint ts value)) -> do
+        forM_ metrics $ \(AggregatedMetric (CaptureInstrument _ (TE.decodeUtf8 -> name)) (MetricDatapoint ts value)) -> do
           LBS.hPutStr f $ encode $
             object
                   [ "ph" .= ("C" :: String),

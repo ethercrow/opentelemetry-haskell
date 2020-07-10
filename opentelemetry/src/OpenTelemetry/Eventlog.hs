@@ -4,7 +4,8 @@
 {-# LANGUAGE PatternSynonyms #-}
 
 module OpenTelemetry.Eventlog
-  ( beginSpan,
+  ( -- * Spans
+    beginSpan,
     endSpan,
     withSpan,
     withSpan_,
@@ -13,11 +14,32 @@ module OpenTelemetry.Eventlog
     setTag,
     addEvent,
     setParentSpanContext,
+    SpanInFlight (..),
+    -- * Metrics
+    mkCounter,
+    mkUpDownCounter,
+    mkValueRecorder,
+    mkSumObserver,
+    mkUpDownSumObserver,
+    mkValueObserver,
     add,
     record,
     observe,
-    SpanInFlight (..),
-    module OpenTelemetry.Metrics
+    MI.Instrument,
+    MI.SomeInstrument(..),
+    MI.Counter,
+    MI.UpDownCounter,
+    MI.ValueRecorder,
+    MI.SumObserver,
+    MI.UpDownSumObserver,
+    MI.ValueObserver,
+    MI.Synchronicity(..),
+    MI.Additivity(..),
+    MI.Monotonicity(..),
+    MI.InstrumentName,
+    MI.InstrumentId,
+    MI.instrumentName,
+    MI.instrumentId
   ) where
 
 import Control.Monad.Catch
@@ -27,7 +49,7 @@ import qualified Data.ByteString.Char8 as BS8
 import OpenTelemetry.Eventlog_Internal (SpanInFlight (..))
 import qualified OpenTelemetry.Eventlog_Internal as I
 import OpenTelemetry.SpanContext
-import OpenTelemetry.Metrics
+import qualified OpenTelemetry.Metrics_Internal as MI
 
 {-# INLINE withSpan #-}
 withSpan ::
@@ -88,17 +110,59 @@ addEvent sp k v = I.traceBuilder $ I.builder_addEvent sp k v
 setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
 setParentSpanContext sp ctx = I.traceBuilder $ I.builder_setParentSpanContext sp ctx
 
+{-# INLINE mkCounter #-}
+mkCounter :: MonadIO m => MI.InstrumentName -> m MI.Counter
+mkCounter name = do
+  inst <- MI.Counter name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
+
+{-# INLINE mkUpDownCounter #-}
+mkUpDownCounter :: MonadIO m => MI.InstrumentName -> m MI.UpDownCounter
+mkUpDownCounter name = do
+  inst <- MI.UpDownCounter name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
+
+{-# INLINE mkValueRecorder #-}
+mkValueRecorder :: MonadIO m => MI.InstrumentName -> m MI.ValueRecorder
+mkValueRecorder name = do
+  inst <- MI.ValueRecorder name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
+
+{-# INLINE mkSumObserver #-}
+mkSumObserver :: MonadIO m => MI.InstrumentName -> m MI.SumObserver
+mkSumObserver name = do
+  inst <- MI.SumObserver name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
+
+{-# INLINE mkUpDownSumObserver #-}
+mkUpDownSumObserver :: MonadIO m => MI.InstrumentName -> m MI.UpDownSumObserver
+mkUpDownSumObserver name = do
+  inst <- MI.UpDownSumObserver name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
+
+{-# INLINE mkValueObserver #-}
+mkValueObserver :: MonadIO m => MI.InstrumentName -> m MI.ValueObserver
+mkValueObserver name = do
+  inst <- MI.ValueObserver name <$> I.nextInstrumentId
+  I.traceBuilder $ I.builder_declareInstrument inst
+  return inst
+
 -- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDownCounter')
 {-# INLINE add #-}
-add :: MonadIO m => Instrument 'Synchronous 'Additive m' -> Int -> m ()
-add i v = I.traceBuilder $ I.builder_captureMetric i v
+add :: MonadIO m => MI.Instrument 'MI.Synchronous 'MI.Additive m' -> Int -> m ()
+add i v = I.traceBuilder $ I.builder_captureMetric (MI.instrumentId i) v
 
 -- | Take a measurement for a synchronous, non-additive instrument ('ValueRecorder')
 {-# INLINE record #-}
-record :: MonadIO m => Instrument 'Synchronous 'NonAdditive m' -> Int -> m ()
-record i v = I.traceBuilder $ I.builder_captureMetric i v
+record :: MonadIO m => MI.Instrument 'MI.Synchronous 'MI.NonAdditive m' -> Int -> m ()
+record i v = I.traceBuilder $ I.builder_captureMetric (MI.instrumentId i) v
 
 -- | Take a measurement for an asynchronous instrument ('SumObserver', 'UpDownSumObserver', 'ValueObserver')
 {-# INLINE observe #-}
-observe :: MonadIO m => Instrument 'Asynchronous a m' -> Int -> m ()
-observe i v = I.traceBuilder $ I.builder_captureMetric i v
+observe :: MonadIO m => MI.Instrument 'MI.Asynchronous a m' -> Int -> m ()
+observe i v = I.traceBuilder $ I.builder_captureMetric (MI.instrumentId i) v

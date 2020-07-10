@@ -43,7 +43,11 @@ serverMain = withSpan_ "serverMain" $ do
           & Warp.setPort megaport
           & Warp.setHost "127.0.0.1"
   printf "Listening on 127.0.0.1:%d\n" megaport
-  Warp.runSettings settings (WaiTelemetry.middleware microservice)
+
+  httpRequestCounter <- mkCounter "http_requests"
+  telemetryMiddleware <- WaiTelemetry.mkMiddleware
+  let server = telemetryMiddleware $ microservice httpRequestCounter
+  Warp.runSettings settings server
 
 clientMain :: IO ()
 clientMain = withSpan "clientMain" $ \sp -> do
@@ -59,11 +63,8 @@ clientMain = withSpan "clientMain" $ \sp -> do
   resp <- httpLbs ((fromString $ printf "http://127.0.0.1:%d/http/127.0.0.1:%d/stuff" megaport megaport) {requestHeaders = propagationHeaders}) manager
   print resp
 
-httpRequestCounter :: Counter
-httpRequestCounter = Counter "http_requests"
-
-microservice :: Wai.Application
-microservice = \req respond -> withSpan "handle_http_request" $ \sp -> do
+microservice :: Counter -> Wai.Application
+microservice httpRequestCounter = \req respond -> withSpan "handle_http_request" $ \sp -> do
   my_trace_id <- case propagateFromHeaders w3cTraceContext (Wai.requestHeaders req) of
     Nothing -> do
       trace_id <- TId <$> randomIO
