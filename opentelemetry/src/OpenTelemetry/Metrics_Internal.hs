@@ -1,5 +1,7 @@
 {-|
 
+This is an internal module. The public interface is re-exported by "OpenTelemetry.Eventlog"
+
 This module implements the instruments of the metrics portion of the
 OpenTelemetry API. It is reexported by "OpenTelemetry.Eventlog" and should be
 used by importing that.

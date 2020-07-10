@@ -10,6 +10,7 @@ import Data.Function
 import qualified Data.Text as T
 import OpenTelemetry.Common
 import OpenTelemetry.Eventlog
+import OpenTelemetry.Metrics_Internal
 import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.SpanContext
 import Test.QuickCheck
