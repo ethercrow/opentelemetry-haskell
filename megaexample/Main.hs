@@ -45,7 +45,8 @@ serverMain = withSpan_ "serverMain" $ do
   printf "Listening on 127.0.0.1:%d\n" megaport
 
   httpRequestCounter <- mkCounter "http_requests"
-  server <- WaiTelemetry.middleware $ microservice httpRequestCounter
+  telemetryMiddleware <- WaiTelemetry.mkMiddleware
+  let server = telemetryMiddleware $ microservice httpRequestCounter
   Warp.runSettings settings server
 
 clientMain :: IO ()

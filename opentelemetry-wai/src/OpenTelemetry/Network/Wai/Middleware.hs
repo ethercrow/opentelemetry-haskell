@@ -11,10 +11,10 @@ import OpenTelemetry.Propagation
 -- Semantic conventions for HTTP spans:
 -- https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/http.md
 
-middleware :: Application -> IO Application
-middleware app = do
+mkMiddleware :: IO (Application -> Application)
+mkMiddleware = do
   requestCounter <- mkCounter "requests"
-  return $ \req sendResp -> do
+  return $ \app req sendResp -> do
     withSpan "WAI handler" $ \sp -> do
       add requestCounter 1
       case propagateFromHeaders w3cTraceContext (requestHeaders req) of
