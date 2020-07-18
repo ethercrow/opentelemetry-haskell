@@ -106,3 +106,35 @@ jobs:
     - name: Bench
       run: |
         stack bench --stack-yaml ${{ matrix.stack-yaml }} opentelemetry-extra --benchmark-arguments '+RTS -l'
+
+  win-cabal:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        ghc: ['8.10']
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/cache@v1
+      name: Cache ~/.cabal/packages
+      with:
+        path: ~/.cabal/packages
+        key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-packages
+    - uses: actions/cache@v1
+      name: Cache ~/.cabal/store
+      with:
+        path: ~/.cabal/store
+        key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-store
+    - uses: actions/cache@v1
+      name: Cache dist-newstyle
+      with:
+        path: dist-newstyle
+        key: ${{ runner.os }}-${{ matrix.ghc }}-dist-newstyle
+    - uses: actions/setup-haskell@v1
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: '3.0'
+    - name: Update cabal package database
+      run: cabal update
+    - name: Build
+      run: |
+        cabal build all -v
