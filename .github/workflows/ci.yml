@@ -7,7 +7,7 @@ on:
 
 jobs:
   linux-cabal:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         ghc: ['8.8', '8.10']
@@ -32,10 +32,6 @@ jobs:
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: '3.0'
-    - name: Install protobuf compiler
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y protobuf-compiler
     - name: Update cabal package database
       run: cabal update
     - name: Build
@@ -48,7 +44,7 @@ jobs:
         env PATH="$HOME/.cabal/bin:$PATH" cabal test
 
   linux-stack:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         stack-yaml: ['stack.yaml', 'stack-8.10.1.yaml']
@@ -66,10 +62,6 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.stack-yaml }}-stack-work
     - name: Install stack
       run: which stack || curl -sSL https://get.haskellstack.org/ | sh
-    - name: Install protobuf compiler
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y protobuf-compiler
     - name: Install GHC
       run: |
         stack setup --stack-yaml ${{ matrix.stack-yaml }}
@@ -100,9 +92,6 @@ jobs:
       with:
         path: .stack-work
         key: ${{ runner.os }}-${{ matrix.stack-yaml }}-stack-work
-    - name: Install protobuf compiler
-      run: |
-        brew install protobuf
     - name: Install stack
       run: which stack || curl -sSL https://get.haskellstack.org/ | sh
     - name: Install GHC
