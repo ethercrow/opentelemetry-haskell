@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE CPP #-}
 
 module OpenTelemetry.Eventlog_Internal where
 
@@ -14,7 +15,11 @@ import Data.Char
 import Data.Hashable
 import Data.Unique
 import Data.Word (Word64, Word8)
+#if __GLASGOW_HASKELL__ < 880
+import Debug.Trace.ByteString
+#else
 import Debug.Trace.Binary
+#endif
 import OpenTelemetry.SpanContext
 import OpenTelemetry.Metrics_Internal
 import Prelude hiding (span)
@@ -133,7 +138,11 @@ builder_captureMetric iId v =
 
 {-# INLINE traceBuilder #-}
 traceBuilder :: MonadIO m => Builder -> m ()
+#if __GLASGOW_HASKELL__ < 880
+traceBuilder = liftIO . traceEventIO . LBS.toStrict . toLazyByteString
+#else
 traceBuilder = liftIO . traceBinaryEventIO . LBS.toStrict . toLazyByteString
+#endif
 
 {-# INLINE instrumentTag #-}
 instrumentTag :: Instrument s a m -> Int8
