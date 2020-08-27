@@ -84,12 +84,13 @@ test-suite unit-tests
   import: options
   type:       exitcode-stdio-1.0
   main-is:    Main.hs
-  other-modules:
-    Arbitrary
-    TestBinary
-    TestPropagation
-    LogEventSerializer
-    TestEventlogStreaming
+  if impl(ghc >= 8.8)
+    other-modules:
+      Arbitrary
+      TestBinary
+      TestPropagation
+      LogEventSerializer
+      TestEventlogStreaming
   hs-source-dirs: unit-tests
   build-depends:
     base,
