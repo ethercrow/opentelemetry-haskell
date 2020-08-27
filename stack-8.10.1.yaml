@@ -1,5 +1,6 @@
 resolver: lts-15.13
 compiler: ghc-8.10.1
+
 packages:
 - megaexample
 - opentelemetry
@@ -12,3 +13,4 @@ allow-newer: true
 extra-deps:
 - ghc-events-0.13.0
 - ghc-trace-events-0.1.0.1
+- hvega-0.9.1.0
