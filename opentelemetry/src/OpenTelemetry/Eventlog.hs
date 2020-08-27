@@ -48,75 +48,81 @@ import Control.Monad.IO.Class
 import Data.Unique
 import Debug.Trace
 import OpenTelemetry.Eventlog_Internal (SpanInFlight (..))
+import qualified OpenTelemetry.Eventlog_Internal as I
 import OpenTelemetry.Metrics_Internal
 import OpenTelemetry.SpanContext
 import Prelude hiding (span)
-import Text.Printf
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
-import qualified OpenTelemetry.Eventlog_Internal as I
 import qualified OpenTelemetry.Metrics_Internal as MI
 
 #if __GLASGOW_HASKELL__ < 808
 
-beginSpan' :: SpanInFlight -> String -> String
-beginSpan' (SpanInFlight u64) operation =
-    printf "ot2 begin span %d %s" u64 operation
-
 beginSpan :: MonadIO m => String -> m SpanInFlight
 beginSpan operation = do
   u64 <- fromIntegral . hashUnique <$> liftIO newUnique
-  liftIO $ traceEventIO (beginSpan' (SpanInFlight u64) operation)
+  liftIO $ traceEventIO (I.beginSpan' (SpanInFlight u64) operation)
   pure $ SpanInFlight u64
 
-endSpan' :: SpanInFlight -> String
-endSpan' (SpanInFlight u64) = printf "ot2 end span %d" u64
-
 endSpan :: MonadIO m => SpanInFlight -> m ()
-endSpan = liftIO . traceEventIO . endSpan'
+endSpan = liftIO . traceEventIO . I.endSpan'
 
-setTag' :: SpanInFlight -> String -> BS8.ByteString -> String
-setTag' (SpanInFlight u64) k v =
-    printf "ot2 set tag %d %s %s" u64 k (BS8.unpack v)
+setTag :: MonadIO m => SpanInFlight -> String -> BS.ByteString -> m ()
+setTag sp k v = liftIO . traceEventIO $ I.setTag' sp k v
 
-setTag :: MonadIO m => SpanInFlight -> String -> BS8.ByteString -> m ()
-setTag sp k v = liftIO . traceEventIO $ setTag' sp k v
-
-addEvent' :: SpanInFlight -> String -> BS8.ByteString -> String
-addEvent' (SpanInFlight u64) k v =
-    printf "ot2 add event %d %s %s" u64 k (BS8.unpack v)
-
-addEvent :: MonadIO m => SpanInFlight -> String -> BS8.ByteString -> m ()
-addEvent sp k v = liftIO . traceEventIO $ addEvent' sp k v
-
-setParentSpanContext' :: SpanInFlight -> SpanContext -> String
-setParentSpanContext' (SpanInFlight u64) (SpanContext (SId sid) (TId tid)) =
-    (printf "ot2 set parent %d %016x %016x" u64 tid sid)
+addEvent :: MonadIO m => SpanInFlight -> String -> BS.ByteString -> m ()
+addEvent sp k v = liftIO . traceEventIO $ I.addEvent' sp k v
 
 setParentSpanContext :: MonadIO m => SpanInFlight -> SpanContext -> m ()
-setParentSpanContext sp ctx = liftIO . traceEventIO $ setParentSpanContext' sp ctx
-
-setTraceId' :: SpanInFlight -> TraceId -> String
-setTraceId' (SpanInFlight u64) (TId tid) =
-    printf "ot2 set traceid %d %016x" u64 tid
+setParentSpanContext sp ctx = liftIO . traceEventIO $ I.setParentSpanContext' sp ctx
 
 setTraceId :: MonadIO m => SpanInFlight -> TraceId -> m ()
-setTraceId sp tid = liftIO . traceEventIO $ setTraceId' sp tid
-
-setSpanId' :: SpanInFlight -> SpanId -> String
-setSpanId' (SpanInFlight u64) (SId sid) =
-    printf "ot2 set spanid %d %016x" u64 sid
+setTraceId sp tid = liftIO . traceEventIO $ I.setTraceId' sp tid
 
 setSpanId :: MonadIO m => SpanInFlight -> SpanId -> m ()
-setSpanId sp sid = liftIO . traceEventIO $ setSpanId' sp sid
+setSpanId sp sid = liftIO . traceEventIO $ I.setSpanId' sp sid
 
--- TODO: Make private
-writeMetric' :: Instrument s a m -> Int -> String
-writeMetric' instrument v = printf "ot2 metric %s %d" (BS8.unpack $ instrumentName instrument) v
+createInstrument :: MonadIO io => MI.Instrument s a m -> io ()
+createInstrument = liftIO . traceEventIO . I.createInstrument'
 
--- TODO: Make private
-writeMetric :: MonadIO io => Instrument s a m -> Int -> io ()
-writeMetric instrument v = liftIO . traceEventIO $ writeMetric' instrument v
+writeMetric :: MonadIO io => MI.Instrument s a m -> Int -> io ()
+writeMetric i v = liftIO $ traceEventIO $ I.writeMetric' (instrumentId i) v
+
+mkCounter :: MonadIO m => MI.InstrumentName -> m MI.Counter
+mkCounter name = do
+  inst <- MI.Counter name <$> I.nextInstrumentId
+  createInstrument inst
+  return inst
+
+mkUpDownCounter :: MonadIO m => MI.InstrumentName -> m MI.UpDownCounter
+mkUpDownCounter name = do
+  inst <- MI.UpDownCounter name <$> I.nextInstrumentId
+  createInstrument inst
+  return inst
+
+mkValueRecorder :: MonadIO m => MI.InstrumentName -> m MI.ValueRecorder
+mkValueRecorder name = do
+  inst <- MI.ValueRecorder name <$> I.nextInstrumentId
+  createInstrument inst
+  return inst
+
+mkSumObserver :: MonadIO m => MI.InstrumentName -> m MI.SumObserver
+mkSumObserver name = do
+  inst <- MI.SumObserver name <$> I.nextInstrumentId
+  createInstrument inst
+  return inst
+
+mkUpDownSumObserver :: MonadIO m => MI.InstrumentName -> m MI.UpDownSumObserver
+mkUpDownSumObserver name = do
+  inst <- MI.UpDownSumObserver name <$> I.nextInstrumentId
+  createInstrument inst
+  return inst
+
+mkValueObserver :: MonadIO m => MI.InstrumentName -> m MI.ValueObserver
+mkValueObserver name = do
+  inst <- MI.ValueObserver name <$> I.nextInstrumentId
+  createInstrument inst
+  return inst
 
 -- | Take a measurement for a synchronous, additive instrument ('Counter', 'UpDowncounter')
 add :: MonadIO io => MI.Instrument 'MI.Synchronous 'MI.Additive m' -> Int -> io ()

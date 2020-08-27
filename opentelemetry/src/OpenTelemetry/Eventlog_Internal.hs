@@ -9,19 +9,21 @@ module OpenTelemetry.Eventlog_Internal where
 import Control.Monad.IO.Class
 import Data.Bits
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
 import Data.ByteString.Builder
 import qualified Data.ByteString.Lazy as LBS
 import Data.Char
 import Data.Hashable
 import Data.Unique
 import Data.Word (Word64, Word8)
-#if __GLASGOW_HASKELL__ < 880
+import Text.Printf
+#if __GLASGOW_HASKELL__ < 808
 import Debug.Trace.ByteString
 #else
 import Debug.Trace.Binary
 #endif
 import OpenTelemetry.SpanContext
-import OpenTelemetry.Metrics_Internal
+import OpenTelemetry.Metrics_Internal as MI
 import Prelude hiding (span)
 import Data.Int
 
@@ -84,6 +86,8 @@ nextLocalSpan = liftIO $ (SpanInFlight . fromIntegral . hashUnique) <$> newUniqu
 nextInstrumentId :: MonadIO m => m InstrumentId
 nextInstrumentId = liftIO $ (fromIntegral . hashUnique) <$> newUnique
 
+-- These functions all depend on the binary eventlog to be useful.
+#if __GLASGOW_HASKELL__ >= 808
 {-# INLINE builder_beginSpan #-}
 builder_beginSpan :: SpanInFlight -> BS.ByteString -> Builder
 builder_beginSpan (SpanInFlight u) operation =
@@ -138,11 +142,43 @@ builder_captureMetric iId v =
 
 {-# INLINE traceBuilder #-}
 traceBuilder :: MonadIO m => Builder -> m ()
-#if __GLASGOW_HASKELL__ < 880
-traceBuilder = liftIO . traceEventIO . LBS.toStrict . toLazyByteString
-#else
 traceBuilder = liftIO . traceBinaryEventIO . LBS.toStrict . toLazyByteString
 #endif
+
+-- For use with human-readable eventlog
+
+beginSpan' :: SpanInFlight -> String -> String
+beginSpan' (SpanInFlight u64) operation =
+    printf "ot2 begin span %d %s" u64 operation
+
+endSpan' :: SpanInFlight -> String
+endSpan' (SpanInFlight u64) = printf "ot2 end span %d" u64
+
+setTag' :: SpanInFlight -> String -> BS8.ByteString -> String
+setTag' (SpanInFlight u64) k v =
+    printf "ot2 set tag %d %s %s" u64 k (BS8.unpack v)
+
+addEvent' :: SpanInFlight -> String -> BS8.ByteString -> String
+addEvent' (SpanInFlight u64) k v =
+    printf "ot2 add event %d %s %s" u64 k (BS8.unpack v)
+
+setParentSpanContext' :: SpanInFlight -> SpanContext -> String
+setParentSpanContext' (SpanInFlight u64) (SpanContext (SId sid) (TId tid)) =
+    (printf "ot2 set parent %d %016x %016x" u64 tid sid)
+
+setTraceId' :: SpanInFlight -> TraceId -> String
+setTraceId' (SpanInFlight u64) (TId tid) =
+    printf "ot2 set traceid %d %016x" u64 tid
+
+setSpanId' :: SpanInFlight -> SpanId -> String
+setSpanId' (SpanInFlight u64) (SId sid) =
+    printf "ot2 set spanid %d %016x" u64 sid
+
+createInstrument' :: MI.Instrument s a m -> String
+createInstrument' i = printf "ot2 metric create %s %016x %s" (instrumentTagStr i) (instrumentId i) (BS8.unpack $ instrumentName i)
+
+writeMetric' :: InstrumentId -> Int -> String
+writeMetric' iid v = printf "ot2 metric capture %016x %s" iid (show v)
 
 {-# INLINE instrumentTag #-}
 instrumentTag :: Instrument s a m -> Int8

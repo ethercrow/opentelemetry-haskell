@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -108,13 +109,15 @@ main = do
 
       putStrLn "---"
 
-      let vega_visualization =
+      let
+          vega_visualization =
             toVegaLite
               [ title "Total duration of operation" [],
                 vega_dat,
                 mark Bar [],
                 vega_enc
               ]
+
           vega_enc =
             []
               & position Y [PName "op", PmType Nominal, PAxis [AxTitle "operation"]]
