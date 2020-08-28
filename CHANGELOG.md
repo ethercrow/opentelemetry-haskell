@@ -1,5 +1,9 @@
 # Revision history for opentelemetry
 
+## 0.6.1 -- 2020-08-28
+
+* Bring back the support for GHC-8.6
+
 ## 0.6.0 -- 2020-07-10
 
 * Metrics API.
