@@ -3,8 +3,8 @@
 module Main where
 
 import qualified Data.Text as T
-import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.Common
+import OpenTelemetry.EventlogStreaming_Internal
 import OpenTelemetry.ZipkinExporter
 import System.Environment (getArgs)
 import System.FilePath

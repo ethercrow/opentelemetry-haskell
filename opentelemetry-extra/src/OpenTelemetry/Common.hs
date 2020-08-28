@@ -1,25 +1,25 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module OpenTelemetry.Common where
 
+import Control.Monad
 import Data.Aeson
+import qualified Data.ByteString as BS
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable
+import Data.IORef (modifyIORef, newIORef, readIORef)
+import Data.List (sortOn)
 import Data.String
 import qualified Data.Text as T
 import Data.Word
 import GHC.Generics
+import GHC.Int (Int8)
 import OpenTelemetry.SpanContext
 import System.Clock
-import Data.IORef (readIORef, modifyIORef, newIORef)
-import Control.Monad
-import Data.List (sortOn)
-import qualified Data.ByteString as BS
-import GHC.Int (Int8)
 
 type Timestamp = Word64
 
@@ -84,6 +84,7 @@ data InstrumentType
   | UpDownSumObserverType
   | ValueObserverType
   deriving (Show, Eq, Enum, Generic)
+
 instance Hashable InstrumentType
 
 data CaptureInstrument = CaptureInstrument
@@ -91,6 +92,7 @@ data CaptureInstrument = CaptureInstrument
     instrumentName :: !BS.ByteString
   }
   deriving (Show, Eq, Generic)
+
 instance Hashable CaptureInstrument
 
 -- | Based on https://github.com/open-telemetry/opentelemetry-proto/blob/1a931b4b57c34e7fd8f7dddcaa9b7587840e9c08/opentelemetry/proto/metrics/v1/metrics.proto#L96-L107
@@ -147,11 +149,10 @@ data ExportResult
   | ExportFailedNotRetryable
   deriving (Show, Eq)
 
-data Exporter thing
-  = Exporter
-      { export :: [thing] -> IO ExportResult,
-        shutdown :: IO ()
-      }
+data Exporter thing = Exporter
+  { export :: [thing] -> IO ExportResult,
+    shutdown :: IO ()
+  }
 
 readInstrumentTag :: Int8 -> Maybe InstrumentType
 readInstrumentTag 1 = Just CounterType
@@ -179,24 +180,27 @@ aggregated (Exporter export shutdown) = do
   -- in, it either replaces or gets added to the current value, based on whether
   -- the instrument is additive.
   currentValuesRef <- newIORef HM.empty
-  return $ Exporter
-    { export = \metrics -> do
-        forM_ metrics $ \(Metric instrument datapoints) -> do
-          forM_ (sortOn timestamp datapoints) $ \dp@(MetricDatapoint ts value) ->
-            modifyIORef currentValuesRef $
-              if additive (instrumentType instrument)
-              then HM.alter
-                 (\case
-                    Nothing -> Just dp
-                    Just (MetricDatapoint _ oldValue) -> Just (MetricDatapoint ts $ oldValue+value))
-                instrument
-              else HM.insert instrument dp
+  return $
+    Exporter
+      { export = \metrics -> do
+          forM_ metrics $ \(Metric instrument datapoints) -> do
+            forM_ (sortOn timestamp datapoints) $ \dp@(MetricDatapoint ts value) ->
+              modifyIORef currentValuesRef $
+                if additive (instrumentType instrument)
+                  then
+                    HM.alter
+                      ( \case
+                          Nothing -> Just dp
+                          Just (MetricDatapoint _ oldValue) -> Just (MetricDatapoint ts $ oldValue + value)
+                      )
+                      instrument
+                  else HM.insert instrument dp
 
-        -- Read the latest value for each instrument
-        currentValues <- readIORef currentValuesRef
-        export [AggregatedMetric i (currentValues HM.! i) | Metric i _ <- metrics]
-    , shutdown
-    }
+          -- Read the latest value for each instrument
+          currentValues <- readIORef currentValuesRef
+          export [AggregatedMetric i (currentValues HM.! i) | Metric i _ <- metrics],
+        shutdown
+      }
 
 now64 :: IO Timestamp
 now64 = do

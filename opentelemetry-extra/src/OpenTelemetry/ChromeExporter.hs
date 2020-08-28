@@ -5,14 +5,14 @@ module OpenTelemetry.ChromeExporter where
 import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Text.Encoding as TE
 import Data.Function
 import Data.HashMap.Strict as HM
 import Data.List (sortOn)
+import qualified Data.Text.Encoding as TE
 import Data.Word
 import OpenTelemetry.Common
-import System.IO
 import OpenTelemetry.EventlogStreaming_Internal
+import System.IO
 
 newtype ChromeBeginSpan = ChromeBegin Span
 
@@ -101,21 +101,24 @@ createChromeExporter' path doWeCollapseThreads = do
               hPutStrLn f "\n]"
               hClose f
           )
-  metric_exporter <- aggregated $ Exporter
-    ( \metrics -> do
-        -- forM_ metrics $ \(AggregatedMetric (SomeInstrument (TE.decodeUtf8 . instrumentName -> name)) (MetricDatapoint ts value)) -> do
-        forM_ metrics $ \(AggregatedMetric (CaptureInstrument _ (TE.decodeUtf8 -> name)) (MetricDatapoint ts value)) -> do
-          LBS.hPutStr f $ encode $
-            object
-                  [ "ph" .= ("C" :: String),
-                    "name" .= name,
-                    "ts" .= (div ts 1000),
-                    "args" .= object [name .= Number (fromIntegral value)]
-                  ]
-          LBS.hPutStr f ",\n"
-        pure ExportSuccess
-    )
-    (pure ())
+  metric_exporter <-
+    aggregated $
+      Exporter
+        ( \metrics -> do
+            -- forM_ metrics $ \(AggregatedMetric (SomeInstrument (TE.decodeUtf8 . instrumentName -> name)) (MetricDatapoint ts value)) -> do
+            forM_ metrics $ \(AggregatedMetric (CaptureInstrument _ (TE.decodeUtf8 -> name)) (MetricDatapoint ts value)) -> do
+              LBS.hPutStr f $
+                encode $
+                  object
+                    [ "ph" .= ("C" :: String),
+                      "name" .= name,
+                      "ts" .= (div ts 1000),
+                      "args" .= object [name .= Number (fromIntegral value)]
+                    ]
+              LBS.hPutStr f ",\n"
+            pure ExportSuccess
+        )
+        (pure ())
   pure (span_exporter, metric_exporter)
 
 data DoWeCollapseThreads = CollapseThreads | SplitThreads

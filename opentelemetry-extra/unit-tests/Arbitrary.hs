@@ -10,12 +10,12 @@ import Data.Function
 import qualified Data.Text as T
 import OpenTelemetry.Common
 import OpenTelemetry.Eventlog
-import OpenTelemetry.Metrics_Internal
 import OpenTelemetry.EventlogStreaming_Internal
+import OpenTelemetry.Metrics_Internal
 import OpenTelemetry.SpanContext
 import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
-import Test.QuickCheck.Instances.ByteString()
+import Test.QuickCheck.Instances.ByteString ()
 import TextShow
 
 newtype TextWithout0 = TextWithout0 T.Text
@@ -47,14 +47,15 @@ deriving instance Arbitrary SpanId
 deriving instance Arbitrary TraceId
 
 instance Arbitrary SomeInstrument where
-  arbitrary = oneof
-    [ SomeInstrument <$> (Counter <$> arbitrary <*> arbitrary)
-    , SomeInstrument <$> (UpDownCounter <$> arbitrary <*> arbitrary)
-    , SomeInstrument <$> (ValueRecorder <$> arbitrary <*> arbitrary)
-    , SomeInstrument <$> (SumObserver <$> arbitrary <*> arbitrary)
-    , SomeInstrument <$> (UpDownSumObserver <$> arbitrary <*> arbitrary)
-    , SomeInstrument <$> (ValueObserver <$> arbitrary <*> arbitrary)
-    ]
+  arbitrary =
+    oneof
+      [ SomeInstrument <$> (Counter <$> arbitrary <*> arbitrary),
+        SomeInstrument <$> (UpDownCounter <$> arbitrary <*> arbitrary),
+        SomeInstrument <$> (ValueRecorder <$> arbitrary <*> arbitrary),
+        SomeInstrument <$> (SumObserver <$> arbitrary <*> arbitrary),
+        SomeInstrument <$> (UpDownSumObserver <$> arbitrary <*> arbitrary),
+        SomeInstrument <$> (ValueObserver <$> arbitrary <*> arbitrary)
+      ]
 
 instance Arbitrary SpanContext where
   arbitrary = genericArbitrary

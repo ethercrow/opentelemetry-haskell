@@ -1,7 +1,7 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# language CPP #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 module OpenTelemetry.Eventlog
@@ -16,6 +16,7 @@ module OpenTelemetry.Eventlog
     addEvent,
     setParentSpanContext,
     SpanInFlight (..),
+
     -- * Metrics
     mkCounter,
     mkUpDownCounter,
@@ -27,36 +28,38 @@ module OpenTelemetry.Eventlog
     record,
     observe,
     MI.Instrument,
-    MI.SomeInstrument(..),
+    MI.SomeInstrument (..),
     MI.Counter,
     MI.UpDownCounter,
     MI.ValueRecorder,
     MI.SumObserver,
     MI.UpDownSumObserver,
     MI.ValueObserver,
-    MI.Synchronicity(..),
-    MI.Additivity(..),
-    MI.Monotonicity(..),
+    MI.Synchronicity (..),
+    MI.Additivity (..),
+    MI.Monotonicity (..),
     MI.InstrumentName,
     MI.InstrumentId,
     MI.instrumentName,
-    MI.instrumentId
-  ) where
+    MI.instrumentId,
+  )
+where
 
 import Control.Monad.Catch
 import Control.Monad.IO.Class
-import Data.Unique
-import Debug.Trace
-import OpenTelemetry.Eventlog_Internal (SpanInFlight (..))
-import qualified OpenTelemetry.Eventlog_Internal as I
-import OpenTelemetry.Metrics_Internal
-import OpenTelemetry.SpanContext
-import Prelude hiding (span)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
+import OpenTelemetry.Eventlog_Internal (SpanInFlight (..))
+import qualified OpenTelemetry.Eventlog_Internal as I
 import qualified OpenTelemetry.Metrics_Internal as MI
+import OpenTelemetry.SpanContext
+import Prelude hiding (span)
 
 #if __GLASGOW_HASKELL__ < 808
+
+import Data.Unique
+import Debug.Trace
+import OpenTelemetry.Metrics_Internal
 
 beginSpan :: MonadIO m => String -> m SpanInFlight
 beginSpan operation = do

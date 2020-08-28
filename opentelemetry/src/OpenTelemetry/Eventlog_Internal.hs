@@ -1,31 +1,32 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE CPP #-}
 
 module OpenTelemetry.Eventlog_Internal where
 
 import Control.Monad.IO.Class
 import Data.Bits
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BS8
 import Data.ByteString.Builder
+import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as LBS
 import Data.Char
 import Data.Hashable
-import Data.Unique
-import Data.Word (Word64, Word8)
-import Text.Printf
 #if __GLASGOW_HASKELL__ < 808
 import Debug.Trace.ByteString
 #else
 import Debug.Trace.Binary
 #endif
-import OpenTelemetry.SpanContext
-import OpenTelemetry.Metrics_Internal as MI
-import Prelude hiding (span)
+
 import Data.Int
+import Data.Unique
+import Data.Word (Word64, Word8)
+import OpenTelemetry.Metrics_Internal as MI
+import OpenTelemetry.SpanContext
+import Text.Printf
+import Prelude hiding (span)
 
 -- This is not a Span Id in terms of OpenTelemetry.
 -- It's unique only in scope of one process, not globally.
@@ -149,30 +150,30 @@ traceBuilder = liftIO . traceBinaryEventIO . LBS.toStrict . toLazyByteString
 
 beginSpan' :: SpanInFlight -> String -> String
 beginSpan' (SpanInFlight u64) operation =
-    printf "ot2 begin span %d %s" u64 operation
+  printf "ot2 begin span %d %s" u64 operation
 
 endSpan' :: SpanInFlight -> String
 endSpan' (SpanInFlight u64) = printf "ot2 end span %d" u64
 
 setTag' :: SpanInFlight -> String -> BS8.ByteString -> String
 setTag' (SpanInFlight u64) k v =
-    printf "ot2 set tag %d %s %s" u64 k (BS8.unpack v)
+  printf "ot2 set tag %d %s %s" u64 k (BS8.unpack v)
 
 addEvent' :: SpanInFlight -> String -> BS8.ByteString -> String
 addEvent' (SpanInFlight u64) k v =
-    printf "ot2 add event %d %s %s" u64 k (BS8.unpack v)
+  printf "ot2 add event %d %s %s" u64 k (BS8.unpack v)
 
 setParentSpanContext' :: SpanInFlight -> SpanContext -> String
 setParentSpanContext' (SpanInFlight u64) (SpanContext (SId sid) (TId tid)) =
-    (printf "ot2 set parent %d %016x %016x" u64 tid sid)
+  (printf "ot2 set parent %d %016x %016x" u64 tid sid)
 
 setTraceId' :: SpanInFlight -> TraceId -> String
 setTraceId' (SpanInFlight u64) (TId tid) =
-    printf "ot2 set traceid %d %016x" u64 tid
+  printf "ot2 set traceid %d %016x" u64 tid
 
 setSpanId' :: SpanInFlight -> SpanId -> String
 setSpanId' (SpanInFlight u64) (SId sid) =
-    printf "ot2 set spanid %d %016x" u64 sid
+  printf "ot2 set spanid %d %016x" u64 sid
 
 createInstrument' :: MI.Instrument s a m -> String
 createInstrument' i = printf "ot2 metric create %s %016x %s" (instrumentTagStr i) (instrumentId i) (BS8.unpack $ instrumentName i)
@@ -182,18 +183,18 @@ writeMetric' iid v = printf "ot2 metric capture %016x %s" iid (show v)
 
 {-# INLINE instrumentTag #-}
 instrumentTag :: Instrument s a m -> Int8
-instrumentTag Counter{} = 1
-instrumentTag UpDownCounter{} = 2
-instrumentTag ValueRecorder{} = 3
-instrumentTag SumObserver{} = 4
-instrumentTag UpDownSumObserver{} = 5
-instrumentTag ValueObserver{} = 6
+instrumentTag Counter {} = 1
+instrumentTag UpDownCounter {} = 2
+instrumentTag ValueRecorder {} = 3
+instrumentTag SumObserver {} = 4
+instrumentTag UpDownSumObserver {} = 5
+instrumentTag ValueObserver {} = 6
 
 {-# INLINE instrumentTagStr #-}
 instrumentTagStr :: Instrument s a m -> String
-instrumentTagStr Counter{} = "Counter"
-instrumentTagStr UpDownCounter{} = "UpDownCounter"
-instrumentTagStr ValueRecorder{} = "ValueRecorder"
-instrumentTagStr SumObserver{} = "SumObserver"
-instrumentTagStr UpDownSumObserver{} = "UpDownSumObserver"
-instrumentTagStr ValueObserver{} = "ValueObserver"
+instrumentTagStr Counter {} = "Counter"
+instrumentTagStr UpDownCounter {} = "UpDownCounter"
+instrumentTagStr ValueRecorder {} = "ValueRecorder"
+instrumentTagStr SumObserver {} = "SumObserver"
+instrumentTagStr UpDownSumObserver {} = "UpDownSumObserver"
+instrumentTagStr ValueObserver {} = "ValueObserver"

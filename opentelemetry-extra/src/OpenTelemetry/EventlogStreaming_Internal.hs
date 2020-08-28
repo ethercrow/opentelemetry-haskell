@@ -6,11 +6,11 @@ module OpenTelemetry.EventlogStreaming_Internal where
 import Control.Concurrent (threadDelay)
 import qualified Data.Binary.Get as DBG
 import Data.Bits
-import Data.Int
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashMap.Strict as HM
+import Data.Int
 import qualified Data.IntMap as IM
 import Data.List (isSuffixOf)
 import Data.Maybe
@@ -23,14 +23,13 @@ import GHC.RTS.Events.Incremental
 import GHC.Stack
 import OpenTelemetry.Common hiding (Event, Timestamp)
 import OpenTelemetry.Debug
-import OpenTelemetry.SpanContext
 import OpenTelemetry.Eventlog (InstrumentId, InstrumentName)
-import Text.Printf
-import qualified System.Random.SplitMix as R
-
 import OpenTelemetry.Eventlog_Internal
+import OpenTelemetry.SpanContext
 import System.Clock
 import System.IO
+import qualified System.Random.SplitMix as R
+import Text.Printf
 
 data WatDoOnEOF = StopOnEOF | SleepAndRetryOnEOF
 
@@ -153,19 +152,21 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
           let trace_id = case m_trace_id of
                 Just t -> t
                 Nothing -> TId originTimestamp -- TODO: something more random
-           in (st { traceMap = HM.insert new_tid trace_id traceMap }
-              , []
-              , [Metric threadsI [MetricDatapoint now 1]])
+           in ( st {traceMap = HM.insert new_tid trace_id traceMap},
+                [],
+                [Metric threadsI [MetricDatapoint now 1]]
+              )
         (RunThread tid, Just cap, _) ->
           (st {threadMap = IM.insert cap tid threadMap}, [], [])
         (StopThread tid tstatus, Just cap, _)
           | isTerminalThreadStatus tstatus ->
             ( st
-                { threadMap = IM.delete cap threadMap
-                , traceMap = HM.delete tid traceMap
+                { threadMap = IM.delete cap threadMap,
+                  traceMap = HM.delete tid traceMap
                 },
-              []
-            , [Metric threadsI [MetricDatapoint now (-1)]])
+              [],
+              [Metric threadsI [MetricDatapoint now (-1)]]
+            )
         (StartGC, _, _) ->
           (st {gcStartedAt = now}, [], [])
         (HeapLive {liveBytes}, _, _) -> (st, [], [Metric heapLiveBytesI [MetricDatapoint now $ fromIntegral liveBytes]])
@@ -204,7 +205,6 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
 
     heapAllocBytesI :: Int -> CaptureInstrument
     heapAllocBytesI cap = CaptureInstrument SumObserverType ("cap_" <> B8.pack (show cap) <> "_heap_alloc_bytes")
-
 
 isTerminalThreadStatus :: ThreadStopStatus -> Bool
 isTerminalThreadStatus ThreadFinished = True
@@ -306,7 +306,7 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
           let (st', sp) = emitSpan serial span_id st
            in (st', [sp {spanOperation = operation, spanStartedAt = now, spanThreadId = tid}], [])
     DeclareInstrumentEv iType iId iName ->
-      (st { instrumentMap = HM.insert iId (CaptureInstrument iType iName) (instrumentMap st) }, [], [])
+      (st {instrumentMap = HM.insert iId (CaptureInstrument iType iName) (instrumentMap st)}, [], [])
     MetricCaptureEv instrumentId val -> case HM.lookup instrumentId (instrumentMap st) of
       Just instrument -> (st, [], [Metric instrument [MetricDatapoint now val]])
       Nothing -> error $ "Undeclared instrument id: " ++ show instrumentId
@@ -379,47 +379,47 @@ inventSpanId serial st = (st', sid)
 
 parseText :: [T.Text] -> Maybe OpenTelemetryEventlogEvent
 parseText =
-    \case
-      ("ot2" : "begin" : "span" : serial_text : name) ->
-        let serial = read (T.unpack serial_text)
-            operation = T.intercalate " " name
-         in Just $ BeginSpanEv (SpanInFlight serial) (SpanName operation)
-      ["ot2", "end", "span", serial_text] ->
-        let serial = read (T.unpack serial_text)
-         in Just $ EndSpanEv (SpanInFlight serial)
-      ("ot2" : "set" : "tag" : serial_text : k : v) ->
-        let serial = read (T.unpack serial_text)
-         in Just $ TagEv (SpanInFlight serial) (TagName k) (TagVal $ T.unwords v)
-      ["ot2", "set", "traceid", serial_text, trace_id_text] ->
-        let serial = read (T.unpack serial_text)
-            trace_id = TId (read ("0x" <> T.unpack trace_id_text))
-         in Just $ SetTraceEv (SpanInFlight serial) trace_id
-      ["ot2", "set", "spanid", serial_text, new_span_id_text] ->
-        let serial = read (T.unpack serial_text)
-            span_id = (SId (read ("0x" <> T.unpack new_span_id_text)))
-         in Just $ SetSpanEv (SpanInFlight serial) span_id
-      ["ot2", "set", "parent", serial_text, trace_id_text, parent_span_id_text] ->
-        let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
-            serial = read (T.unpack serial_text)
-            psid = SId (read ("0x" <> T.unpack parent_span_id_text))
-         in Just $
-              SetParentEv
-                (SpanInFlight serial)
-                (SpanContext psid trace_id)
-      ("ot2" : "add" : "event" : serial_text : k : v) ->
-        let serial = read (T.unpack serial_text)
-         in Just . EventEv (SpanInFlight serial) (EventName k) $ EventVal $ T.unwords v
-      ("ot2" : "metric" : "create" : instrumentTypeTag : instrumentIdText : instrumentNameStrs) ->
-        instrumentStringTagP instrumentTypeTag >>= \instrumentType ->
-          let instrumentId = read ("0x" ++ T.unpack instrumentIdText)
-              instrumentName = TE.encodeUtf8 (T.intercalate " " instrumentNameStrs)
-          in Just $ DeclareInstrumentEv instrumentType instrumentId instrumentName
-      ("ot2" : "metric" : "capture" : instrumentIdText : valStr) ->
+  \case
+    ("ot2" : "begin" : "span" : serial_text : name) ->
+      let serial = read (T.unpack serial_text)
+          operation = T.intercalate " " name
+       in Just $ BeginSpanEv (SpanInFlight serial) (SpanName operation)
+    ["ot2", "end", "span", serial_text] ->
+      let serial = read (T.unpack serial_text)
+       in Just $ EndSpanEv (SpanInFlight serial)
+    ("ot2" : "set" : "tag" : serial_text : k : v) ->
+      let serial = read (T.unpack serial_text)
+       in Just $ TagEv (SpanInFlight serial) (TagName k) (TagVal $ T.unwords v)
+    ["ot2", "set", "traceid", serial_text, trace_id_text] ->
+      let serial = read (T.unpack serial_text)
+          trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+       in Just $ SetTraceEv (SpanInFlight serial) trace_id
+    ["ot2", "set", "spanid", serial_text, new_span_id_text] ->
+      let serial = read (T.unpack serial_text)
+          span_id = (SId (read ("0x" <> T.unpack new_span_id_text)))
+       in Just $ SetSpanEv (SpanInFlight serial) span_id
+    ["ot2", "set", "parent", serial_text, trace_id_text, parent_span_id_text] ->
+      let trace_id = TId (read ("0x" <> T.unpack trace_id_text))
+          serial = read (T.unpack serial_text)
+          psid = SId (read ("0x" <> T.unpack parent_span_id_text))
+       in Just $
+            SetParentEv
+              (SpanInFlight serial)
+              (SpanContext psid trace_id)
+    ("ot2" : "add" : "event" : serial_text : k : v) ->
+      let serial = read (T.unpack serial_text)
+       in Just . EventEv (SpanInFlight serial) (EventName k) $ EventVal $ T.unwords v
+    ("ot2" : "metric" : "create" : instrumentTypeTag : instrumentIdText : instrumentNameStrs) ->
+      instrumentStringTagP instrumentTypeTag >>= \instrumentType ->
         let instrumentId = read ("0x" ++ T.unpack instrumentIdText)
-            val = read (T.unpack $ T.intercalate " " valStr)
-         in Just $ MetricCaptureEv instrumentId val
-      ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
-      _ -> Nothing
+            instrumentName = TE.encodeUtf8 (T.intercalate " " instrumentNameStrs)
+         in Just $ DeclareInstrumentEv instrumentType instrumentId instrumentName
+    ("ot2" : "metric" : "capture" : instrumentIdText : valStr) ->
+      let instrumentId = read ("0x" ++ T.unpack instrumentIdText)
+          val = read (T.unpack $ T.intercalate " " valStr)
+       in Just $ MetricCaptureEv instrumentId val
+    ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
+    _ -> Nothing
 
 instrumentStringTagP :: T.Text -> Maybe InstrumentType
 instrumentStringTagP "Counter" = Just CounterType
@@ -429,7 +429,6 @@ instrumentStringTagP "SumObserver" = Just SumObserverType
 instrumentStringTagP "UpDownSumObserver" = Just UpDownSumObserverType
 instrumentStringTagP "ValueObserver" = Just ValueObserverType
 instrumentStringTagP _ = Nothing
-
 
 headerP :: DBG.Get (Maybe MsgType)
 headerP = do
@@ -478,13 +477,15 @@ logEventBodyP msgType =
     SET_SPAN_ID ->
       SetSpanEv <$> (SpanInFlight <$> DBG.getWord64le)
         <*> (SId <$> DBG.getWord64le)
-    DECLARE_INSTRUMENT -> DeclareInstrumentEv
-      <$> (instrumentTagP =<< DBG.getInt8)
-      <*> DBG.getWord64le
-      <*> (LBS.toStrict <$> DBG.getRemainingLazyByteString)
-    METRIC_CAPTURE -> MetricCaptureEv
-      <$> DBG.getWord64le
-      <*> (fromIntegral <$> DBG.getInt64le)
+    DECLARE_INSTRUMENT ->
+      DeclareInstrumentEv
+        <$> (instrumentTagP =<< DBG.getInt8)
+        <*> DBG.getWord64le
+        <*> (LBS.toStrict <$> DBG.getRemainingLazyByteString)
+    METRIC_CAPTURE ->
+      MetricCaptureEv
+        <$> DBG.getWord64le
+        <*> (fromIntegral <$> DBG.getInt64le)
     MsgType mti ->
       fail $ "Log event of type " ++ show mti ++ " is not supported"
 
