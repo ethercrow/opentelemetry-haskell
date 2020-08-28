@@ -48,7 +48,7 @@ common options
 library
   import: options
   build-depends:
-    base >= 4.13 && < 5,
+    base >= 4.12 && < 5,
     bytestring,
     ghc-trace-events >= 0.1.0.1,
     hashable,
@@ -58,5 +58,5 @@ library
     OpenTelemetry.SpanContext
     OpenTelemetry.Propagation
     OpenTelemetry.Eventlog
-    OpenTelemetry.Eventlog_Internal
     OpenTelemetry.Metrics_Internal
+    OpenTelemetry.Eventlog_Internal

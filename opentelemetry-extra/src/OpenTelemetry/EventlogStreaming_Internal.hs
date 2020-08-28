@@ -409,12 +409,27 @@ parseText =
       ("ot2" : "add" : "event" : serial_text : k : v) ->
         let serial = read (T.unpack serial_text)
          in Just . EventEv (SpanInFlight serial) (EventName k) $ EventVal $ T.unwords v
+      ("ot2" : "metric" : "create" : instrumentTypeTag : instrumentIdText : instrumentNameStrs) ->
+        instrumentStringTagP instrumentTypeTag >>= \instrumentType ->
+          let instrumentId = read ("0x" ++ T.unpack instrumentIdText)
+              instrumentName = TE.encodeUtf8 (T.intercalate " " instrumentNameStrs)
+          in Just $ DeclareInstrumentEv instrumentType instrumentId instrumentName
       ("ot2" : "metric" : "capture" : instrumentIdText : valStr) ->
         let instrumentId = read ("0x" ++ T.unpack instrumentIdText)
             val = read (T.unpack $ T.intercalate " " valStr)
          in Just $ MetricCaptureEv instrumentId val
       ("ot2" : rest) -> error $ printf "Unrecognized %s" (show rest)
       _ -> Nothing
+
+instrumentStringTagP :: T.Text -> Maybe InstrumentType
+instrumentStringTagP "Counter" = Just CounterType
+instrumentStringTagP "UpDownCounter" = Just UpDownCounterType
+instrumentStringTagP "ValueRecorder" = Just ValueRecorderType
+instrumentStringTagP "SumObserver" = Just SumObserverType
+instrumentStringTagP "UpDownSumObserver" = Just UpDownSumObserverType
+instrumentStringTagP "ValueObserver" = Just ValueObserverType
+instrumentStringTagP _ = Nothing
+
 
 headerP :: DBG.Get (Maybe MsgType)
 headerP = do
@@ -479,7 +494,7 @@ logEventP =
     Nothing -> return Nothing
     Just msgType -> logEventBodyP msgType >>= return . Just
 
-instrumentTagP :: MonadFail m => Int8 -> m InstrumentType
+instrumentTagP :: Int8 -> DBG.Get InstrumentType
 instrumentTagP 1 = return CounterType
 instrumentTagP 2 = return UpDownCounterType
 instrumentTagP 3 = return ValueRecorderType
