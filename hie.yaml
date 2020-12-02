@@ -10,6 +10,8 @@ cradle:
     config: { cradle: {stack: {component: "opentelemetry-extra:lib"}} }
   - path: "./opentelemetry-extra/exe/eventlog-to-zipkin"
     config: { cradle: {stack: {component: "opentelemetry-extra:exe:eventlog-to-zipkin"}} }
+  - path: "./opentelemetry-extra/exe/eventlog-to-tracy"
+    config: { cradle: {stack: {component: "opentelemetry-extra:exe:eventlog-to-tracy"}} }
   - path: "./opentelemetry-extra/exe/eventlog-to-chrome"
     config: { cradle: {stack: {component: "opentelemetry-extra:exe:eventlog-to-chrome"}} }
   - path: "./opentelemetry-extra/exe/eventlog-summary"
@@ -20,3 +22,5 @@ cradle:
     config: { cradle: {stack: {component: "opentelemetry-extra:test:unit-tests"}} }
   - path: "./megaexample"
     config: { cradle: {stack: {component: "megaexample:exe:opentelemetry-megaexample"}} }
+  - path: "./opentelemetry-extra/exe/ot-write-benchmark"
+    config: { cradle: {stack: {component: "opentelemetry-extra:bench:ot-write-benchmark"}} }
