@@ -4,7 +4,6 @@ module OpenTelemetry.ChromeExporter where
 
 import Control.Monad
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as LBS
 import Data.Coerce
 import Data.Function
 import Data.HashMap.Strict as HM
@@ -42,7 +41,7 @@ jChromeBeginSpan Span {..} =
     [ ("ph", J.textString "B"),
       ("name", J.textString spanOperation),
       ("pid", J.intNumber 1),
-      ("tid", J.intNumber $ fromIntegral spanThreadId),
+      ("tid", J.intNumber $ fromIntegral spanDisplayThreadId),
       ("ts", J.wordNumber . fromIntegral $ div spanStartedAt 1000),
       ( "args",
         J.object
@@ -63,31 +62,31 @@ jChromeEndSpan Span {..} =
     [ ("ph", J.textString "E"),
       ("name", J.textString spanOperation),
       ("pid", J.intNumber 1),
-      ("tid", J.intNumber $ fromIntegral spanThreadId),
+      ("tid", J.intNumber $ fromIntegral spanDisplayThreadId),
       ("ts", J.wordNumber . fromIntegral $ div spanFinishedAt 1000)
     ]
 
 createChromeExporter :: FilePath -> IO (Exporter Span, Exporter Metric)
 createChromeExporter path = createChromeExporter' path SplitThreads
 
-createChromeExporter' :: FilePath -> DoWeCollapseThreads -> IO (Exporter Span, Exporter Metric)
-createChromeExporter' path doWeCollapseThreads = do
+createChromeExporter' :: FilePath -> ThreadPresentation -> IO (Exporter Span, Exporter Metric)
+createChromeExporter' path threadPresentation = do
   f <- openFile path WriteMode
   hPutStrLn f "[ "
-  let modifyThreadId = case doWeCollapseThreads of
-        CollapseThreads -> const 1
-        SplitThreads -> id
+  let modifyThreadId = case threadPresentation of
+        CollapseThreads -> pure . const 1
+        SplitThreads -> pure
       span_exporter =
         Exporter
           ( \sps -> do
               mapM_
-                ( \sp -> do
-                    let sp' = sp {spanThreadId = modifyThreadId (spanThreadId sp)}
-                    let Span {spanThreadId, spanEvents} = sp'
+                ( \sp@(Span {spanEvents}) -> do
+                    tid' <- modifyThreadId (spanDisplayThreadId sp)
+                    let sp' = sp {spanDisplayThreadId = tid'}
                     BS.hPutStr f $ J.toByteString $ jChromeBeginSpan sp'
                     BS.hPutStr f ",\n"
                     forM_ (sortOn spanEventTimestamp spanEvents) $ \ev -> do
-                      BS.hPutStr f $ J.toByteString $ jChromeEvent $ ChromeEvent (modifyThreadId spanThreadId) ev
+                      BS.hPutStr f $ J.toByteString $ jChromeEvent $ ChromeEvent tid' ev
                       BS.hPutStr f ",\n"
                     BS.hPutStr f $ J.toByteString $ jChromeEndSpan sp'
                     BS.hPutStr f ",\n"
@@ -120,9 +119,9 @@ createChromeExporter' path doWeCollapseThreads = do
         (pure ())
   pure (span_exporter, metric_exporter)
 
-data DoWeCollapseThreads = CollapseThreads | SplitThreads
+data ThreadPresentation = CollapseThreads | SplitThreads
 
-eventlogToChrome :: FilePath -> FilePath -> DoWeCollapseThreads -> IO ()
+eventlogToChrome :: FilePath -> FilePath -> ThreadPresentation -> IO ()
 eventlogToChrome eventlogFile chromeFile doWeCollapseThreads = do
   (span_exporter, metric_exporter) <- createChromeExporter' chromeFile doWeCollapseThreads
   exportEventlog span_exporter metric_exporter eventlogFile

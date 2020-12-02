@@ -4,6 +4,7 @@
 
 import Control.Concurrent
 import Control.Concurrent.Async
+import Control.Monad
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Data.Function
@@ -85,8 +86,11 @@ microservice httpRequestCounter = \req respond -> withSpan "handle_http_request"
       respond $ Wai.responseLBS status200 [] result
     _ -> do
       bg_work <- async $ withSpan_ "background_task" do
-        threadDelay 10000
-        pure ()
+        replicateM_ 3 $ do
+          tasks <- forM [1..5] (\i ->
+            async $ withSpan_ (BS.pack $ printf "task %d" (i :: Int)) $ threadDelay 10000)
+          mapM_ wait tasks
+          threadDelay 10000
       addEvent sp "message" "started bg work"
       rtsStats <- withSpan_ "getRTSStats" getRTSStats
       () <- wait bg_work

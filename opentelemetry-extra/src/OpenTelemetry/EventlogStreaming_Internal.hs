@@ -35,12 +35,13 @@ data WatDoOnEOF = StopOnEOF | SleepAndRetryOnEOF
 
 data State = S
   { originTimestamp :: !Timestamp,
-    threadMap :: IM.IntMap ThreadId,
+    cap2thread :: IM.IntMap ThreadId,
     spans :: HM.HashMap SpanId Span,
     instrumentMap :: HM.HashMap InstrumentId CaptureInstrument,
     traceMap :: HM.HashMap ThreadId TraceId,
     serial2sid :: HM.HashMap Word64 SpanId,
     thread2sid :: HM.HashMap ThreadId SpanId,
+    thread2displayThread :: HM.HashMap ThreadId ThreadId, -- https://github.com/ethercrow/opentelemetry-haskell/issues/40
     gcRequestedAt :: !Timestamp,
     gcStartedAt :: !Timestamp,
     gcGeneration :: !Int,
@@ -52,7 +53,7 @@ data State = S
   deriving (Show)
 
 initialState :: Word64 -> R.SMGen -> State
-initialState timestamp = S timestamp mempty mempty mempty mempty mempty mempty 0 0 0 0 0 0
+initialState timestamp = S timestamp mempty mempty mempty mempty mempty mempty mempty 0 0 0 0 0 0
 
 data EventSource
   = EventLogHandle Handle WatDoOnEOF
@@ -142,9 +143,9 @@ parseOpenTelemetry UserBinaryMessage {payload} = parseByteString payload
 parseOpenTelemetry _ = Nothing
 
 processEvent :: Event -> State -> (State, [Span], [Metric])
-processEvent (Event ts ev m_cap) st@(S {..}) =
+processEvent (Event ts ev m_cap) st@S {..} =
   let now = originTimestamp + ts
-      m_thread_id = m_cap >>= flip IM.lookup threadMap
+      m_thread_id = m_cap >>= flip IM.lookup cap2thread
       m_trace_id = m_thread_id >>= flip HM.lookup traceMap
    in case (ev, m_cap, m_thread_id) of
         (WallClockTime {sec, nsec}, _, _) ->
@@ -158,12 +159,13 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                 [Metric threadsI [MetricDatapoint now 1]]
               )
         (RunThread tid, Just cap, _) ->
-          (st {threadMap = IM.insert cap tid threadMap}, [], [])
+          (st {cap2thread = IM.insert cap tid cap2thread}, [], [])
         (StopThread tid tstatus, Just cap, _)
           | isTerminalThreadStatus tstatus ->
             ( st
-                { threadMap = IM.delete cap threadMap,
-                  traceMap = HM.delete tid traceMap
+                { cap2thread = IM.delete cap cap2thread,
+                  traceMap = HM.delete tid traceMap,
+                  thread2displayThread = HM.delete tid thread2displayThread
                 },
               [],
               [Metric threadsI [MetricDatapoint now (-1)]]
@@ -187,6 +189,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                     spanStartedAt = gcStartedAt,
                     spanFinishedAt = now,
                     spanThreadId = maxBound,
+                    spanDisplayThreadId = maxBound,
                     spanTags = mempty,
                     spanEvents = [],
                     spanParentId = Nothing,
@@ -200,6 +203,7 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
                     spanStartedAt = gcRequestedAt,
                     spanFinishedAt = gcStartedAt,
                     spanThreadId = maxBound,
+                    spanDisplayThreadId = maxBound,
                     spanTags = mempty,
                     spanEvents = [],
                     spanParentId = Nothing,
@@ -284,12 +288,14 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
       case HM.lookup serial $ serial2sid st of
         Nothing ->
           let (st', span_id) = inventSpanId serial st
+              (st'', display_tid) = inventDisplayTid tid st'
               parent = HM.lookup tid (thread2sid st)
               sp =
                 Span
                   { spanContext = SpanContext span_id (fromMaybe (TId 42) m_trace_id),
                     spanOperation = "",
                     spanThreadId = tid,
+                    spanDisplayThreadId = display_tid,
                     spanStartedAt = 0,
                     spanFinishedAt = now,
                     spanTags = mempty,
@@ -298,20 +304,23 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
                     spanNanosecondsSpentInGC = 0,
                     spanParentId = parent
                   }
-           in (createSpan span_id sp st', [], [])
+           in (createSpan span_id sp st'', [], [])
         Just span_id ->
           let (st', sp) = emitSpan serial span_id st
-           in (st', [sp {spanFinishedAt = now}], [])
+              (st'', display_tid) = inventDisplayTid tid st'
+           in (st'', [sp {spanFinishedAt = now, spanDisplayThreadId = display_tid}], [])
     BeginSpanEv (SpanInFlight serial) (SpanName operation) ->
       case HM.lookup serial (serial2sid st) of
         Nothing ->
           let (st', span_id) = inventSpanId serial st
               parent = HM.lookup tid (thread2sid st)
+              (st'', display_tid) = inventDisplayTid tid st'
               sp =
                 Span
                   { spanContext = SpanContext span_id (fromMaybe (TId 42) m_trace_id),
                     spanOperation = operation,
                     spanThreadId = tid,
+                    spanDisplayThreadId = display_tid,
                     spanStartedAt = now,
                     spanFinishedAt = 0,
                     spanTags = mempty,
@@ -320,10 +329,11 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
                     spanNanosecondsSpentInGC = 0,
                     spanParentId = parent
                   }
-           in (createSpan span_id sp st', [], [])
+           in (createSpan span_id sp st'', [], [])
         Just span_id ->
           let (st', sp) = emitSpan serial span_id st
-           in (st', [sp {spanOperation = operation, spanStartedAt = now, spanThreadId = tid}], [])
+              (st'', display_tid) = inventDisplayTid tid st'
+           in (st'', [sp {spanOperation = operation, spanStartedAt = now, spanThreadId = tid, spanDisplayThreadId = display_tid}], [])
     DeclareInstrumentEv iType iId iName ->
       (st {instrumentMap = HM.insert iId (CaptureInstrument iType iName) (instrumentMap st)}, [], [])
     MetricCaptureEv instrumentId val -> case HM.lookup instrumentId (instrumentMap st) of
@@ -395,6 +405,14 @@ inventSpanId serial st = (st', sid)
     S {serial2sid, randomGen} = st
     (SId -> sid, randomGen') = R.nextWord64 randomGen
     st' = st {serial2sid = HM.insert serial sid serial2sid, randomGen = randomGen'}
+
+inventDisplayTid :: ThreadId -> State -> (State, ThreadId)
+inventDisplayTid tid st@(S {thread2displayThread}) =
+      case HM.lookup tid thread2displayThread of
+        Nothing ->
+                  let new_dtid = fromIntegral (HM.size thread2displayThread)
+                  in (st {thread2displayThread = HM.insert tid new_dtid thread2displayThread}, new_dtid)
+        Just dtid -> (st, dtid)
 
 parseText :: [T.Text] -> Maybe OpenTelemetryEventlogEvent
 parseText =
