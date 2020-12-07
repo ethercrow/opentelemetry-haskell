@@ -41,6 +41,7 @@ data State = S
     traceMap :: HM.HashMap ThreadId TraceId,
     serial2sid :: HM.HashMap Word64 SpanId,
     thread2sid :: HM.HashMap ThreadId SpanId,
+    gcRequestedAt :: !Timestamp,
     gcStartedAt :: !Timestamp,
     gcGeneration :: !Int,
     counterEventsProcessed :: !Int,
@@ -51,7 +52,7 @@ data State = S
   deriving (Show)
 
 initialState :: Word64 -> R.SMGen -> State
-initialState timestamp = S timestamp mempty mempty mempty mempty mempty mempty 0 0 0 0 0
+initialState timestamp = S timestamp mempty mempty mempty mempty mempty mempty 0 0 0 0 0 0
 
 data EventSource
   = EventLogHandle Handle WatDoOnEOF
@@ -167,29 +168,47 @@ processEvent (Event ts ev m_cap) st@(S {..}) =
               [],
               [Metric threadsI [MetricDatapoint now (-1)]]
             )
+        (RequestSeqGC, _, _) ->
+          (st {gcRequestedAt = now}, [], [])
+        (RequestParGC, _, _) ->
+          (st {gcRequestedAt = now}, [], [])
         (StartGC, _, _) ->
           (st {gcStartedAt = now}, [], [])
         (HeapLive {liveBytes}, _, _) -> (st, [], [Metric heapLiveBytesI [MetricDatapoint now $ fromIntegral liveBytes]])
-        (HeapAllocated {allocBytes}, (Just cap), _) ->
+        (HeapAllocated {allocBytes}, Just cap, _) ->
           (st, [], [Metric (heapAllocBytesI cap) [MetricDatapoint now $ fromIntegral allocBytes]])
         (EndGC, _, _) ->
-          let (span_id, randomGen') = R.nextWord64 randomGen
-              sp =
+          let (gc_span_id, randomGen') = R.nextWord64 randomGen
+              (gc_sync_span_id, randomGen'') = R.nextWord64 randomGen'
+              sp_gc =
                 Span
                   { spanOperation = "gc",
-                    spanContext = SpanContext (SId span_id) (TId span_id),
+                    spanContext = SpanContext (SId gc_span_id) (TId gc_span_id),
                     spanStartedAt = gcStartedAt,
                     spanFinishedAt = now,
                     spanThreadId = maxBound,
                     spanTags = mempty,
-                    spanEvents = mempty,
+                    spanEvents = [],
                     spanParentId = Nothing,
                     spanStatus = OK,
                     spanNanosecondsSpentInGC = now - gcStartedAt
                   }
-              spans' = fmap (\live_span -> live_span {spanNanosecondsSpentInGC = (now - gcStartedAt) + spanNanosecondsSpentInGC live_span}) spans
-              st' = st {randomGen = randomGen', spans = spans'}
-           in (st', [sp], [Metric gcTimeI [MetricDatapoint now (fromIntegral $ now - gcStartedAt)]])
+              sp_sync =
+                Span
+                  { spanOperation = "gc_sync",
+                    spanContext = SpanContext (SId gc_sync_span_id) (TId gc_sync_span_id),
+                    spanStartedAt = gcRequestedAt,
+                    spanFinishedAt = gcStartedAt,
+                    spanThreadId = maxBound,
+                    spanTags = mempty,
+                    spanEvents = [],
+                    spanParentId = Nothing,
+                    spanStatus = OK,
+                    spanNanosecondsSpentInGC = gcStartedAt - gcRequestedAt
+                  }
+              spans' = fmap (\live_span -> live_span {spanNanosecondsSpentInGC = (now - gcRequestedAt) + spanNanosecondsSpentInGC live_span}) spans
+              st' = st {randomGen = randomGen'', spans = spans'}
+           in (st', [sp_sync, sp_gc], [Metric gcTimeI [MetricDatapoint now (fromIntegral $ now - gcStartedAt)]])
         (parseOpenTelemetry -> Just ev', _, fromMaybe 1 -> tid) ->
           handleOpenTelemetryEventlogEvent ev' st (tid, now, m_trace_id)
         _ -> (st, [], [])
