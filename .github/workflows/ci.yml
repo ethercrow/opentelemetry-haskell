@@ -31,7 +31,7 @@ jobs:
     - uses: actions/setup-haskell@v1
       with:
         ghc-version: ${{ matrix.ghc }}
-        cabal-version: '3.0'
+        cabal-version: '3.2'
     - name: Update cabal package database
       run: cabal update
     - name: Build
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        stack-yaml: ['stack.yaml', 'stack-8.6.yaml', 'stack-8.10.1.yaml']
+        stack-yaml: ['stack-8.10.yaml']
     steps:
     - uses: actions/checkout@v1
     - uses: actions/cache@v2
@@ -55,11 +55,6 @@ jobs:
       with:
         path: ~/.stack
         key: ${{ runner.os }}-${{ matrix.stack-yaml }}-stack-home
-    - uses: actions/cache@v2
-      name: Cache .stack-work
-      with:
-        path: .stack-work
-        key: ${{ runner.os }}-${{ matrix.stack-yaml }}-stack-work
     - name: Install stack
       run: which stack || curl -sSL https://get.haskellstack.org/ | sh
     - name: Install GHC
@@ -79,19 +74,14 @@ jobs:
     runs-on: macOS-latest
     strategy:
       matrix:
-        stack-yaml: ['stack.yaml', 'stack-8.10.1.yaml']
+        stack-yaml: ['stack-8.10.yaml']
     steps:
     - uses: actions/checkout@v1
     - uses: actions/cache@v2
       name: Cache ~/.stack
       with:
         path: ~/.stack
-        key: ${{ runner.os }}-${{ matrix.stack-yaml }}-stack-home
-    - uses: actions/cache@v2
-      name: Cache .stack-work
-      with:
-        path: .stack-work
-        key: ${{ runner.os }}-${{ matrix.stack-yaml }}-stack-work
+        key: ${{ runner.os }}-${{ matrix.stack-yaml }}-home-stack
     - name: Install stack
       run: which stack || curl -sSL https://get.haskellstack.org/ | sh
     - name: Install GHC
@@ -132,7 +122,7 @@ jobs:
     - uses: actions/setup-haskell@v1
       with:
         ghc-version: ${{ matrix.ghc }}
-        cabal-version: '3.0'
+        cabal-version: '3.2'
     - name: Update cabal package database
       run: cabal update
     - name: Build

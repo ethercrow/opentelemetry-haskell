@@ -1,5 +1,4 @@
-resolver: lts-14.27
-compiler: ghc-8.6.5
+resolver: nightly-2021-01-05
 
 packages:
 - megaexample
@@ -8,7 +7,11 @@ packages:
 - opentelemetry-lightstep
 - opentelemetry-wai
 
+allow-newer: true
+
 extra-deps:
 - ghc-events-0.13.0
 - ghc-trace-events-0.1.0.1
 - hvega-0.9.1.0
+- jsonifier-0.1.0.5
+- ptr-poker-0.1.1.3
