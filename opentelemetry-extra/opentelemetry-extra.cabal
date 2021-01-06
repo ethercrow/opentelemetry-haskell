@@ -50,7 +50,6 @@ library
   build-depends:
     base >= 4.12 && < 5,
     binary >= 0.8.6.0,
-    aeson,
     async,
     bytestring,
     clock >= 0.8,
@@ -63,13 +62,14 @@ library
     http-client,
     http-client-tls,
     http-types,
+    jsonifier,
     opentelemetry >= 0.6.1,
     random >= 1.1,
     scientific,
-    text-show,
     splitmix,
     stm,
     text,
+    text-show,
     unordered-containers
 
   hs-source-dirs: src

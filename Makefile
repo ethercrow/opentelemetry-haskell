@@ -1,7 +1,10 @@
 
 .PHONY: format
 format:
-	find . -name '*.hs' -exec ormolu --ghc-opt -XBangPatterns --mode inplace '{}' \;
+	find opentelemetry           -name '*.hs' -exec ormolu --ghc-opt -XBangPatterns --mode inplace '{}' \;
+	find opentelemetry-extra     -name '*.hs' -exec ormolu --ghc-opt -XBangPatterns --mode inplace '{}' \;
+	find opentelemetry-lightstep -name '*.hs' -exec ormolu --ghc-opt -XBangPatterns --mode inplace '{}' \;
+	find opentelemetry-wai       -name '*.hs' -exec ormolu --ghc-opt -XBangPatterns --mode inplace '{}' \;
 
 .PHONY: pedantic-build
 pedantic-build:
