@@ -3,13 +3,15 @@
 module OpenTelemetry.ChromeExporter where
 
 import Control.Monad
-import Data.Aeson
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
+import Data.Coerce
 import Data.Function
 import Data.HashMap.Strict as HM
 import Data.List (sortOn)
 import qualified Data.Text.Encoding as TE
 import Data.Word
+import qualified Jsonifier as J
 import OpenTelemetry.Common
 import OpenTelemetry.EventlogStreaming_Internal
 import System.IO
@@ -18,55 +20,52 @@ newtype ChromeBeginSpan = ChromeBegin Span
 
 newtype ChromeEndSpan = ChromeEnd Span
 
-newtype ChromeTagValue = ChromeTagValue TagValue
-
 data ChromeEvent = ChromeEvent Word32 SpanEvent
 
-instance ToJSON ChromeTagValue where
-  toJSON (ChromeTagValue (StringTagValue (TagVal i))) = Data.Aeson.String i
-  toJSON (ChromeTagValue (IntTagValue i)) = Data.Aeson.Number $ fromIntegral i
-  toJSON (ChromeTagValue (BoolTagValue b)) = Data.Aeson.Bool b
-  toJSON (ChromeTagValue (DoubleTagValue d)) = Data.Aeson.Number $ realToFrac d
+jTagValue :: TagValue -> J.Json
+jTagValue (StringTagValue (TagVal i)) = J.textString i
+jTagValue (IntTagValue i) = J.intNumber i
+jTagValue (BoolTagValue b) = J.bool b
+jTagValue (DoubleTagValue d) = J.doubleNumber d
 
-instance ToJSON ChromeEvent where
-  toJSON (ChromeEvent threadId SpanEvent {..}) =
-    object
-      [ "ph" .= ("i" :: String),
-        "name" .= spanEventValue,
-        "pid" .= (1 :: Int),
-        "tid" .= threadId,
-        "ts" .= (div spanEventTimestamp 1000)
-      ]
+jChromeEvent (ChromeEvent threadId SpanEvent {..}) =
+  J.object
+    [ ("ph", J.textString "i"),
+      ("name", J.textString $ coerce spanEventValue),
+      ("pid", J.intNumber 1),
+      ("tid", J.wordNumber $ fromIntegral threadId),
+      ("ts", J.intNumber . fromIntegral $ div spanEventTimestamp 1000)
+    ]
 
-instance ToJSON ChromeBeginSpan where
-  toJSON (ChromeBegin Span {..}) =
-    object
-      [ "ph" .= ("B" :: String),
-        "name" .= spanOperation,
-        "pid" .= (1 :: Int),
-        "tid" .= spanThreadId,
-        "ts" .= (div spanStartedAt 1000),
-        "args"
-          .= fmap
-            ChromeTagValue
-            ( spanTags
-                & HM.insert "gc_us" (IntTagValue . fromIntegral $ spanNanosecondsSpentInGC `div` 1000)
-                & ( if spanNanosecondsSpentInGC == 0
-                      then id
-                      else HM.insert "gc_fraction" (DoubleTagValue (fromIntegral spanNanosecondsSpentInGC / fromIntegral (spanFinishedAt - spanStartedAt)))
-                  )
-            )
-      ]
+jChromeBeginSpan Span {..} =
+  J.object
+    [ ("ph", J.textString "B"),
+      ("name", J.textString spanOperation),
+      ("pid", J.intNumber 1),
+      ("tid", J.intNumber $ fromIntegral spanThreadId),
+      ("ts", J.wordNumber . fromIntegral $ div spanStartedAt 1000),
+      ( "args",
+        J.object
+          ( spanTags
+              & HM.insert "gc_us" (IntTagValue . fromIntegral $ spanNanosecondsSpentInGC `div` 1000)
+              & ( if spanNanosecondsSpentInGC == 0
+                    then id
+                    else HM.insert "gc_fraction" (DoubleTagValue (fromIntegral spanNanosecondsSpentInGC / fromIntegral (spanFinishedAt - spanStartedAt)))
+                )
+              & HM.toList
+              & fmap (\(TagName n, v) -> (n, jTagValue v))
+          )
+      )
+    ]
 
-instance ToJSON ChromeEndSpan where
-  toJSON (ChromeEnd Span {..}) =
-    object
-      [ "ph" .= ("E" :: String),
-        "name" .= spanOperation,
-        "pid" .= (1 :: Int),
-        "tid" .= spanThreadId,
-        "ts" .= (div spanFinishedAt 1000)
-      ]
+jChromeEndSpan Span {..} =
+  J.object
+    [ ("ph", J.textString "E"),
+      ("name", J.textString spanOperation),
+      ("pid", J.intNumber 1),
+      ("tid", J.intNumber $ fromIntegral spanThreadId),
+      ("ts", J.wordNumber . fromIntegral $ div spanFinishedAt 1000)
+    ]
 
 createChromeExporter :: FilePath -> IO (Exporter Span, Exporter Metric)
 createChromeExporter path = createChromeExporter' path SplitThreads
@@ -85,13 +84,13 @@ createChromeExporter' path doWeCollapseThreads = do
                 ( \sp -> do
                     let sp' = sp {spanThreadId = modifyThreadId (spanThreadId sp)}
                     let Span {spanThreadId, spanEvents} = sp'
-                    LBS.hPutStr f $ encode $ ChromeBegin sp'
-                    LBS.hPutStr f ",\n"
+                    BS.hPutStr f $ J.toByteString $ jChromeBeginSpan sp'
+                    BS.hPutStr f ",\n"
                     forM_ (sortOn spanEventTimestamp spanEvents) $ \ev -> do
-                      LBS.hPutStr f $ encode $ ChromeEvent (modifyThreadId spanThreadId) ev
-                      LBS.hPutStr f ",\n"
-                    LBS.hPutStr f $ encode $ ChromeEnd sp'
-                    LBS.hPutStr f ",\n"
+                      BS.hPutStr f $ J.toByteString $ jChromeEvent $ ChromeEvent (modifyThreadId spanThreadId) ev
+                      BS.hPutStr f ",\n"
+                    BS.hPutStr f $ J.toByteString $ jChromeEndSpan sp'
+                    BS.hPutStr f ",\n"
                 )
                 sps
               pure ExportSuccess
@@ -107,15 +106,15 @@ createChromeExporter' path doWeCollapseThreads = do
         ( \metrics -> do
             -- forM_ metrics $ \(AggregatedMetric (SomeInstrument (TE.decodeUtf8 . instrumentName -> name)) (MetricDatapoint ts value)) -> do
             forM_ metrics $ \(AggregatedMetric (CaptureInstrument _ (TE.decodeUtf8 -> name)) (MetricDatapoint ts value)) -> do
-              LBS.hPutStr f $
-                encode $
-                  object
-                    [ "ph" .= ("C" :: String),
-                      "name" .= name,
-                      "ts" .= (div ts 1000),
-                      "args" .= object [name .= Number (fromIntegral value)]
+              BS.hPutStr f $
+                J.toByteString $
+                  J.object
+                    [ ("ph", J.textString "C"),
+                      ("name", J.textString name),
+                      ("ts", J.wordNumber $ fromIntegral $ div ts 1000),
+                      ("args", J.object [(name, J.intNumber value)])
                     ]
-              LBS.hPutStr f ",\n"
+              BS.hPutStr f ",\n"
             pure ExportSuccess
         )
         (pure ())

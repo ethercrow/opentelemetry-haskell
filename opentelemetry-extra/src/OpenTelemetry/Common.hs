@@ -7,7 +7,6 @@
 module OpenTelemetry.Common where
 
 import Control.Monad
-import Data.Aeson
 import qualified Data.ByteString as BS
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable
@@ -25,13 +24,13 @@ type Timestamp = Word64
 
 newtype SpanName = SpanName T.Text deriving (Show, Eq, Generic)
 
-newtype TagName = TagName T.Text deriving (Show, Eq, Generic, ToJSONKey, Hashable)
+newtype TagName = TagName T.Text deriving (Show, Eq, Generic, Hashable)
 
-newtype TagVal = TagVal T.Text deriving (Show, Eq, Generic, ToJSON)
+newtype TagVal = TagVal T.Text deriving (Show, Eq, Generic)
 
 newtype EventName = EventName T.Text deriving (Show, Eq, Generic)
 
-newtype EventVal = EventVal T.Text deriving (Show, Eq, Generic, ToJSON)
+newtype EventVal = EventVal T.Text deriving (Show, Eq, Generic)
 
 instance IsString TagName where
   fromString = TagName . T.pack

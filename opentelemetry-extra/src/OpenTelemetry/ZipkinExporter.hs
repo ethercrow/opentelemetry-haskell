@@ -8,10 +8,11 @@ module OpenTelemetry.ZipkinExporter where
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.Monad.IO.Class
-import Data.Aeson
+import Data.Coerce
 import qualified Data.HashMap.Strict as HM
 import Data.Scientific
 import qualified Data.Text as T
+import qualified Jsonifier as J
 import Network.HTTP.Client
 import Network.HTTP.Client.TLS
 import Network.HTTP.Types
@@ -26,66 +27,43 @@ data ZipkinSpan = ZipkinSpan
     zsSpan :: Span
   }
 
-tagValue2text :: TagValue -> T.Text
-tagValue2text tv = case tv of
+tagValue2text :: TagValue -> J.Json
+tagValue2text tv = J.textString $ case tv of
   (StringTagValue (TagVal s)) -> s
   (BoolTagValue b) -> if b then "true" else "false"
   (IntTagValue i) -> T.pack $ show i
   (DoubleTagValue d) -> T.pack $ show (fromFloatDigits d)
 
-instance ToJSON ZipkinSpan where
-  -- FIXME(divanov): deduplicate
-  toJSON (ZipkinSpan ZipkinConfig {..} s@(Span {..})) =
-    let TId tid = spanTraceId s
-        SId sid = spanId s
-        ts = spanStartedAt `div` 1000
-        duration = (spanFinishedAt - spanStartedAt) `div` 1000
-     in object $
-          [ "name" .= spanOperation,
-            "traceId" .= T.pack (printf "%016x" tid),
-            "id" .= T.pack (printf "%016x" sid),
-            "timestamp" .= ts,
-            "duration" .= duration,
-            "localEndpoint" .= object ["serviceName" .= zServiceName],
-            "tags"
-              .= object
-                ( [k .= v | (k, v) <- zGlobalTags]
-                    <> [k .= tagValue2text v | ((TagName k), v) <- HM.toList spanTags]
-                ),
-            "annotations"
-              .= [ object ["timestamp" .= (t `div` 1000), "value" .= v]
-                   | SpanEvent t _ v <- spanEvents
-                 ]
-          ]
-            <> (maybe [] (\(SId psid) -> ["parentId" .= psid]) spanParentId)
-
-  toEncoding (ZipkinSpan ZipkinConfig {..} s@(Span {..})) =
-    let TId tid = spanTraceId s
-        SId sid = spanId s
-        ts = spanStartedAt `div` 1000
-        duration = (spanFinishedAt - spanStartedAt) `div` 1000
-     in pairs
-          ( "name" .= spanOperation
-              <> "traceId" .= T.pack (printf "%016x" tid)
-              <> "id" .= T.pack (printf "%016x" sid)
-              <> "timestamp" .= ts
-              <> "duration" .= duration
-              <> "localEndpoint" .= object ["serviceName" .= zServiceName]
-              <> "tags"
-                .= object
-                  ( [k .= v | (k, v) <- zGlobalTags]
-                      <> [k .= tagValue2text v | ((TagName k), v) <- HM.toList spanTags]
-                  )
-              <> ( maybe
-                     mempty
-                     (\(SId psid) -> "parentId" .= T.pack (printf "%016x" psid))
-                     spanParentId
-                 )
-              <> "annotations"
-                .= [ object ["timestamp" .= (t `div` 1000), "value" .= v]
-                     | SpanEvent t _ v <- spanEvents
-                   ]
+jSpan :: ZipkinConfig -> Span -> J.Json
+jSpan ZipkinConfig {..} s@(Span {..}) =
+  let TId tid = spanTraceId s
+      SId sid = spanId s
+      ts = spanStartedAt `div` 1000
+      duration = (spanFinishedAt - spanStartedAt) `div` 1000
+   in J.object $
+        [ ("name", J.textString spanOperation),
+          ("traceId", J.textString $ T.pack (printf "%016x" tid)),
+          ("id", J.textString $ T.pack (printf "%016x" sid)),
+          ("timestamp", J.wordNumber $ fromIntegral ts),
+          ("duration", J.wordNumber $ fromIntegral duration),
+          ("localEndpoint", J.object [("serviceName", J.textString zServiceName)]),
+          ( "tags",
+            J.object
+              ( (fmap J.textString <$> zGlobalTags)
+                  <> [(k, tagValue2text v) | ((TagName k), v) <- HM.toList spanTags]
+              )
+          ),
+          ( "annotations",
+            J.array
+              [ J.object
+                  [ ("timestamp", J.wordNumber $ fromIntegral (t `div` 1000)),
+                    ("value", J.textString $ coerce v)
+                  ]
+                | SpanEvent t _ v <- spanEvents
+              ]
           )
+        ]
+          <> (maybe [] (\(SId psid) -> [("parentId", J.wordNumber $ fromIntegral psid)]) spanParentId)
 
 data ZipkinConfig = ZipkinConfig
   { zEndpoint :: String,
@@ -160,11 +138,11 @@ mkClient cfg@(ZipkinConfig {..}) = do
 reportSpans :: String -> Manager -> ZipkinConfig -> [Span] -> IO ()
 reportSpans endpoint httpManager cfg sps = do
   dd_ "reportSpans" sps
-  let body = encode (map (ZipkinSpan cfg) sps)
+  let body = J.toByteString $ J.array (map (jSpan cfg) sps)
       request =
         (parseRequest_ endpoint)
           { method = "POST",
-            requestBody = RequestBodyLBS body,
+            requestBody = RequestBodyBS body,
             requestHeaders = [("Content-Type", "application/json")]
           }
   resp <- httpLbs request httpManager
