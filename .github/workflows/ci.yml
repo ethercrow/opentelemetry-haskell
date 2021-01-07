@@ -12,7 +12,7 @@ jobs:
       matrix:
         ghc: ['8.6', '8.8', '8.10']
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2.3.4
     - uses: actions/cache@v2
       name: Cache ~/.cabal/packages
       with:
@@ -49,7 +49,7 @@ jobs:
       matrix:
         stack-yaml: ['stack-8.10.yaml']
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2.3.4
     - uses: actions/cache@v2
       name: Cache ~/.stack
       with:
@@ -76,7 +76,7 @@ jobs:
       matrix:
         stack-yaml: ['stack-8.10.yaml']
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2.3.4
     - uses: actions/cache@v2
       name: Cache ~/.stack
       with:
@@ -103,7 +103,7 @@ jobs:
       matrix:
         ghc: ['8.10']
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2.3.4
     - uses: actions/cache@v2
       name: Cache ~/.cabal/packages
       with:
