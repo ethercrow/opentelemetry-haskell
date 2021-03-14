@@ -1,4 +1,8 @@
 
+.PHONY: build
+build:
+	cabal build all
+
 .PHONY: format
 format:
 	find opentelemetry           -name '*.hs' -exec ormolu --ghc-opt -XBangPatterns --mode inplace '{}' \;
