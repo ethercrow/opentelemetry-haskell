@@ -307,8 +307,7 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
            in (createSpan span_id sp st'', [], [])
         Just span_id ->
           let (st', sp) = emitSpan serial span_id st
-              (st'', display_tid) = inventDisplayTid tid st'
-           in (st'', [sp {spanFinishedAt = now, spanDisplayThreadId = display_tid}], [])
+           in (st', [sp {spanFinishedAt = now}], [])
     BeginSpanEv (SpanInFlight serial) (SpanName operation) ->
       case HM.lookup serial (serial2sid st) of
         Nothing ->
@@ -332,8 +331,7 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
            in (createSpan span_id sp st'', [], [])
         Just span_id ->
           let (st', sp) = emitSpan serial span_id st
-              (st'', display_tid) = inventDisplayTid tid st'
-           in (st'', [sp {spanOperation = operation, spanStartedAt = now, spanThreadId = tid, spanDisplayThreadId = display_tid}], [])
+           in (st', [sp {spanOperation = operation, spanStartedAt = now}], [])
     DeclareInstrumentEv iType iId iName ->
       (st {instrumentMap = HM.insert iId (CaptureInstrument iType iName) (instrumentMap st)}, [], [])
     MetricCaptureEv instrumentId val -> case HM.lookup instrumentId (instrumentMap st) of
