@@ -42,6 +42,7 @@ data State = S
     serial2sid :: HM.HashMap Word64 SpanId,
     thread2sid :: HM.HashMap ThreadId SpanId,
     thread2displayThread :: HM.HashMap ThreadId ThreadId, -- https://github.com/ethercrow/opentelemetry-haskell/issues/40
+    nextFreeDisplayThread :: ThreadId,
     gcRequestedAt :: !Timestamp,
     gcStartedAt :: !Timestamp,
     gcGeneration :: !Int,
@@ -53,7 +54,7 @@ data State = S
   deriving (Show)
 
 initialState :: Word64 -> R.SMGen -> State
-initialState timestamp = S timestamp mempty mempty mempty mempty mempty mempty mempty 0 0 0 0 0 0
+initialState timestamp = S timestamp mempty mempty mempty mempty mempty mempty mempty 1 0 0 0 0 0 0
 
 data EventSource
   = EventLogHandle Handle WatDoOnEOF
@@ -162,14 +163,18 @@ processEvent (Event ts ev m_cap) st@S {..} =
           (st {cap2thread = IM.insert cap tid cap2thread}, [], [])
         (StopThread tid tstatus, Just cap, _)
           | isTerminalThreadStatus tstatus ->
-            ( st
-                { cap2thread = IM.delete cap cap2thread,
-                  traceMap = HM.delete tid traceMap,
-                  thread2displayThread = HM.delete tid thread2displayThread
-                },
-              [],
-              [Metric threadsI [MetricDatapoint now (-1)]]
-            )
+              let (t2dt, nfdt) = case HM.lookup tid thread2displayThread of
+                                  Nothing -> (thread2displayThread, nextFreeDisplayThread)
+                                  Just _ -> (HM.delete tid thread2displayThread, nextFreeDisplayThread - 1)
+              in ( st
+                     { cap2thread = IM.delete cap cap2thread,
+                       traceMap = HM.delete tid traceMap,
+                       thread2displayThread = t2dt,
+                       nextFreeDisplayThread = nfdt
+                     },
+                   [],
+                   [Metric threadsI [MetricDatapoint now (-1)]]
+                 )
         (RequestSeqGC, _, _) ->
           (st {gcRequestedAt = now}, [], [])
         (RequestParGC, _, _) ->
@@ -405,11 +410,11 @@ inventSpanId serial st = (st', sid)
     st' = st {serial2sid = HM.insert serial sid serial2sid, randomGen = randomGen'}
 
 inventDisplayTid :: ThreadId -> State -> (State, ThreadId)
-inventDisplayTid tid st@(S {thread2displayThread}) =
+inventDisplayTid tid st@(S {thread2displayThread, nextFreeDisplayThread}) =
       case HM.lookup tid thread2displayThread of
         Nothing ->
-                  let new_dtid = fromIntegral (HM.size thread2displayThread)
-                  in (st {thread2displayThread = HM.insert tid new_dtid thread2displayThread}, new_dtid)
+                  let new_dtid = nextFreeDisplayThread
+                  in (st {thread2displayThread = HM.insert tid new_dtid thread2displayThread, nextFreeDisplayThread = new_dtid + 1}, new_dtid)
         Just dtid -> (st, dtid)
 
 parseText :: [T.Text] -> Maybe OpenTelemetryEventlogEvent
