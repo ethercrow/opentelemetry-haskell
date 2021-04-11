@@ -32,7 +32,7 @@ jobs:
     - uses: haskell/actions/setup@v1
       with:
         ghc-version: ${{ matrix.ghc }}
-        cabal-version: '3.2'
+        cabal-version: '3.4'
     - name: Update cabal package database
       run: cabal update
     - name: Build
@@ -126,7 +126,7 @@ jobs:
     - uses: haskell/actions/setup@v1
       with:
         ghc-version: ${{ matrix.ghc }}
-        cabal-version: '3.2'
+        cabal-version: '3.4'
     - name: Update cabal package database
       run: cabal update
     - name: Build

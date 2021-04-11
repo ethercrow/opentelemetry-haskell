@@ -87,8 +87,7 @@ microservice httpRequestCounter = \req respond -> withSpan "handle_http_request"
     _ -> do
       bg_work <- async $ withSpan_ "background_task" do
         replicateM_ 3 $ do
-          tasks <- forM [1..5] (\i ->
-            async $ withSpan_ (BS.pack $ printf "task %d" (i :: Int)) $ threadDelay 10000)
+          tasks <- replicateM 5 (async $ withSpan_ "task" $ threadDelay 10000)
           mapM_ wait tasks
           threadDelay 10000
       addEvent sp "message" "started bg work"
