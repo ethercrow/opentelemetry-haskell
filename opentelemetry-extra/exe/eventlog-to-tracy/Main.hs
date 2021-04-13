@@ -39,12 +39,12 @@ main = do
     ["-h"] -> help
     ["--help"] -> help
     ["help"] -> help
-    [eventlogFile] -> work eventlogFile CollapseThreads
+    [eventlogFile] -> work eventlogFile SplitThreads
     ["--collapse-threads", eventlogFile] -> work eventlogFile CollapseThreads
     ["--split-threads", eventlogFile] -> work eventlogFile SplitThreads
     _ -> help
 
-work :: FilePath -> DoWeCollapseThreads -> IO ()
+work :: FilePath -> ThreadPresentation -> IO ()
 work inputFile doWeCollapseThreads = do
   let chromeFile = inputFile ++ ".trace.json"
       tracyFile = inputFile ++ ".tracy"

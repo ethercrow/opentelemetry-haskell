@@ -64,6 +64,7 @@ data Span = Span
   { spanContext :: {-# UNPACK #-} !SpanContext,
     spanOperation :: T.Text,
     spanThreadId :: Word32,
+    spanDisplayThreadId :: Word32,
     spanStartedAt :: !Timestamp,
     spanFinishedAt :: !Timestamp,
     spanTags :: !(HM.HashMap TagName TagValue),
