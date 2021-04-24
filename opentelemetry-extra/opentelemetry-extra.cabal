@@ -141,7 +141,7 @@ benchmark ot-write-benchmark
     -eventlog
   build-depends:
     base,
-    gauge >= 0.2.4,
+    tasty-bench >= 0.2.4,
     opentelemetry >= 0.6.1,
 
 executable eventlog-to-chrome

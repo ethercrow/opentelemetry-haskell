@@ -3,7 +3,7 @@
 module Main where
 
 import Data.Word
-import Gauge.Main
+import Test.Tasty.Bench
 import qualified OpenTelemetry.Eventlog as BE
 import OpenTelemetry.SpanContext
 
