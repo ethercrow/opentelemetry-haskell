@@ -2,10 +2,5 @@ packages: */*.cabal
 
 source-repository-package
   type: git
-  location: https://github.com/LaurentRDC/foundation
-  tag: d02ab182c977272ae4089ce20d15d82fc4fcd5e8
-  subdir: basement
-source-repository-package
-  type: git
   location: https://github.com/andrewthad/hs-memory
   tag: 683b402965e68800337af8f9b237d28be273c0d8
