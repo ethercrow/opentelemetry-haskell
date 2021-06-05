@@ -1,8 +1,13 @@
 # Revision history for opentelemetry
 
+## 0.7.0 -- 2021-06-05
+
+* More ergonomic presentation of multi-threaded profiles in Tracy.
+* Internal change in opentelemetry-extra: replace aeson with jsonifier.
+
 ## 0.6.1 -- 2020-08-28
 
-* Bring back the support for GHC-8.6
+* Bring back the support for GHC-8.6.
 
 ## 0.6.0 -- 2020-07-10
 
