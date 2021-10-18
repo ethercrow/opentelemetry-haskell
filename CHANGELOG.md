@@ -1,5 +1,9 @@
 # Revision history for opentelemetry
 
+## 0.7.1 -- 2021-10-18
+
+* Fix pid field missing from metric events in eventlog-to-chrome output.
+
 ## 0.7.0 -- 2021-06-05
 
 * More ergonomic presentation of multi-threaded profiles in Tracy.
