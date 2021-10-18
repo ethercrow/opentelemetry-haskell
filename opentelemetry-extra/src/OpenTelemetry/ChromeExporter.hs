@@ -109,6 +109,7 @@ createChromeExporter' path threadPresentation = do
                 J.toByteString $
                   J.object
                     [ ("ph", J.textString "C"),
+                      ("pid", J.intNumber 1),
                       ("name", J.textString name),
                       ("ts", J.wordNumber $ fromIntegral $ div ts 1000),
                       ("args", J.object [(name, J.intNumber value)])
