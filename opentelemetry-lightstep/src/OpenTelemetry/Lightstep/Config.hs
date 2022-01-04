@@ -40,7 +40,7 @@ getEnvConfig = liftIO $ do
       host <- fromMaybe "ingest.lightstep.com" <$> lookupOneOfEnvs ["LIGHTSTEP_HOST", "OPENTRACING_LIGHTSTEP_COLLECTOR_HOST"]
       port <- maybe 443 read <$> lookupOneOfEnvs ["LIGHTSTEP_PORT", "OPENTRACING_LIGHTSTEP_COLLECTOR_PORT"]
       service <- fromMaybe prog_name <$> lookupOneOfEnvs ["LIGHTSTEP_SERVICE", "OPENTRACING_LIGHTSTEP_COMPONENT_NAME"]
-      pure $ Just $ LightstepConfig host port (T.pack t) (T.pack service) global_tags 5 4096
+      pure $ Just $ LightstepConfig host port (T.pack t) (T.pack service) global_tags 5 1024
     Nothing -> do
       hPutStrLn stderr "LIGHTSTEP_ACCESS_TOKEN environment variable not defined"
       pure Nothing

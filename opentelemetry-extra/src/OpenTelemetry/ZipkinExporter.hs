@@ -100,7 +100,7 @@ createZipkinSpanExporter cfg = liftIO do
           atomically $ do
             q_population <- fromIntegral <$> lengthTBQueue q
             let q_vacancy = fromIntegral (zSpanQueueSize (zcConfig client) - q_population)
-            modifyTVar droppedSpanCountVar (\x -> x + length sps - q_vacancy)
+            modifyTVar' droppedSpanCountVar (\x -> x + length sps - q_vacancy)
             mapM_
               (writeTBQueue q)
               (take q_vacancy sps)

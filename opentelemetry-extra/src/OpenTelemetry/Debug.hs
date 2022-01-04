@@ -30,4 +30,4 @@ d_ =
 {-# NOINLINE d_ #-}
 
 inc :: Int -> TVar Int -> IO ()
-inc amount counterVar = atomically $ modifyTVar counterVar (+ amount)
+inc amount counterVar = atomically $ modifyTVar' counterVar (+ amount)

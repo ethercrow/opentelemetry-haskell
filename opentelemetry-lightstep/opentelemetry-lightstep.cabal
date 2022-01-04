@@ -57,7 +57,8 @@ library
     scientific,
     stm,
     text,
-    unordered-containers
+    unordered-containers,
+    jsonifier
   hs-source-dirs: src
   exposed-modules:
     OpenTelemetry.Lightstep.Config
