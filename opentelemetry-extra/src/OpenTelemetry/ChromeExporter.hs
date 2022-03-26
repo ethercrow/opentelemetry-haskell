@@ -47,6 +47,7 @@ jChromeBeginSpan Span {..} =
         J.object
           ( spanTags
               & HM.insert "gc_us" (IntTagValue . fromIntegral $ spanNanosecondsSpentInGC `div` 1000)
+              & HM.insert "original_tid" (IntTagValue . fromIntegral $ spanThreadId)
               & ( if spanNanosecondsSpentInGC == 0
                     then id
                     else HM.insert "gc_fraction" (DoubleTagValue (fromIntegral spanNanosecondsSpentInGC / fromIntegral (spanFinishedAt - spanStartedAt)))
