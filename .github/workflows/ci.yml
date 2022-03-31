@@ -13,7 +13,7 @@ jobs:
         ghc: ['8.6', '8.8', '8.10', '9.0', '9.2']
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v3
     - uses: actions/cache@v3.0.1
       name: Cache ~/.cabal/packages
       with:
@@ -51,7 +51,7 @@ jobs:
         stack-yaml: ['stack-8.10.yaml']
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v3
     - uses: actions/cache@v3.0.1
       name: Cache ~/.stack
       with:
@@ -79,7 +79,7 @@ jobs:
         stack-yaml: ['stack-8.10.yaml']
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v3
     - uses: actions/cache@v3.0.1
       name: Cache ~/.stack
       with:
@@ -107,7 +107,7 @@ jobs:
         ghc: ['8.10', '9.0', '9.2']
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v3
     - uses: actions/cache@v3.0.1
       name: Cache ~/.cabal/packages
       with:
