@@ -1,5 +1,9 @@
 # Revision history for opentelemetry
 
+## 0.8.0 -- 2022-04-07
+
+* Record original thread id in Chrome output
+
 ## 0.7.1 -- 2021-10-18
 
 * Fix pid field missing from metric events in eventlog-to-chrome output.
