@@ -277,7 +277,7 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
         Nothing -> error $ "set spanid " <> show serial <> " " <> show span_id <> ": span id not found"
     SetTraceEv (SpanInFlight serial) trace_id ->
       case HM.lookup serial $ serial2sid st of
-        Nothing -> error $ "set traceid: span id not found for serial" <> show serial
+        Nothing -> error $ "set traceid: span id not found for serial " <> show serial
         Just span_id ->
           ( (modifySpan span_id (setTraceId trace_id) st)
               { traceMap = HM.insert tid trace_id $ traceMap st
@@ -287,7 +287,7 @@ handleOpenTelemetryEventlogEvent m st (tid, now, m_trace_id) =
           )
     TagEv (SpanInFlight serial) k v ->
       case HM.lookup serial $ serial2sid st of
-        Nothing -> error $ "set tag: span id not found for serial" <> show serial
+        Nothing -> error $ "set tag: span id not found for serial " <> show serial
         Just span_id -> (modifySpan span_id (setTag k v) st, [], [])
     EndSpanEv (SpanInFlight serial) ->
       case HM.lookup serial $ serial2sid st of

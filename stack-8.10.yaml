@@ -1,4 +1,4 @@
-resolver: nightly-2021-04-02
+resolver: lts-18.28
 
 packages:
 - megaexample
@@ -8,7 +8,3 @@ packages:
 - opentelemetry-wai
 
 allow-newer: true
-
-extra-deps:
-- jsonifier-0.1.0.5
-- ptr-poker-0.1.1.3

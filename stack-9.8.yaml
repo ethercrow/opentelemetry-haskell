@@ -1,0 +1,10 @@
+resolver: lts-23.19
+
+packages:
+- megaexample
+- opentelemetry
+- opentelemetry-extra
+- opentelemetry-lightstep
+- opentelemetry-wai
+
+allow-newer: true
